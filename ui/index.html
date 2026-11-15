@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="__LOCALE__" data-platform="__PLATFORM__"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>ClickPulse</title><style>/*__STYLE__*/</style></head>
+<html lang="__LOCALE__" data-platform="__PLATFORM__"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https://clickpulse.fangdutex.cn; font-src data: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>ClickPulse</title><style>/*__STYLE__*/</style></head>
 <body>
 <aside class="sidebar">
   <div class="brand"><span class="brand-icon"><img src="__BRAND_MARK__" alt="" aria-hidden="true"></span><div>ClickPulse<small data-i18n="brand.description">键鼠统计</small></div></div>
@@ -7,6 +7,7 @@
     <button data-page="overview" class="selected"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></span><span data-i18n="page.overview">总览</span></button>
     <button data-page="history"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span><span data-i18n="page.history">历史记录</span></button>
     <button data-page="keys"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 9h.5m3.5 0h.5m3.5 0h.5m3.5 0h.5M6 12.5h.5m3.5 0h.5m3.5 0h.5m3.5 0h.5M8 16h8"/></svg></span><span data-i18n="page.keys">键盘热力图</span></button>
+    <button data-page="leaderboard"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M6 4H3v3c0 2 1.5 3.5 4 4M18 4h3v3c0 2-1.5 3.5-4 4"/><path d="M7 3h10v6a5 5 0 0 1-10 0Z"/></svg></span><span data-i18n="page.leaderboard">排行榜</span></button>
     <button id="settings-nav" data-page="settings" aria-expanded="false" aria-controls="settings-subnav"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2-2 1-2-.5-2 3.5L4.5 11v2L3 15l2 3.5 2-.5 2 1 .5 2h5l.5-2 2-1 2 .5 2-3.5-1.5-2v-2L21 9l-2-3.5-2 .5-2-1-.5-2Z"/><circle cx="12" cy="12" r="3"/></svg></span><span data-i18n="page.settings">偏好设置</span></button>
     <div id="settings-subnav" class="settings-subnav" hidden>
       <button data-settings-section="personalization-settings" data-i18n="settings.personalization">个性化</button>
@@ -58,6 +59,24 @@
         <div class="keyboard-scroll"><div id="keyboard-layout" class="keyboard-layout" aria-label="键盘按键频率热力图" data-i18n-aria="keys.layout"></div></div>
         <div id="keyboard-treemap" class="keyboard-treemap" aria-label="按键使用频率色块图" data-i18n-aria="keys.treemap" hidden></div>
         <div class="keyboard-bottom"><span id="keyboard-coverage"></span><span class="keyboard-scale"><span data-i18n="common.low">少 </span><i class="level-0"></i><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><span data-i18n="common.high"> 多</span></span></div>
+      </article>
+    </section>
+    <section class="page" id="leaderboard" hidden>
+      <div id="leaderboard-loading" class="banner" role="status" aria-live="polite" hidden><p data-i18n="leaderboard.loading">正在连接排行榜…</p></div>
+      <div id="leaderboard-error" class="banner error" role="alert" hidden></div>
+      <article id="leaderboard-join" class="card leaderboard-join" hidden>
+        <div class="card-heading"><div><h2 data-i18n="leaderboard.join_title">加入排行榜</h2><p data-i18n="leaderboard.join_description">使用邀请码和昵称加入。只有每日键盘、鼠标聚合次数会上传。</p></div></div>
+        <div class="leaderboard-form"><label><span data-i18n="leaderboard.invite">邀请码</span><input id="leaderboard-invite" maxlength="64" autocomplete="off"></label><label><span data-i18n="leaderboard.nickname">昵称</span><input id="leaderboard-nickname" maxlength="24" autocomplete="nickname"></label><button class="button primary" id="leaderboard-join-button" data-i18n="leaderboard.join">确认加入</button></div>
+        <p class="leaderboard-privacy" data-i18n="leaderboard.privacy">不会上传按键内容、具体键位、应用名称、鼠标位置或本地数据库。你可以随时退出并删除云端资料。</p>
+      </article>
+      <article id="leaderboard-profile" class="card leaderboard-profile" hidden>
+        <div class="leaderboard-identity"><div id="leaderboard-avatar" class="leaderboard-avatar" aria-hidden="true"></div><div><strong id="leaderboard-profile-name"></strong><p id="leaderboard-sync-status"></p></div></div>
+        <div class="leaderboard-profile-actions" id="leaderboard-profile-actions"><button class="button" id="leaderboard-avatar-change" data-i18n="leaderboard.avatar_change">更换头像</button><button class="button" id="leaderboard-avatar-delete" data-i18n="leaderboard.avatar_delete">使用默认头像</button><button class="button danger" id="leaderboard-leave" data-i18n="leaderboard.leave">退出并删除资料</button></div>
+      </article>
+      <article class="card leaderboard-board">
+        <div class="card-heading"><div><h2 data-i18n="leaderboard.title">社区排行榜</h2><p id="leaderboard-range"></p></div><div class="leaderboard-toolbar"><div class="segments"><button class="selected" data-leaderboard-period="today" data-i18n="leaderboard.today">今日榜</button><button data-leaderboard-period="week" data-i18n="leaderboard.week">本周榜</button></div><button class="button" id="leaderboard-sync" data-i18n="leaderboard.sync">同步并刷新</button></div></div>
+        <div class="table-wrap"><table class="leaderboard-table"><thead><tr><th data-i18n="leaderboard.rank">名次</th><th data-i18n="leaderboard.member">成员</th><th data-i18n="common.keyboard">键盘</th><th data-i18n="common.mouse">鼠标</th><th data-i18n="history.total">总计</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
+        <p id="leaderboard-empty" class="leaderboard-empty" data-i18n="leaderboard.empty" hidden>还没有上榜成员。</p>
       </article>
     </section>
     <section class="page" id="settings" hidden>

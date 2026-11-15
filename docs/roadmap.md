@@ -27,4 +27,4 @@ Prioritize optional date-based deletion with a clear preview, database size diag
 
 Writer connections cache calendar projections and invalidate them after import or time-zone changes. Incremental history/keyboard payloads remain a possible optimization for very long histories.
 
-Keep the focus on lightweight activity statistics. The optional Mini Sport visualizer does not add games; cloud sync and online analysis are outside the current plan.
+Keep the focus on lightweight activity statistics. The optional Mini Sport visualizer does not add games. The opt-in community leaderboard accepts only daily aggregate counts and is not cloud sync or online analysis; local history remains the source of truth.

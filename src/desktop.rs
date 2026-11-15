@@ -15,6 +15,7 @@ mod data_settings;
 #[cfg(target_os = "macos")]
 mod edit_menu;
 mod ipc;
+mod leaderboard;
 mod refresh;
 mod updates;
 mod webview;
@@ -57,6 +58,7 @@ enum UiEvent {
         id: u64,
         result: std::result::Result<DataOutcome, String>,
     },
+    Leaderboard(std::result::Result<serde_json::Value, String>),
     #[cfg(target_os = "windows")]
     Activate,
 }
@@ -403,6 +405,13 @@ pub fn run(
     let mut snapshots = SnapshotGate::default();
     let mut sport_samples = SnapshotGate::default();
     let mut last_sport_sample = Instant::now() - Duration::from_secs(1);
+    let mut leaderboard_joined = clickpulse::leaderboard::load_profile()
+        .ok()
+        .flatten()
+        .is_some();
+    let mut leaderboard_syncing = false;
+    let mut leaderboard_period = clickpulse::leaderboard::Period::Today;
+    let mut next_leaderboard_sync = Instant::now();
     let mut data_job: Option<u64> = None;
     let mut next_data_job = 0u64;
     let mut quit_after_data = false;
@@ -477,20 +486,40 @@ pub fn run(
                     }
                 }
             }
-            Event::UserEvent(UiEvent::SportSample { id, result }) => {
+            Event::UserEvent(UiEvent::Leaderboard(result)) => {
+                leaderboard_syncing = false;
+                let script = match result {
+                    Ok(value) => {
+                        leaderboard_joined = value
+                            .pointer("/profile/joined")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(leaderboard_joined);
+                        if leaderboard_joined {
+                            next_leaderboard_sync = Instant::now() + Duration::from_secs(15 * 60);
+                        }
+                        format!("window.receiveLeaderboard?.({value});")
+                    }
+                    Err(error) => serde_json::to_string(&error)
+                        .map(|error| format!("window.receiveLeaderboardError?.({error});"))
+                        .unwrap_or_default(),
+                };
+                if ready {
+                    let _ = webview.evaluate_script(&script);
+                }
+            }
+            Event::UserEvent(UiEvent::SportSample { id, result })
                 if sport_samples.complete(id).is_some()
                     && ready
                     && visible
                     && preferences.compact
                     && preferences.sport_enabled
-                    && preferences.sport_visible
-                {
-                    let script = match result {
-                        Ok(json) => format!("window.receiveSport?.({json});"),
-                        Err(_) => "window.receiveSport?.({available:false});".to_owned(),
-                    };
-                    let _ = webview.evaluate_script(&script);
-                }
+                    && preferences.sport_visible =>
+            {
+                let script = match result {
+                    Ok(json) => format!("window.receiveSport?.({json});"),
+                    Err(_) => "window.receiveSport?.({available:false});".to_owned(),
+                };
+                let _ = webview.evaluate_script(&script);
             }
             Event::UserEvent(UiEvent::Snapshot {
                 id,
@@ -762,6 +791,81 @@ pub fn run(
                             }
                             view_changed = true;
                         }
+                        Request::Leaderboard { period } => {
+                            leaderboard_period = period;
+                            if demo {
+                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard(Ok(
+                                    leaderboard::demo(period),
+                                )));
+                            } else {
+                                leaderboard::load(snapshot_proxy.clone(), period);
+                            }
+                        }
+                        Request::LeaderboardJoin {
+                            invite_code,
+                            nickname,
+                        } => {
+                            if demo || source_mode || runtime.is_none() {
+                                let _ = webview.evaluate_script("window.receiveLeaderboardError?.('Leaderboard membership is only available for the normal local profile.');");
+                            } else {
+                                leaderboard::join(snapshot_proxy.clone(), invite_code, nickname);
+                            }
+                        }
+                        Request::LeaderboardSync { period } => {
+                            leaderboard_period = period;
+                            if demo {
+                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard(Ok(
+                                    leaderboard::demo(period),
+                                )));
+                            } else if !leaderboard_syncing && let Some(rt) = &runtime {
+                                leaderboard_syncing = true;
+                                let proxy = snapshot_proxy.clone();
+                                let zone = clickpulse::timezone::TimeZonePreference::Named(
+                                    "Asia/Shanghai".parse().expect("valid leaderboard timezone"),
+                                );
+                                if let Err(error) = rt.request_snapshot_in_timezone(
+                                    zone,
+                                    move |result| match result {
+                                        Ok(snapshot) => {
+                                            leaderboard::sync_snapshot(proxy, snapshot, period)
+                                        }
+                                        Err(error) => {
+                                            let _ = proxy.send_event(UiEvent::Leaderboard(Err(
+                                                format!("{error:#}"),
+                                            )));
+                                        }
+                                    },
+                                ) {
+                                    leaderboard_syncing = false;
+                                    let message = serde_json::to_string(&format!("{error:#}"))
+                                        .unwrap_or_else(|_| "\"Leaderboard sync failed\"".into());
+                                    let _ = webview.evaluate_script(&format!(
+                                        "window.receiveLeaderboardError?.({message});"
+                                    ));
+                                }
+                            }
+                        }
+                        Request::LeaderboardRename { nickname, period } => {
+                            leaderboard::rename(snapshot_proxy.clone(), nickname, period);
+                        }
+                        Request::LeaderboardAvatar { period } => {
+                            if let Some(path) = rfd::FileDialog::new()
+                                .set_title(locale.text("leaderboard.avatar_choose"))
+                                .add_filter("Images", &["jpg", "jpeg", "png", "webp"])
+                                .pick_file()
+                            {
+                                leaderboard::upload_avatar(snapshot_proxy.clone(), path, period);
+                            } else {
+                                let _ = webview
+                                    .evaluate_script("window.receiveLeaderboardCancelled?.();");
+                            }
+                        }
+                        Request::LeaderboardAvatarDelete { period } => {
+                            leaderboard::delete_avatar(snapshot_proxy.clone(), period);
+                        }
+                        Request::LeaderboardLeave {} => {
+                            leaderboard::leave(snapshot_proxy.clone());
+                        }
                         Request::SportSample {} => {
                             if ready
                                 && data_job.is_none()
@@ -991,6 +1095,35 @@ pub fn run(
                 next_refresh =
                     Instant::now() + refresh::interval(webview.is_active(), preferences.compact);
                 let now = chrono::Utc::now().timestamp();
+                if ready
+                    && leaderboard_joined
+                    && !leaderboard_syncing
+                    && !demo
+                    && !source_mode
+                    && data_job.is_none()
+                    && Instant::now() >= next_leaderboard_sync
+                    && let Some(rt) = &runtime
+                {
+                    leaderboard_syncing = true;
+                    next_leaderboard_sync = Instant::now() + Duration::from_secs(15 * 60);
+                    let proxy = snapshot_proxy.clone();
+                    let period = leaderboard_period;
+                    let zone = clickpulse::timezone::TimeZonePreference::Named(
+                        "Asia/Shanghai".parse().expect("valid leaderboard timezone"),
+                    );
+                    if rt
+                        .request_snapshot_in_timezone(zone, move |result| match result {
+                            Ok(snapshot) => leaderboard::sync_snapshot(proxy, snapshot, period),
+                            Err(error) => {
+                                let _ = proxy
+                                    .send_event(UiEvent::Leaderboard(Err(format!("{error:#}"))));
+                            }
+                        })
+                        .is_err()
+                    {
+                        leaderboard_syncing = false;
+                    }
+                }
                 if ready
                     && data_job.is_none()
                     && !quit_after_data

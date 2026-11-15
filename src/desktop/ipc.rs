@@ -36,6 +36,27 @@ pub(super) enum Request {
     SportVisible {
         visible: bool,
     },
+    Leaderboard {
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardJoin {
+        invite_code: String,
+        nickname: String,
+    },
+    LeaderboardSync {
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardRename {
+        nickname: String,
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardAvatar {
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardAvatarDelete {
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardLeave {},
     Pause {},
     Permission {},
     Autostart {},
@@ -89,6 +110,10 @@ mod tests {
             // Warp is the only Sport effect; there is no skin choice to send.
             r#"{"action":"sport_skin","skin":"warp"}"#,
             r#"{"action":"sport_sample","mouse":99999}"#,
+            r#"{"action":"leaderboard","period":"lifetime"}"#,
+            r#"{"action":"leaderboard_join","invite_code":"x"}"#,
+            r#"{"action":"leaderboard_sync","period":"today","keyboard":1}"#,
+            r#"{"action":"leaderboard_leave","keep_data":true}"#,
         ] {
             assert!(serde_json::from_str::<Request>(body).is_err(), "{body}");
         }
@@ -100,6 +125,21 @@ mod tests {
             serde_json::from_str::<Request>(r#"{"action":"language","language":"zh-CN"}"#).unwrap(),
             Request::Language {
                 language: LanguagePreference::Chinese
+            }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_join","invite_code":"CP_123456","nickname":"Luo"}"#
+            )
+            .unwrap(),
+            Request::LeaderboardJoin { invite_code, nickname }
+                if invite_code == "CP_123456" && nickname == "Luo"
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week"}"#)
+                .unwrap(),
+            Request::LeaderboardSync {
+                period: clickpulse::leaderboard::Period::Week
             }
         ));
     }

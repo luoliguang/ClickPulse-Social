@@ -14,6 +14,7 @@ pub mod handoff;
 pub mod history_import;
 pub mod hourly;
 pub mod input;
+pub mod leaderboard;
 pub mod localization;
 pub mod logging;
 pub mod platform;

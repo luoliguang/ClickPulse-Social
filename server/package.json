@@ -1,0 +1,28 @@
+{
+  "name": "clickpulse-leaderboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-first aggregate leaderboard API for ClickPulse",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "esbuild src/index.ts src/migrate.ts src/invite.ts --bundle --platform=node --target=node18 --format=cjs --outdir=dist",
+    "start": "node dist/index.js",
+    "migrate": "node dist/migrate.js",
+    "invite": "node dist/invite.js",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "fastify": "^4.29.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

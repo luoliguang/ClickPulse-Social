@@ -1,0 +1,99 @@
+name: Deploy leaderboard API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: clickpulse-api-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          API_ROOT: ${{ vars.API_ROOT }}
+          API_PORT: ${{ vars.API_PORT }}
+          NODE_BIN: ${{ vars.NODE_BIN }}
+        run: |
+          missing=0
+          for name in SSH_HOST SSH_USER SSH_KEY API_ROOT API_PORT NODE_BIN; do
+            if [ -z "${!name}" ]; then echo "- ❌ $name" >> "$GITHUB_STEP_SUMMARY"; missing=1; else echo "- ✅ $name" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          if [ "$missing" = 0 ]; then echo 'ready=true' >> "$GITHUB_OUTPUT"; else echo 'ready=false' >> "$GITHUB_OUTPUT"; echo '::warning::Leaderboard deployment skipped because configuration is incomplete.'; fi
+
+  deploy:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Verify and build
+        working-directory: server
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+          npm run build
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Validate target
+        env:
+          API_ROOT: ${{ vars.API_ROOT }}
+          API_PORT: ${{ vars.API_PORT }}
+          NODE_BIN: ${{ vars.NODE_BIN }}
+        run: |
+          case "$API_ROOT" in
+            /www/wwwroot/*-api) ;;
+            *) echo "::error::API_ROOT must be a dedicated /www/wwwroot/*-api directory"; exit 1 ;;
+          esac
+          case "$API_PORT" in ''|*[!0-9]*) echo '::error::API_PORT must be numeric'; exit 1;; esac
+          case "$NODE_BIN" in /www/server/nodejs/*/bin) ;; *) echo '::error::NODE_BIN must name one exact BaoTa Node bin directory'; exit 1;; esac
+      - name: Upload, migrate and reload
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          API_ROOT: ${{ vars.API_ROOT }}
+          API_PORT: ${{ vars.API_PORT }}
+          NODE_BIN: ${{ vars.NODE_BIN }}
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "mkdir -p '$API_ROOT/logs'"
+          rsync -az --delete \
+            --exclude='.env' --exclude='logs/' \
+            -e "$SSH_CMD" \
+            server/dist server/src/schema.sql server/ecosystem.config.cjs server/package.json \
+            "$SSH_USER@$SSH_HOST:$API_ROOT/"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; export PATH='$NODE_BIN':\$PATH; cd '$API_ROOT'; test -f .env; node dist/migrate.js; pm2 startOrReload ecosystem.config.cjs; curl --fail --silent --show-error 'http://127.0.0.1:$API_PORT/api/v1/health'"
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub
