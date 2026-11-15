@@ -30,16 +30,15 @@ let miniData=null;
 let data=null,page='overview',range=14,toastTimer;
 let recordingPaused=null;
 let dataOperationBusy=false;
-let updateState={status:'idle',current:'',channel:'',version:null,can_install:false,update_command:null,automatic:true,received:0,total:0};
+let updateState={status:'idle',current:'',version:null,can_install:false,update_command:null,automatic:true,received:0,total:0};
 const updateBusy=()=>['downloading','verifying','preparing','installing'].includes(updateState.status);
 const updateInstalling=()=>['preparing','installing'].includes(updateState.status);
 function renderUpdateState(){
   const button=$('check-updates'),status=$('update-status'),details=$('update-details');
   if(!button||!status||!details)return;
   const state=updateState,available=['available','ready'].includes(state.status),managed=!!state.update_command;
-  const currentVersion=$('update-current-version'),channel=$('update-channel');
+  const currentVersion=$('update-current-version');
   if(currentVersion)setSelectableText(currentVersion,state.current?t('update.current_version',{version:state.current}):'');
-  if(channel)setSelectableText(channel,state.channel?t('update.channel',{channel:state.channel}):'');
   const key={checking:'update.checking',current:'update.current',ready:'update.ready',available:managed||state.can_install?'update.available':'update.manual',error:'update.failed',verifying:'update.verifying',preparing:'update.preparing',installing:'update.restarting'}[state.status];
   const percent=state.total>0?Math.min(100,Math.floor(state.received/state.total*100)):0;
   const text=state.status==='downloading'?t('update.downloading',{percent}):key?t(key,{version:state.version||state.current}):state.current?t('update.version',{version:state.current}):'';

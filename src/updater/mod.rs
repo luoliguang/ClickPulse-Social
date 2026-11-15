@@ -17,7 +17,6 @@ pub use install::{
     package_update_command, take_notice,
 };
 
-pub const REPOSITORY: &str = "luoliguang/ClickPulse-Social";
 pub const RELEASES: &str = "https://github.com/luoliguang/ClickPulse-Social/releases";
 const API: &str = "https://api.github.com/repos/luoliguang/ClickPulse-Social/releases/latest";
 const MAX_ARCHIVE: u64 = 128 * 1024 * 1024;

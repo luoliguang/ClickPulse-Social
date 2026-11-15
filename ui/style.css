@@ -119,6 +119,16 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .setting-row + .setting-row {border-top:1px solid var(--line)}.setting-row:last-child {padding-bottom:2px}.setting-row strong {font-size:var(--ui-label-size);line-height:1.5;font-weight:600;color:#365479}
 .setting-row p {font-size:var(--ui-detail-size);line-height:1.7;color:#7186a3;margin:6px 0 0}.path {font:11px var(--mono)!important;overflow-wrap:anywhere}.setting-row>div {min-width:0}
 .setting-row a {font-size:var(--ui-detail-size);line-height:1.7;color:var(--blue)}
+.setting-label {display:inline-flex;align-items:center;gap:7px}
+.info-tip {position:relative;display:inline-flex;align-items:center}
+.info-tip-trigger {display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--muted);cursor:pointer;flex:none}
+.info-tip-trigger svg {width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.info-tip-trigger:hover,.info-tip-trigger:focus-visible {color:var(--blue);border-color:var(--blue)}
+.info-tip-trigger:focus-visible {outline:none;box-shadow:0 0 0 3px #60a5fa}
+.info-tip-bubble {position:absolute;bottom:calc(100% + 9px);left:-1px;transform:translateY(3px);width:max-content;max-width:250px;padding:10px 12px;border-radius:8px;background:#173b6b;color:#fff;font:400 11px/1.65 var(--sans);box-shadow:0 8px 22px #17376338;opacity:0;visibility:hidden;transition:opacity .18s ease,transform .18s ease,visibility .18s;pointer-events:none;z-index:70;text-align:left;white-space:normal}
+.info-tip-bubble::after {content:'';position:absolute;top:100%;left:9px;border:5px solid transparent;border-top-color:#173b6b}
+.info-tip:hover .info-tip-bubble,.info-tip:focus-within .info-tip-bubble {opacity:1;visibility:visible;transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.info-tip-bubble{transition:none}}
 .settings-card .button,.settings-card select {font:600 var(--ui-label-size)/1.4 var(--sans);text-align:center}
 #demo-badge {font-size:10px;color:#497bc1;border:1px solid #bcd2ef;border-radius:4px;padding:4px 7px}
 #toast {position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#173b6b;color:#fff;padding:12px 20px;border-radius:7px;font-size:12px;box-shadow:0 5px 24px #17376325;max-width:80%;z-index:10}
