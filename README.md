@@ -21,6 +21,10 @@
 
 <p align="center">Your key and click statistics stay on your device.<br>No account, no telemetry.</p>
 
+> **二次开发声明**：本项目是 [endNone/ClickPulse](https://github.com/endNone/ClickPulse)（原作者 [Wuhan Zhang](https://github.com/endNone)）的独立 fork，由 罗洋洋（[luoliguang](https://github.com/luoliguang)）维护，沿用 GPL-3.0-or-later 许可。
+>
+> **Fork notice**: an independent fork of [endNone/ClickPulse](https://github.com/endNone/ClickPulse) by [Wuhan Zhang](https://github.com/endNone), maintained by Luo Yangyang ([luoliguang](https://github.com/luoliguang)), under the same GPL-3.0-or-later license.
+
 ## Overview
 
 [![Overview](docs/images/overview-en.jpg)](docs/images/overview-en.jpg)
@@ -89,6 +93,12 @@ Optional effects in Mini mode react to your typing and clicking speed. Enable th
 
 Read the [documentation](docs/README.md) and [changelog](CHANGELOG.md).<br>
 [Report a bug](https://github.com/endNone/ClickPulse/issues/new/choose) or [join the discussion](https://github.com/endNone/ClickPulse/discussions).
+
+## Credits
+
+本项目是 [endNone/ClickPulse](https://github.com/endNone/ClickPulse) 的二次开发版本，感谢原作者 [Wuhan Zhang](https://github.com/endNone) 的出色工作。
+
+This project is a fork of [endNone/ClickPulse](https://github.com/endNone/ClickPulse), created by [Wuhan Zhang](https://github.com/endNone). Thank you to the original author for the excellent foundation.
 
 ## Star history
 
