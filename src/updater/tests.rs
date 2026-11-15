@@ -194,7 +194,7 @@ fn release_metadata_cannot_redirect_to_another_repo_or_unsafe_version() {
             2 => r.html_url = "https://example.com/release".into(),
             3 => {
                 r.assets[0].browser_download_url =
-                    "http://github.com/endNone/ClickPulse/file".into()
+                    "http://github.com/luoliguang/ClickPulse-Social/file".into()
             }
             4 => r.assets[0].browser_download_url = "https://github.com/other/repo/file".into(),
             5 => r.assets.push(r.assets[0].clone()),

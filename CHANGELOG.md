@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 · 2026-11-15
+
+### Changed
+
+- Check for updates from the ClickPulse-Social repository.
+
 ## 0.3.1 · 2026-11-14
 
 ### Improved

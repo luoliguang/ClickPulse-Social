@@ -431,6 +431,7 @@ mod tests {
 #[derive(Serialize)]
 struct View {
     current: &'static str,
+    channel: &'static str,
     status: &'static str,
     version: Option<String>,
     can_install: bool,
@@ -467,6 +468,7 @@ impl Controller {
                 .and_then(Result::ok),
             view: View {
                 current: clickpulse::version::PUBLIC,
+                channel: updater::REPOSITORY,
                 status: "idle",
                 version: None,
                 can_install: false,

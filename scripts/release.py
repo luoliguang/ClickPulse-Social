@@ -148,6 +148,9 @@ def release_notes(version, repository, revision, private=False, *, artwork_revis
         changes = ('- Download updates automatically; install and restart when you confirm.\n'
                    '- Keep WinGet installations updated through their package manager.\n'
                    '- Restore missing Windows startup paths when ClickPulse opens.\n')
+    elif version == '0.3.2':
+        changes = ('- Check for updates from the ClickPulse-Social repository.\n'
+                   '- Explain Sport mode in Settings.\n')
     return f'''Local keyboard and mouse activity statistics. Fully offline.
 {access}
 ## Downloads
