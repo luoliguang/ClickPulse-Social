@@ -76,7 +76,10 @@ jobs:
             *) echo "::error::API_ROOT must be a dedicated /www/wwwroot/*-api directory"; exit 1 ;;
           esac
           case "$API_PORT" in ''|*[!0-9]*) echo '::error::API_PORT must be numeric'; exit 1;; esac
-          case "$NODE_BIN" in /www/server/nodejs/*/bin) ;; *) echo '::error::NODE_BIN must name one exact BaoTa Node bin directory'; exit 1;; esac
+          if [[ ! "$NODE_BIN" =~ ^(/www/server/nodejs|/root/\.nvm/versions/node)/v[0-9]+(\.[0-9]+){1,2}/bin$ ]]; then
+            echo '::error::NODE_BIN must name one exact BaoTa or root NVM Node version bin directory'
+            exit 1
+          fi
       - name: Upload, migrate and reload
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
