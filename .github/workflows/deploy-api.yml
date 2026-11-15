@@ -96,7 +96,7 @@ jobs:
             -e "$SSH_CMD" \
             server/dist server/src/schema.sql server/ecosystem.config.cjs server/package.json \
             "$SSH_USER@$SSH_HOST:$API_ROOT/"
-          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; export PATH='$NODE_BIN':\$PATH; cd '$API_ROOT'; test -f .env; node dist/migrate.js; pm2 startOrReload ecosystem.config.cjs; curl --fail --silent --show-error 'http://127.0.0.1:$API_PORT/api/v1/health'"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; export PATH='$NODE_BIN':\$PATH; cd '$API_ROOT'; test -f .env; node dist/migrate.js; pm2 startOrReload ecosystem.config.cjs; for attempt in \$(seq 1 30); do if curl --fail --silent --output /dev/null 'http://127.0.0.1:$API_PORT/api/v1/health'; then pm2 save --force >/dev/null; exit 0; fi; sleep 1; done; pm2 logs clickpulse-api --lines 50 --nostream; exit 1"
       - name: Clean up key
         if: always()
         run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub

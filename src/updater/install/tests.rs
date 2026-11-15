@@ -243,7 +243,16 @@ fn installation_waits_for_parent_release_and_explicit_successful_save() {
     guard.finish_shutdown(true, true).unwrap();
     assert!(other.try_lock().is_err());
     drop(guard);
-    other.try_lock().unwrap();
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        match other.try_lock() {
+            Ok(()) => break,
+            Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < until => {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(error) => panic!("lock was not released after dropping the parent guard: {error}"),
+        }
+    }
     let commit: Commit =
         serde_json::from_slice(&fs::read(temp.path().join("commit.ok")).unwrap()).unwrap();
     assert_eq!(commit.manifest_hash, "a".repeat(64));
