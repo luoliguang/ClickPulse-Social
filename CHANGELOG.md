@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 · 2026-11-16
+
+### New
+
+- Join an opt-in community leaderboard with an invitation code and nickname.
+- Upload only daily keyboard and mouse totals; the app stays offline by default.
+- See today and this-week rankings with default or custom avatars.
+- Leave the leaderboard or delete your profile at any time.
+
 ## 0.3.2 · 2026-11-15
 
 ### Changed

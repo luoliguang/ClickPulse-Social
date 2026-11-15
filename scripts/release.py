@@ -151,6 +151,10 @@ def release_notes(version, repository, revision, private=False, *, artwork_revis
     elif version == '0.3.2':
         changes = ('- Check for updates from the ClickPulse-Social repository.\n'
                    '- Explain Sport mode in Settings.\n')
+    elif version == '0.4.0':
+        changes = ('- Join an opt-in community leaderboard with an invitation code and nickname.\n'
+                   '- Upload only daily keyboard and mouse totals; the app stays offline by default.\n'
+                   '- See today and this-week rankings with default or custom avatars.\n')
     return f'''Local keyboard and mouse activity statistics. Fully offline.
 {access}
 ## Downloads
