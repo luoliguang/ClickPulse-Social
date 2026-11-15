@@ -236,6 +236,10 @@ pub fn run(
     let html = include_str!("../ui/index.html")
         .replace("__VERSION__", clickpulse::version::PUBLIC)
         .replace("__BRAND_MARK__", &clickpulse::branding::mark_data_url())
+        .replace(
+            "__FEEDBACK_QR__",
+            &clickpulse::branding::wechat_qr_data_url(),
+        )
         .replace("__LOCALE__", locale.code())
         .replace("__THEME__", preferences.theme.code())
         .replace("__PLATFORM__", clickpulse::platform::name())

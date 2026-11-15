@@ -82,6 +82,28 @@ $('automatic-updates')?.addEventListener('change',event=>{
   send('automatic_updates',{enabled:event.target.checked});
 });
 
+// Feedback dialog: scan the WeChat QR to join the feedback group.
+const feedbackOverlay=$('feedback-overlay');
+let feedbackPreviousFocus=null;
+function openFeedback(){
+  if(!feedbackOverlay||!feedbackOverlay.hidden)return;
+  Dropdowns.closeAll();
+  feedbackPreviousFocus=document.activeElement;
+  for(const surface of [document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')])surface.inert=true;
+  feedbackOverlay.hidden=false;
+  $('feedback-done').focus();
+}
+function closeFeedback(){
+  feedbackOverlay.hidden=true;
+  for(const surface of [document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')])surface.inert=false;
+  feedbackPreviousFocus?.focus();
+}
+$('feedback-nav')?.addEventListener('click',openFeedback);
+$('feedback-open')?.addEventListener('click',openFeedback);
+$('feedback-done')?.addEventListener('click',closeFeedback);
+feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOverlay)closeFeedback();});
+feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});
+
 function renderDataOperation(){
   $('data-operation-status').hidden=!dataOperationBusy;
   $('data-operation-message').textContent=t('storage.processing');

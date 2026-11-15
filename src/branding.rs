@@ -11,6 +11,12 @@ pub fn mark_data_url() -> String {
     format!("data:image/png;base64,{}", STANDARD.encode(MARK))
 }
 
+const WECHAT_QR: &[u8] = include_bytes!("../assets/img/wechat.jpg");
+
+pub fn wechat_qr_data_url() -> String {
+    format!("data:image/jpeg;base64,{}", STANDARD.encode(WECHAT_QR))
+}
+
 pub fn font_css() -> String {
     #[cfg(target_os = "windows")]
     let fonts = [
