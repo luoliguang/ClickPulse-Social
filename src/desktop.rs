@@ -72,6 +72,23 @@ enum DataNotice {
     Failed(String),
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CloseBehavior {
+    Ask,
+    Hide,
+    Quit,
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn close_behavior(action: clickpulse::presentation::CloseAction) -> CloseBehavior {
+    match action {
+        clickpulse::presentation::CloseAction::Ask => CloseBehavior::Ask,
+        clickpulse::presentation::CloseAction::Hide => CloseBehavior::Hide,
+        clickpulse::presentation::CloseAction::Quit => CloseBehavior::Quit,
+    }
+}
+
 pub struct Options {
     pub source_mode: bool,
     pub owned: bool,
@@ -534,29 +551,25 @@ pub fn run(
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                if demo {
-                    *flow = ControlFlow::Exit;
-                } else {
-                    #[cfg(any(target_os = "windows", target_os = "linux"))]
-                    match preferences.close_action {
-                        clickpulse::presentation::CloseAction::Ask => {
-                            let _ = webview.evaluate_script("window.requestClose();");
-                        }
-                        clickpulse::presentation::CloseAction::Quit => *flow = ControlFlow::Exit,
-                        clickpulse::presentation::CloseAction::Hide => {
-                            webview.suspend();
-                            window.set_visible(false);
-                            visible = false;
-                            view_changed = true;
-                        }
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
+                match close_behavior(preferences.close_action) {
+                    CloseBehavior::Ask => {
+                        let _ = webview.evaluate_script("window.requestClose();");
                     }
-                    #[cfg(target_os = "macos")]
-                    {
+                    CloseBehavior::Quit => *flow = ControlFlow::Exit,
+                    CloseBehavior::Hide => {
                         webview.suspend();
                         window.set_visible(false);
                         visible = false;
                         view_changed = true;
                     }
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    webview.suspend();
+                    window.set_visible(false);
+                    visible = false;
+                    view_changed = true;
                 }
             }
             Event::Reopen { .. } => {
@@ -701,9 +714,9 @@ pub fn run(
                             remember,
                         } => {
                             if action != clickpulse::presentation::CloseAction::Ask {
-                                if remember && !demo {
+                                if remember {
                                     preferences.close_action = action;
-                                    if let Err(error) = preferences.save() {
+                                    if !demo && let Err(error) = preferences.save() {
                                         report_error(
                                             &webview,
                                             locale,
@@ -947,17 +960,17 @@ pub fn run(
                         }
                         Request::Quit {} | Request::Close {} => {
                             #[cfg(any(target_os = "windows", target_os = "linux"))]
-                            match preferences.close_action {
-                                clickpulse::presentation::CloseAction::Ask if !demo => {
+                            match close_behavior(preferences.close_action) {
+                                CloseBehavior::Ask => {
                                     let _ = webview.evaluate_script("window.requestClose();");
                                 }
-                                clickpulse::presentation::CloseAction::Hide if !demo => {
+                                CloseBehavior::Hide => {
                                     webview.suspend();
                                     window.set_visible(false);
                                     visible = false;
                                     view_changed = true;
                                 }
-                                _ => *flow = ControlFlow::Exit,
+                                CloseBehavior::Quit => *flow = ControlFlow::Exit,
                             }
                             #[cfg(target_os = "macos")]
                             {
@@ -1403,6 +1416,16 @@ fn demo_snapshot_in_timezone(
 mod window_tests {
     use super::*;
     use tao::dpi::{PhysicalPosition, PhysicalSize};
+
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[test]
+    fn every_close_preference_has_the_same_behavior_in_demo_and_live_sessions() {
+        use clickpulse::presentation::CloseAction;
+
+        assert_eq!(close_behavior(CloseAction::Ask), CloseBehavior::Ask);
+        assert_eq!(close_behavior(CloseAction::Hide), CloseBehavior::Hide);
+        assert_eq!(close_behavior(CloseAction::Quit), CloseBehavior::Quit);
+    }
 
     #[test]
     fn demo_timezone_keeps_dates_and_hourly_totals_consistent() {
