@@ -82,7 +82,7 @@ export function buildApp() {
 
   app.get('/api/v1/health', async () => {
     await pool.query('SELECT 1');
-    return { ok: true, service: 'clickpulse-leaderboard' };
+    return { ok: true, service: 'clickpulse-leaderboard', revision: process.env.CLICKPULSE_REVISION || 'unknown' };
   });
 
   app.get('/api/v1/updates/latest', async (_request, reply) => {

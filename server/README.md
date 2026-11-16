@@ -15,6 +15,9 @@ npm run build
 
 - API root: `/www/wwwroot/clickpulse-api`
 - Private environment: `/www/wwwroot/clickpulse-api/.env`
+- Shared logs: `/www/wwwroot/clickpulse-api/logs`
+- Immutable releases: `/www/wwwroot/clickpulse-api/releases/<revision>-<attempt>`
+- Active release: `/www/wwwroot/clickpulse-api/current`
 - Private avatar root: `/www/wwwroot/clickpulse-data/avatars`
 - Private update mirror root: `/www/wwwroot/clickpulse-data/updates`
 - Local listen address: `127.0.0.1:3032`
@@ -30,6 +33,8 @@ npm run migrate
 pm2 startOrReload ecosystem.config.cjs
 curl http://127.0.0.1:3032/api/v1/health
 ```
+
+Production pushes use `.github/workflows/deploy-api.yml`. Each run uploads a new immutable release, runs the database migration against that release, atomically switches `current`, reloads PM2, and verifies both the database-backed local health endpoint and the public reverse proxy expose the expected Git revision. A failed migration leaves the running release untouched; a failed reload or local health check restores the previous release. The five newest releases are retained. Database migrations must remain backward compatible because application rollback does not reverse a completed schema migration.
 
 ## Invitation administration
 

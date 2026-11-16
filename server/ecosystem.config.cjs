@@ -1,3 +1,5 @@
+const apiRoot = process.env.CLICKPULSE_API_ROOT || __dirname;
+
 module.exports = {
   apps: [{
     name: 'clickpulse-api',
@@ -11,9 +13,11 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       UPDATE_ROOT: '/www/wwwroot/clickpulse-data/updates',
+      DOTENV_CONFIG_PATH: `${apiRoot}/.env`,
+      CLICKPULSE_REVISION: process.env.CLICKPULSE_REVISION || 'unknown',
     },
-    error_file: './logs/error.log',
-    out_file: './logs/out.log',
+    error_file: `${apiRoot}/logs/error.log`,
+    out_file: `${apiRoot}/logs/out.log`,
     merge_logs: true,
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
   }],

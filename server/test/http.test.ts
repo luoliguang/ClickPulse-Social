@@ -3,6 +3,26 @@ import assert from 'node:assert/strict';
 import { buildApp } from '../src/app';
 import { pool } from '../src/db';
 
+test('health reports the running deployment revision after checking the database', async () => {
+  const originalQuery = pool.query.bind(pool), originalRevision = process.env.CLICKPULSE_REVISION;
+  try {
+    (pool as any).query = async (sql: string) => {
+      assert.equal(sql, 'SELECT 1');
+      return { rows: [{ '?column?': 1 }] };
+    };
+    process.env.CLICKPULSE_REVISION = '0123456789abcdef0123456789abcdef01234567';
+    const app = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true, service: 'clickpulse-leaderboard', revision: process.env.CLICKPULSE_REVISION });
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+    if (originalRevision === undefined) delete process.env.CLICKPULSE_REVISION;
+    else process.env.CLICKPULSE_REVISION = originalRevision;
+  }
+});
+
 test('strict request schemas reject unexpected activity fields before database access', async () => {
   const app = buildApp();
   const join = await app.inject({ method: 'POST', url: '/api/v1/join', payload: { invite_code: 'ABCDEF', nickname: 'Luo', typed_text: 'never' } });

@@ -18,10 +18,8 @@ permissions:
 jobs:
   preflight:
     runs-on: ubuntu-24.04
-    outputs:
-      ready: ${{ steps.check.outputs.ready }}
     steps:
-      - id: check
+      - name: Require deployment configuration
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -32,14 +30,22 @@ jobs:
         run: |
           missing=0
           for name in SSH_HOST SSH_USER SSH_KEY API_ROOT API_PORT NODE_BIN; do
-            if [ -z "${!name}" ]; then echo "- ❌ $name" >> "$GITHUB_STEP_SUMMARY"; missing=1; else echo "- ✅ $name" >> "$GITHUB_STEP_SUMMARY"; fi
+            if [ -z "${!name}" ]; then
+              echo "- ❌ $name" >> "$GITHUB_STEP_SUMMARY"
+              missing=1
+            else
+              echo "- ✅ $name" >> "$GITHUB_STEP_SUMMARY"
+            fi
           done
-          if [ "$missing" = 0 ]; then echo 'ready=true' >> "$GITHUB_OUTPUT"; else echo 'ready=false' >> "$GITHUB_OUTPUT"; echo '::warning::Leaderboard deployment skipped because configuration is incomplete.'; fi
+          if [ "$missing" != 0 ]; then
+            echo '::error::Leaderboard deployment configuration is incomplete.'
+            exit 1
+          fi
 
   deploy:
     needs: preflight
-    if: needs.preflight.outputs.ready == 'true'
     runs-on: ubuntu-24.04
+    environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -64,23 +70,31 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          timeout 10 ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
       - name: Validate target
         env:
           API_ROOT: ${{ vars.API_ROOT }}
           API_PORT: ${{ vars.API_PORT }}
           NODE_BIN: ${{ vars.NODE_BIN }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
         run: |
-          case "$API_ROOT" in
-            /www/wwwroot/*-api) ;;
-            *) echo "::error::API_ROOT must be a dedicated /www/wwwroot/*-api directory"; exit 1 ;;
-          esac
-          case "$API_PORT" in ''|*[!0-9]*) echo '::error::API_PORT must be numeric'; exit 1;; esac
+          if [[ ! "$API_ROOT" =~ ^/www/wwwroot/[A-Za-z0-9._-]+-api$ ]]; then
+            echo '::error::API_ROOT must be one dedicated /www/wwwroot/*-api directory'
+            exit 1
+          fi
+          if [[ ! "$API_PORT" =~ ^[0-9]+$ ]] || (( API_PORT < 1 || API_PORT > 65535 )); then
+            echo '::error::API_PORT must be a valid TCP port'
+            exit 1
+          fi
+          if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]] || (( SSH_PORT < 1 || SSH_PORT > 65535 )); then
+            echo '::error::SSH_PORT must be a valid TCP port'
+            exit 1
+          fi
           if [[ ! "$NODE_BIN" =~ ^(/www/server/nodejs|/root/\.nvm/versions/node)/v[0-9]+(\.[0-9]+){1,2}/bin$ ]]; then
             echo '::error::NODE_BIN must name one exact BaoTa or root NVM Node version bin directory'
             exit 1
           fi
-      - name: Upload, migrate and reload
+      - name: Upload, migrate and switch release
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -90,13 +104,28 @@ jobs:
           NODE_BIN: ${{ vars.NODE_BIN }}
         run: |
           SSH_CMD="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
-          $SSH_CMD "$SSH_USER@$SSH_HOST" "mkdir -p '$API_ROOT/logs'"
+          DEPLOY_RELEASE="${GITHUB_SHA}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_DIR="$API_ROOT/releases/$DEPLOY_RELEASE"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "mkdir -p '$RELEASE_DIR'"
           rsync -az --delete \
-            --exclude='.env' --exclude='logs/' \
             -e "$SSH_CMD" \
-            server/dist server/src/schema.sql server/ecosystem.config.cjs server/package.json \
-            "$SSH_USER@$SSH_HOST:$API_ROOT/"
-          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; export PATH='$NODE_BIN':\$PATH; cd '$API_ROOT'; test -f .env; node dist/migrate.js; pm2 startOrReload ecosystem.config.cjs; for attempt in \$(seq 1 30); do if curl --fail --silent --output /dev/null 'http://127.0.0.1:$API_PORT/api/v1/health'; then pm2 save --force >/dev/null; exit 0; fi; sleep 1; done; pm2 logs clickpulse-api --lines 50 --nostream; exit 1"
+            server/dist server/src/schema.sql server/ecosystem.config.cjs server/package.json server/deploy-remote.sh \
+            "$SSH_USER@$SSH_HOST:$RELEASE_DIR/"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "chmod 700 '$RELEASE_DIR/deploy-remote.sh'; API_ROOT='$API_ROOT' API_PORT='$API_PORT' NODE_BIN='$NODE_BIN' DEPLOY_RELEASE='$DEPLOY_RELEASE' DEPLOY_REVISION='$GITHUB_SHA' bash '$RELEASE_DIR/deploy-remote.sh'"
+      - name: Verify public endpoint
+        env:
+          DEPLOY_REVISION: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 12); do
+            if response="$(curl --fail --silent --show-error 'https://clickpulse.fangdutex.cn/api/v1/health')" && \
+              node -e 'const h=JSON.parse(process.argv[1]); if(h.ok!==true||h.revision!==process.argv[2]) process.exit(1)' "$response" "$DEPLOY_REVISION"; then
+              echo "Public API is serving revision $DEPLOY_REVISION" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '::error::Public health check did not expose the deployed revision.'
+          exit 1
       - name: Clean up key
         if: always()
         run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub
