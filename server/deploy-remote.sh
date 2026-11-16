@@ -24,6 +24,8 @@ current_link="$API_ROOT/current"
 [[ -f "$release_dir/dist/migrate.js" ]] || { echo "Release migration bundle is missing" >&2; exit 1; }
 [[ -f "$release_dir/schema.sql" ]] || { echo "Release schema is missing" >&2; exit 1; }
 [[ -f "$release_dir/ecosystem.config.cjs" ]] || { echo "Release PM2 config is missing" >&2; exit 1; }
+printf '%s\n' "$DEPLOY_REVISION" > "$release_dir/REVISION"
+chmod 0444 "$release_dir/REVISION"
 mkdir -p "$API_ROOT/logs"
 
 previous_target=""
