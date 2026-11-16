@@ -25,7 +25,7 @@ test('admin sessions expire and cannot be verified with a different secret', () 
 test('generated invitation codes match the client format and do not repeat', () => {
   const codes = new Set(Array.from({ length: 100 }, generateInviteCode));
   assert.equal(codes.size, 100);
-  for (const code of codes) assert.match(code, /^CP_[A-Za-z0-9_-]{16}$/);
+  for (const code of codes) assert.match(code, /^CP-[2-9A-HJ-NP-Z]{4}(?:-[2-9A-HJ-NP-Z]{4}){3}$/);
 });
 
 test('admin UI is unavailable until a password hash is configured', async () => {
@@ -42,6 +42,13 @@ test('admin login rejects cross-origin requests and issues a hardened cookie on 
   const previous = process.env.ADMIN_PASSWORD_HASH;
   process.env.ADMIN_PASSWORD_HASH = createPasswordHash('correct horse battery staple');
   const app = buildApp();
+  const page = await app.inject({ method: 'GET', url: '/admin' });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /当前加入人数/);
+  assert.match(page.body, /邀请码台账/);
+  const script = await app.inject({ method: 'GET', url: '/admin/app.js' });
+  assert.equal(script.statusCode, 200);
+  assert.doesNotMatch(script.body, /\bconfirm\s*\(/);
   const rejected = await app.inject({ method: 'POST', url: '/admin/api/session', headers: { origin: 'https://evil.example' }, payload: { password: 'correct horse battery staple' } });
   assert.equal(rejected.statusCode, 403);
   assert.equal(rejected.json().error.code, 'invalid_origin');

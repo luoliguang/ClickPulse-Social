@@ -202,10 +202,12 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .feedback-qr img {width:168px;height:auto;padding:6px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .feedback-dialog .close-dialog-actions {grid-template-columns:1fr}
 .leaderboard-join,.leaderboard-profile,.leaderboard-board {text-align:left}
-.leaderboard-form {display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto;gap:12px;align-items:end}
+.leaderboard-form {display:grid;grid-template-columns:minmax(190px,260px) minmax(190px,260px) auto;gap:12px;align-items:end;justify-content:start}
 .leaderboard-form label {display:grid;gap:7px;color:var(--muted);font:600 var(--ui-detail-size)/1.4 var(--sans)}
 .leaderboard-form input {box-sizing:border-box;width:100%;height:42px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 12px;font:500 var(--ui-label-size)/1.4 var(--sans);outline:none}
 .leaderboard-form input:focus {border-color:var(--blue);box-shadow:0 0 0 3px #2563eb2e;box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+#leaderboard-join-button {height:42px;min-width:112px;padding:0 19px;font-size:var(--ui-detail-size)}
+#leaderboard-join-button:active,.leaderboard-confirm-dialog .button:active {transform:scale(.97)}
 .leaderboard-privacy,.leaderboard-empty {margin:15px 0 0;color:var(--muted);font-size:var(--ui-detail-size);line-height:1.6}
 .leaderboard-profile {display:flex;align-items:center;justify-content:space-between;gap:20px}
 .leaderboard-identity,.leaderboard-profile-actions,.leaderboard-toolbar {display:flex;align-items:center;gap:10px}
@@ -215,7 +217,17 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-member {display:flex;align-items:center;gap:10px;min-width:150px}.leaderboard-member .leaderboard-avatar{width:32px;height:32px;font-size:12px}
 .leaderboard-self {background:#2563eb12;background:color-mix(in srgb,var(--blue) 8%,transparent)}
 .button.danger {color:#b42318;border-color:#e3b5b0;border-color:color-mix(in srgb,#b42318 30%,var(--line))}
-@media(max-width:900px){.leaderboard-form{grid-template-columns:1fr}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}}
+.button.danger.solid {background:#b42318;border-color:#b42318;color:#fff}.button.danger.solid:hover {background:#912018;border-color:#912018}
+.leaderboard-confirm-dialog {width:min(430px,100%);padding:22px}
+.leaderboard-confirm-mark {display:grid;place-items:center;width:42px;height:42px;margin-bottom:16px;border-radius:11px;background:#eaf2ff;color:var(--blue)}
+.leaderboard-confirm-mark svg {width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.leaderboard-confirm-dialog .close-dialog-heading h2 {font-size:17px;letter-spacing:-.2px}
+.leaderboard-confirm-dialog>p {margin:10px 0 12px;font-size:12px;line-height:1.7;color:var(--muted)}
+.leaderboard-confirm-note {padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd;color:#62748e;font-size:11px;line-height:1.6}
+.leaderboard-confirm-dialog .close-dialog-actions {grid-template-columns:auto auto;justify-content:end;margin-top:18px}
+.leaderboard-confirm-dialog .close-dialog-actions .button {min-width:104px;min-height:40px;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .14s cubic-bezier(.23,1,.32,1)}
+@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){#leaderboard-join-button,.leaderboard-confirm-dialog .button{transition:none}}
 body.compact .close-dialog {padding:14px}
 body.compact .close-dialog-heading h2 {font-size:14px}
 body.compact .close-dialog p {font-size:11px;margin:8px 0 10px}

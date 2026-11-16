@@ -800,6 +800,22 @@ test('Scoop-managed updates keep checks and localized guidance without sending i
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
 });
+test('leaderboard join and leave use an in-app confirmation dialog before sending requests',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.get('leaderboard-invite').value='CP_fixture';a.get('leaderboard-nickname').value='Luo';
+  a.get('leaderboard-join-button').fire();
+  assert.equal(sent.length,0);assert.equal(a.get('leaderboard-confirm-overlay').hidden,false);
+  assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.join_confirm_title']);
+  assert.match(a.get('leaderboard-confirm-description').textContent,/Luo/);
+  a.get('leaderboard-confirm-submit').fire();
+  assert.equal(sent[0].action,'leaderboard_join');assert.equal(sent[0].invite_code,'CP_fixture');
+  a.window.receiveLeaderboard({profile:{joined:true,nickname:'Luo',member_id:'member'},board:{entries:[],starts_on:'2026-11-16',ends_on:'2026-11-16'}});
+  sent.length=0;a.get('leaderboard-leave').fire();
+  assert.equal(sent.length,0);assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.leave_confirm_title']);
+  a.get('leaderboard-confirm-cancel').fire();assert.equal(sent.length,0);
+  a.get('leaderboard-leave').fire();a.get('leaderboard-confirm-submit').fire();assert.equal(sent[0].action,'leaderboard_leave');
+});
+
 test('downloaded updates await confirmation in every language and never open a browser',()=>{
   for(const platform of ['macos','windows','linux'])for(const locale of Object.keys(messages)){
     const a=app(platform),sent=[];a.window.ipc.postMessage=m=>sent.push(JSON.parse(m));

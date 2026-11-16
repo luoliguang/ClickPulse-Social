@@ -42,7 +42,7 @@ node dist/admin-password.js
 unset CLICKPULSE_ADMIN_PASSWORD
 ```
 
-Copy the printed hash (not the plaintext password) into `.env`, run `pm2 startOrReload ecosystem.config.cjs`, then open `https://clickpulse.fangdutex.cn/admin` on a phone or computer. The page creates limited-use, expiring codes, shows each plaintext code only in the creation response, lists usage, and can revoke unused capacity. The password is verified with scrypt; the browser receives an eight-hour `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. Mutating requests also require the production same-origin header.
+Copy the printed hash (not the plaintext password) into `.env`, run `pm2 startOrReload ecosystem.config.cjs`, then open `https://clickpulse.fangdutex.cn/admin` on a phone or computer. The page creates readable grouped codes with expiring active-member capacity, shows each plaintext code only in the creation response, lists occupied and remaining slots, and can revoke unused capacity. A member occupies one slot while joined and releases it on leaving. The password is verified with scrypt; the browser receives an eight-hour `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. Mutating requests also require the production same-origin header.
 
 The CLI remains available as an emergency fallback:
 

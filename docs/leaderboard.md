@@ -15,7 +15,7 @@ The client does not upload typed text, specific key identities, application name
 
 The first release offers a Shanghai-calendar today ranking and Monday-through-Sunday week ranking. It does not offer a lifetime ranking, so imported history cannot create a permanent advantage. Absolute daily values make retries idempotent; the service rejects decreasing totals and implausibly large daily values.
 
-Membership credentials are generated randomly. The server stores only their SHA-256 hashes. Invitation codes are also stored only as hashes and can expire, have limited uses, or be revoked. The maintainer creates and manages them through the password-protected `/admin` page; plaintext codes are returned only once at creation. A member can remove their avatar or leave the leaderboard; leaving deletes the member, daily totals, and avatar from the service.
+Membership credentials are generated randomly. The server stores only their SHA-256 hashes. Invitation codes are also stored only as hashes and can expire, have limited active-member capacity, or be revoked. Joining occupies one slot; leaving releases that slot so a still-valid invitation can be used again. The maintainer creates and manages them through the password-protected `/admin` page; plaintext codes are returned only once at creation. A member can remove their avatar or leave the leaderboard; leaving deletes the member, daily totals, and avatar from the service.
 
 ## Service boundary
 

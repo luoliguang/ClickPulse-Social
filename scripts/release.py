@@ -157,7 +157,8 @@ def release_notes(version, repository, revision, private=False, *, artwork_revis
                    '- See today and this-week rankings with default or custom avatars.\n')
     elif version == '0.4.1':
         changes = ('- Download and install verified updates directly from the domestic ClickPulse service.\n'
-                   '- Manage invitation codes from a password-protected mobile-friendly admin page.\n'
+                   '- Manage readable invitation codes from a redesigned password-protected admin page.\n'
+                   '- Reuse valid invitation capacity after a member leaves the leaderboard.\n'
                    '- Keep GitHub Releases available as the public source and overseas fallback.\n')
     return f'''Local keyboard and mouse activity statistics. Fully offline.
 {access}

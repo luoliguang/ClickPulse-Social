@@ -93,6 +93,15 @@
     </section>
   </div>
 </main>
+<div id="leaderboard-confirm-overlay" class="close-overlay" hidden>
+  <section class="close-dialog leaderboard-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="leaderboard-confirm-title" aria-describedby="leaderboard-confirm-description">
+    <div class="leaderboard-confirm-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M6 4H3v3c0 2 1.5 3.5 4 4M18 4h3v3c0 2-1.5 3.5-4 4"/><path d="M7 3h10v6a5 5 0 0 1-10 0Z"/></svg></div>
+    <div class="close-dialog-heading"><h2 id="leaderboard-confirm-title"></h2><button id="leaderboard-confirm-close" class="window-control" aria-label="取消" data-i18n-aria="action.cancel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></div>
+    <p id="leaderboard-confirm-description"></p>
+    <div class="leaderboard-confirm-note" id="leaderboard-confirm-note"></div>
+    <div class="close-dialog-actions"><button class="button" id="leaderboard-confirm-cancel" data-i18n="action.cancel">取消</button><button class="button primary" id="leaderboard-confirm-submit"></button></div>
+  </section>
+</div>
 <section id="mini-widget" class="mini-widget" hidden aria-label="ClickPulse 小屏模式" data-i18n-aria="mini.label">
   <canvas id="sport-canvas" class="mini-sport-canvas" aria-hidden="true" hidden></canvas><div id="mini-sport-layer" class="mini-sport-layer" aria-hidden="true" hidden></div>
   <div class="mini-top">

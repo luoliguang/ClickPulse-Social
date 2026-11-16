@@ -143,10 +143,40 @@ function renderLeaderboard(){
 window.receiveLeaderboard=state=>{const joinedBefore=!!leaderboardState.profile?.joined;leaderboardState=state;setLeaderboardBusy(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);};
 window.receiveLeaderboardError=message=>{setLeaderboardBusy(false);$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>setLeaderboardBusy(false);
+const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
+const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
+let leaderboardConfirmAction=null,leaderboardConfirmPreviousFocus=null;
+function closeLeaderboardConfirm(){
+  if(leaderboardConfirmOverlay.hidden)return;
+  leaderboardConfirmOverlay.hidden=true;leaderboardConfirmAction=null;
+  for(const surface of leaderboardConfirmSurfaces)surface.inert=false;
+  leaderboardConfirmPreviousFocus?.focus();
+}
+function openLeaderboardConfirm(kind,action,values={}){
+  Dropdowns.closeAll();leaderboardConfirmPreviousFocus=document.activeElement;leaderboardConfirmAction=action;
+  const leaving=kind==='leave';
+  $('leaderboard-confirm-title').textContent=t(leaving?'leaderboard.leave_confirm_title':'leaderboard.join_confirm_title');
+  $('leaderboard-confirm-description').textContent=t(leaving?'leaderboard.leave_confirm':'leaderboard.join_confirm',{nickname:values.nickname||''});
+  $('leaderboard-confirm-note').textContent=t(leaving?'leaderboard.leave_confirm_note':'leaderboard.join_confirm_note');
+  const submit=$('leaderboard-confirm-submit');submit.textContent=t(leaving?'leaderboard.leave':'leaderboard.join');
+  submit.classList.toggle('danger',leaving);submit.classList.toggle('solid',leaving);submit.classList.toggle('primary',!leaving);
+  leaderboardConfirmOverlay.hidden=false;for(const surface of leaderboardConfirmSurfaces)surface.inert=true;submit.focus();
+}
+$('leaderboard-confirm-close')?.addEventListener('click',closeLeaderboardConfirm);
+$('leaderboard-confirm-cancel')?.addEventListener('click',closeLeaderboardConfirm);
+$('leaderboard-confirm-submit')?.addEventListener('click',()=>{const action=leaderboardConfirmAction;closeLeaderboardConfirm();action?.();});
+leaderboardConfirmOverlay?.addEventListener('click',event=>{if(event.target===leaderboardConfirmOverlay)closeLeaderboardConfirm();});
+leaderboardConfirmOverlay?.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closeLeaderboardConfirm();}
+  if(event.key==='Tab'){
+    const focusable=[$('leaderboard-confirm-close'),$('leaderboard-confirm-cancel'),$('leaderboard-confirm-submit')],index=focusable.indexOf(document.activeElement);
+    event.preventDefault();focusable[(index+(event.shiftKey?-1:1)+focusable.length)%focusable.length].focus();
+  }
+});
 $('leaderboard-join-button')?.addEventListener('click',()=>{
   const invite_code=$('leaderboard-invite').value.trim(),nickname=$('leaderboard-nickname').value.trim();
   if(!invite_code||!nickname){window.toast(t('leaderboard.required'));return;}
-  setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname});
+  openLeaderboardConfirm('join',()=>{setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname});},{nickname});
 });
 for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.addEventListener('click',()=>{
   leaderboardPeriod=button.dataset.leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));requestLeaderboard(false);
@@ -155,8 +185,7 @@ $('leaderboard-sync')?.addEventListener('click',()=>requestLeaderboard(true));
 $('leaderboard-avatar-change')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar',{period:leaderboardPeriod});});
 $('leaderboard-avatar-delete')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar_delete',{period:leaderboardPeriod});});
 $('leaderboard-leave')?.addEventListener('click',()=>{
-  if(!window.confirm(t('leaderboard.leave_confirm')))return;
-  setLeaderboardBusy(true);send('leaderboard_leave');
+  openLeaderboardConfirm('leave',()=>{setLeaderboardBusy(true);send('leaderboard_leave');});
 });
 
 function renderDataOperation(){

@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS leaderboard_members (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='leaderboard_members' AND column_name='invitation_id'
+  ) THEN
+    ALTER TABLE leaderboard_members ADD COLUMN invitation_id TEXT REFERENCES leaderboard_invitations(id) ON DELETE SET NULL;
+    -- Before this column existed, uses was cumulative and could not be released
+    -- after a member left. Start the new active-slot accounting once.
+    UPDATE leaderboard_invitations SET uses=0;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS leaderboard_daily_stats (
   member_id TEXT NOT NULL REFERENCES leaderboard_members(id) ON DELETE CASCADE,
   day DATE NOT NULL,

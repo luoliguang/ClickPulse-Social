@@ -14,7 +14,7 @@ const limiter = new Map<string, { count: number; reset: number }>();
 const adminCookie = 'clickpulse_admin';
 const updateTargets = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64'];
 
-type MemberRow = { id: string; nickname: string; avatar_file: string | null };
+type MemberRow = { id: string; nickname: string; avatar_file: string | null; invitation_id?: string | null };
 type InvitationRow = { id: string; max_uses: number; uses: number; expires_at: string | null; revoked_at: string | null; created_at: string; expired: boolean };
 
 function limited(key: string, maximum: number, windowMs: number): boolean {
@@ -36,7 +36,7 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply): Promi
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ') || header.length > 256) { fail(reply, 401, 'unauthorized', 'Membership token is required'); return; }
   const token = header.slice(7);
-  const result = await pool.query<MemberRow>('SELECT id,nickname,avatar_file FROM leaderboard_members WHERE token_hash=$1', [hashSecret(token)]);
+  const result = await pool.query<MemberRow>('SELECT id,nickname,avatar_file,invitation_id FROM leaderboard_members WHERE token_hash=$1', [hashSecret(token)]);
   if (!result.rows[0]) { fail(reply, 401, 'unauthorized', 'Membership token is invalid'); return; }
   return result.rows[0];
 }
@@ -190,7 +190,7 @@ export function buildApp() {
         await client.query('BEGIN');
         const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
         if (!invitation.rows[0]) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_invite', 'Invitation code is invalid or exhausted'); }
-        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash) VALUES($1,$2,$3,$4)', [id, nickname, key, hashSecret(token)]);
+        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id) VALUES($1,$2,$3,$4,$5)', [id, nickname, key, hashSecret(token), invitation.rows[0].id]);
         await client.query('UPDATE leaderboard_invitations SET uses=uses+1 WHERE id=$1', [invitation.rows[0].id]);
         await client.query('COMMIT');
       } catch (error: any) {
@@ -312,7 +312,17 @@ export function buildApp() {
 
   app.delete('/api/v1/me', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
-    await pool.query('DELETE FROM leaderboard_members WHERE id=$1', [member.id]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const deleted = await client.query<{ invitation_id: string | null }>('DELETE FROM leaderboard_members WHERE id=$1 RETURNING invitation_id', [member.id]);
+      const invitationId = deleted.rows[0]?.invitation_id;
+      if (invitationId) await client.query('UPDATE leaderboard_invitations SET uses=GREATEST(0,uses-1) WHERE id=$1', [invitationId]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
     if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
     return { ok: true };
   });

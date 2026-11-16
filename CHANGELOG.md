@@ -5,7 +5,13 @@
 ### New
 
 - Download verified application updates directly from the domestic ClickPulse service.
-- Manage leaderboard invitation codes from a password-protected mobile-friendly web page.
+- Manage readable, grouped leaderboard invitation codes from a password-protected mobile-friendly web page.
+
+### Improved
+
+- Use polished in-app confirmation dialogs for joining and leaving the leaderboard.
+- Release an invitation slot when a member leaves, allowing a valid code to be used again.
+- Clarify invitation capacity and status in the redesigned administration console.
 
 ### Security
 
