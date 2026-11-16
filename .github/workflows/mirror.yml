@@ -1,0 +1,113 @@
+name: Update mirror
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (for example v0.4.2)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-mirror-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync domestic update mirror
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Resolve tag and revision
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          tag="$TAG"
+          case "$tag" in
+            v[0-9]*[0-9]) ;;
+            *) echo "::error::Invalid tag $tag"; exit 1 ;;
+          esac
+          revision=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          mkdir -p dist/update-assets
+          cd dist/update-assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'SHA256SUMS.txt' \
+            --pattern "ClickPulse-${VERSION}-*.zip" \
+            --pattern "ClickPulse-${VERSION}-*.manifest.json"
+          test -f SHA256SUMS.txt
+      - name: Verify mirror assets and build metadata
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          REVISION: ${{ steps.plan.outputs.revision }}
+        run: |
+          python scripts/prepare_update_mirror.py \
+            --release-dir dist/update-assets \
+            --output dist/latest.json \
+            --version "$VERSION" \
+            --revision "$REVISION" \
+            --repository "$GITHUB_REPOSITORY" \
+            --changelog CHANGELOG.md
+      - name: Configure update mirror SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Publish domestic update mirror
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          UPDATE_ROOT='/www/wwwroot/clickpulse-data/updates'
+          case "$VERSION" in ''|*[!0-9.]*) echo '::error::Invalid version'; exit 1;; esac
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          STAGING="$UPDATE_ROOT/.v$VERSION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          TARGET="$UPDATE_ROOT/v$VERSION"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; mkdir -p '$UPDATE_ROOT'; test ! -e '$STAGING'; mkdir '$STAGING'"
+          rsync -a --partial --timeout=300 -e "$SSH_CMD" dist/update-assets/ "$SSH_USER@$SSH_HOST:$STAGING/"
+          rsync -a --partial --timeout=300 -e "$SSH_CMD" dist/latest.json "$SSH_USER@$SSH_HOST:$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; if [ -d '$TARGET' ]; then rm -rf '$STAGING'; else mv '$STAGING' '$TARGET'; fi; mv '$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json' '$UPDATE_ROOT/latest.json'"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            'https://clickpulse.fangdutex.cn/api/v1/updates/latest' > published-latest.json
+          python - <<'PY'
+          import json, os
+          with open('published-latest.json', encoding='utf-8') as handle:
+              metadata = json.load(handle)
+          expected = f"v{os.environ['VERSION']}"
+          actual = metadata.get('tag_name')
+          if actual != expected:
+              raise SystemExit(f'published update metadata reports {actual!r}, expected {expected!r}')
+          PY
+      - name: Clean up mirror key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub
