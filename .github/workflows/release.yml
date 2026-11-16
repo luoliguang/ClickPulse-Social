@@ -116,3 +116,51 @@ jobs:
             --title "ClickPulse $RELEASE_VERSION" \
             --notes-file dist/release-notes.md \
             --latest
+      - name: Prepare domestic in-app update mirror
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          SOURCE_REVISION: ${{ needs.version.outputs.revision }}
+        run: |
+          mkdir -p dist/update-assets
+          for target in windows-x64 macos-arm64 macos-x64 linux-arm64 linux-x64; do
+            cp "dist/release/ClickPulse-$RELEASE_VERSION-$target.zip" "dist/release/ClickPulse-$RELEASE_VERSION-$target.manifest.json" dist/update-assets/
+          done
+          cp dist/release/SHA256SUMS.txt dist/update-assets/
+          python scripts/prepare_update_mirror.py \
+            --release-dir dist/update-assets \
+            --output dist/latest.json \
+            --version "$RELEASE_VERSION" \
+            --revision "$SOURCE_REVISION" \
+            --repository "$GITHUB_REPOSITORY"
+      - name: Configure update mirror SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+        run: |
+          test -n "$SSH_KEY" && test -n "$SSH_HOST" && test -n "$SSH_USER"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Publish domestic in-app update mirror
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          UPDATE_ROOT='/www/wwwroot/clickpulse-data/updates'
+          case "$RELEASE_VERSION" in ''|*[!0-9.]*) echo '::error::Invalid release version'; exit 1;; esac
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          STAGING="$UPDATE_ROOT/.v$RELEASE_VERSION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          TARGET="$UPDATE_ROOT/v$RELEASE_VERSION"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; mkdir -p '$UPDATE_ROOT'; test ! -e '$STAGING'; mkdir '$STAGING'"
+          rsync -az -e "$SSH_CMD" dist/update-assets/ "$SSH_USER@$SSH_HOST:$STAGING/"
+          rsync -az -e "$SSH_CMD" dist/latest.json "$SSH_USER@$SSH_HOST:$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; if [ -d '$TARGET' ]; then rm -rf '$STAGING'; else mv '$STAGING' '$TARGET'; fi; mv '$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json' '$UPDATE_ROOT/latest.json'"
+      - name: Clean up mirror key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub

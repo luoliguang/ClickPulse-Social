@@ -16,10 +16,11 @@ npm run build
 - API root: `/www/wwwroot/clickpulse-api`
 - Private environment: `/www/wwwroot/clickpulse-api/.env`
 - Private avatar root: `/www/wwwroot/clickpulse-data/avatars`
-- Local listen address: `127.0.0.1:3002`
-- Public reverse proxy: `https://clickpulse.fangdutex.cn/api/` → `http://127.0.0.1:3002/api/`
+- Private update mirror root: `/www/wwwroot/clickpulse-data/updates`
+- Local listen address: `127.0.0.1:3032`
+- Public reverse proxy: `https://clickpulse.fangdutex.cn/` → `http://127.0.0.1:3032/`
 
-The avatar directory must not be placed in a public web root. Images are served through the validated API route.
+Avatar and update directories must not be placed in a public web root. Files are served only through validated API routes.
 
 Create an independent PostgreSQL database and user, copy `.env.example` to `.env`, then run:
 
@@ -27,13 +28,26 @@ Create an independent PostgreSQL database and user, copy `.env.example` to `.env
 npm run build
 npm run migrate
 pm2 startOrReload ecosystem.config.cjs
-curl http://127.0.0.1:3002/api/v1/health
+curl http://127.0.0.1:3032/api/v1/health
 ```
 
-Create an invitation code with a maximum use count and validity in days:
+## Invitation administration
+
+Generate the administrator password hash once, add the printed value to `.env` as `ADMIN_PASSWORD_HASH`, and reload the process:
+
+```bash
+read -rsp 'New ClickPulse admin password: ' CLICKPULSE_ADMIN_PASSWORD; echo
+export CLICKPULSE_ADMIN_PASSWORD
+node dist/admin-password.js
+unset CLICKPULSE_ADMIN_PASSWORD
+```
+
+Copy the printed hash (not the plaintext password) into `.env`, run `pm2 startOrReload ecosystem.config.cjs`, then open `https://clickpulse.fangdutex.cn/admin` on a phone or computer. The page creates limited-use, expiring codes, shows each plaintext code only in the creation response, lists usage, and can revoke unused capacity. The password is verified with scrypt; the browser receives an eight-hour `HttpOnly`, `Secure`, `SameSite=Strict` session cookie. Mutating requests also require the production same-origin header.
+
+The CLI remains available as an emergency fallback:
 
 ```bash
 npm run invite -- 1 30
 ```
 
-The command prints the only plaintext copy of the code; the database stores only its SHA-256 hash. Back up PostgreSQL and the avatar directory together. Deployments must preserve `.env`, `logs/`, and the avatar directory.
+Invitation plaintext is never stored; the database contains only SHA-256 hashes. Back up PostgreSQL and the avatar directory together. Deployments preserve `.env`, `logs/`, avatars, and mirrored update packages. The release workflow publishes verified ZIPs, manifests and checksums to the private update root after creating each GitHub Release.

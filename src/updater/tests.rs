@@ -62,7 +62,7 @@ fn release(version: &str, target: Target) -> Release {
         ]
         .into_iter()
         .map(|name| Asset {
-            browser_download_url: format!("{RELEASES}/download/v{version}/{name}"),
+            browser_download_url: format!("{UPDATE_BASE}/download/{version}/{name}"),
             name,
             size: 1,
             digest: None,
@@ -194,9 +194,9 @@ fn release_metadata_cannot_redirect_to_another_repo_or_unsafe_version() {
             2 => r.html_url = "https://example.com/release".into(),
             3 => {
                 r.assets[0].browser_download_url =
-                    "http://github.com/luoliguang/ClickPulse-Social/file".into()
+                    "http://clickpulse.fangdutex.cn/api/v1/updates/file".into()
             }
-            4 => r.assets[0].browser_download_url = "https://github.com/other/repo/file".into(),
+            4 => r.assets[0].browser_download_url = "https://example.com/update/file".into(),
             5 => r.assets.push(r.assets[0].clone()),
             6 => r.assets[0].size = MAX_ARCHIVE + 1,
             _ => r.assets[0].digest = Some("sha256:bad".into()),

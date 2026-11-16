@@ -15,10 +15,10 @@ The client does not upload typed text, specific key identities, application name
 
 The first release offers a Shanghai-calendar today ranking and Monday-through-Sunday week ranking. It does not offer a lifetime ranking, so imported history cannot create a permanent advantage. Absolute daily values make retries idempotent; the service rejects decreasing totals and implausibly large daily values.
 
-Membership credentials are generated randomly. The server stores only their SHA-256 hashes. Invitation codes are also stored only as hashes and can expire or have limited uses. A member can remove their avatar or leave the leaderboard; leaving deletes the member, daily totals, and avatar from the service.
+Membership credentials are generated randomly. The server stores only their SHA-256 hashes. Invitation codes are also stored only as hashes and can expire, have limited uses, or be revoked. The maintainer creates and manages them through the password-protected `/admin` page; plaintext codes are returned only once at creation. A member can remove their avatar or leave the leaderboard; leaving deletes the member, daily totals, and avatar from the service.
 
 ## Service boundary
 
 The API runs independently at `clickpulse.fangdutex.cn` with a dedicated PostgreSQL database, process, port, deployment directory, and private avatar directory. It does not share the pinyin application's database or files. See [`server/README.md`](../server/README.md) for deployment details.
 
-Server-side rate limits and anomaly bounds discourage accidental or casual abuse. A desktop client ultimately controls the numbers it reports, so this is a community feature rather than a cheat-proof competition.
+Server-side rate limits and anomaly bounds discourage accidental or casual abuse. Administrator login uses a memory-hard password hash, a short-lived secure cookie, same-origin checks, and rate limiting. A desktop client ultimately controls the numbers it reports, so this is a community feature rather than a cheat-proof competition.

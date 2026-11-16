@@ -1,15 +1,21 @@
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { ADMIN_APP_JS, ADMIN_HTML, cookieValue, createAdminSession, generateInviteCode, verifyAdminSession, verifyPassword } from './admin';
 import { pool } from './db';
 import { allowedUploadDates, assertInvite, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, periodBounds } from './domain';
 
 const avatarRoot = process.env.AVATAR_ROOT || join(process.cwd(), 'avatars');
+const updateRoot = () => process.env.UPDATE_ROOT || join(process.cwd(), 'updates');
 const publicBase = (process.env.PUBLIC_BASE || 'https://clickpulse.fangdutex.cn').replace(/\/$/, '');
 const limiter = new Map<string, { count: number; reset: number }>();
+const adminCookie = 'clickpulse_admin';
+const updateTargets = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64'];
 
 type MemberRow = { id: string; nickname: string; avatar_file: string | null };
+type InvitationRow = { id: string; max_uses: number; uses: number; expires_at: string | null; revoked_at: string | null; created_at: string; expired: boolean };
 
 function limited(key: string, maximum: number, windowMs: number): boolean {
   const now = Date.now();
@@ -45,6 +51,24 @@ function memberJson(member: MemberRow) {
   return { id: member.id, nickname: member.nickname, avatar: avatar(member) };
 }
 
+function sameOrigin(request: FastifyRequest): boolean {
+  return request.headers.origin === publicBase;
+}
+
+function adminAuthenticated(request: FastifyRequest): boolean {
+  return verifyAdminSession(cookieValue(request.headers.cookie, adminCookie), process.env.ADMIN_PASSWORD_HASH);
+}
+
+function requireAdmin(request: FastifyRequest, reply: FastifyReply): boolean {
+  if (adminAuthenticated(request)) return true;
+  fail(reply, 401, 'admin_unauthorized', 'Admin sign-in is required');
+  return false;
+}
+
+function adminCookieHeader(value: string, maxAge: number): string {
+  return `${adminCookie}=${value}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
+}
+
 export function buildApp() {
   const app = Fastify({
     logger: true,
@@ -57,6 +81,98 @@ export function buildApp() {
   app.get('/api/v1/health', async () => {
     await pool.query('SELECT 1');
     return { ok: true, service: 'clickpulse-leaderboard' };
+  });
+
+  app.get('/api/v1/updates/latest', async (_request, reply) => {
+    try {
+      const bytes = await readFile(join(updateRoot(), 'latest.json'));
+      if (bytes.length > 1024 * 1024) throw new Error('update metadata is too large');
+      const metadata = JSON.parse(bytes.toString('utf8'));
+      return reply.header('Cache-Control', 'no-store').send(metadata);
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') return fail(reply, 404, 'update_unavailable', 'No mirrored update is available');
+      throw error;
+    }
+  });
+
+  app.get('/api/v1/updates/download/:version/:file', {
+    schema: { params: { type: 'object', additionalProperties: false, required: ['version', 'file'], properties: { version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' }, file: { type: 'string', minLength: 1, maxLength: 128 } } } }
+  }, async (request, reply) => {
+    const { version, file } = request.params as { version: string; file: string };
+    const allowed = new Set(['SHA256SUMS.txt', ...updateTargets.flatMap(target => [`ClickPulse-${version}-${target}.zip`, `ClickPulse-${version}-${target}.manifest.json`])]);
+    if (!allowed.has(file)) return fail(reply, 404, 'not_found', 'Update file not found');
+    const path = join(updateRoot(), `v${version}`, file);
+    try {
+      const info = await stat(path);
+      if (!info.isFile()) return fail(reply, 404, 'not_found', 'Update file not found');
+      return reply.header('Cache-Control', 'public, max-age=31536000, immutable').header('Content-Length', info.size).type('application/octet-stream').send(createReadStream(path));
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') return fail(reply, 404, 'not_found', 'Update file not found');
+      throw error;
+    }
+  });
+
+  app.get('/admin', async (_request, reply) => {
+    if (!process.env.ADMIN_PASSWORD_HASH) return fail(reply, 404, 'not_found', 'Not found');
+    return reply.header('Cache-Control', 'no-store').header('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'").type('text/html; charset=utf-8').send(ADMIN_HTML);
+  });
+
+  app.get('/admin/app.js', async (_request, reply) => {
+    if (!process.env.ADMIN_PASSWORD_HASH) return fail(reply, 404, 'not_found', 'Not found');
+    return reply.header('Cache-Control', 'no-store').header('Content-Security-Policy', "default-src 'none'").type('application/javascript; charset=utf-8').send(ADMIN_APP_JS);
+  });
+
+  app.post('/admin/api/session', {
+    schema: { body: { type: 'object', additionalProperties: false, required: ['password'], properties: { password: { type: 'string', minLength: 1, maxLength: 256 } } } }
+  }, async (request, reply) => {
+    if (!process.env.ADMIN_PASSWORD_HASH) return fail(reply, 404, 'not_found', 'Not found');
+    if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
+    if (limited(`admin-login:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many sign-in attempts');
+    const password = (request.body as { password: unknown }).password;
+    if (!verifyPassword(password, process.env.ADMIN_PASSWORD_HASH)) return fail(reply, 401, 'admin_unauthorized', 'Password is incorrect');
+    const session = createAdminSession(process.env.ADMIN_PASSWORD_HASH);
+    return reply.header('Set-Cookie', adminCookieHeader(session, 8 * 60 * 60)).send({ ok: true });
+  });
+
+  app.delete('/admin/api/session', async (request, reply) => {
+    if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
+    return reply.header('Set-Cookie', adminCookieHeader('', 0)).send({ ok: true });
+  });
+
+  app.get('/admin/api/invitations', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+    const result = await pool.query<InvitationRow>('SELECT id,max_uses,uses,expires_at,revoked_at,created_at,(expires_at IS NOT NULL AND expires_at<=NOW()) expired FROM leaderboard_invitations ORDER BY created_at DESC LIMIT 200');
+    return { invitations: result.rows.map(row => ({ ...row, remaining: Math.max(0, row.max_uses - row.uses) })) };
+  });
+
+  app.post('/admin/api/invitations', {
+    schema: { body: { type: 'object', additionalProperties: false, required: ['max_uses', 'valid_days', 'count'], properties: { max_uses: { type: 'integer', minimum: 1, maximum: 1000 }, valid_days: { type: 'integer', minimum: 1, maximum: 3650 }, count: { type: 'integer', minimum: 1, maximum: 20 } } } }
+  }, async (request, reply) => {
+    if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
+    if (!requireAdmin(request, reply)) return;
+    if (limited('admin-invite', 60, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Invitations are being generated too frequently');
+    const { max_uses, valid_days, count } = request.body as { max_uses: number; valid_days: number; count: number };
+    const codes = Array.from({ length: count }, generateInviteCode);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const code of codes) await client.query("INSERT INTO leaderboard_invitations(id,code_hash,max_uses,expires_at) VALUES($1,$2,$3,NOW()+($4||' days')::interval)", [randomUUID(), hashSecret(code), max_uses, String(valid_days)]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
+    return reply.code(201).send({ codes });
+  });
+
+  app.delete('/admin/api/invitations/:id', {
+    schema: { params: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', pattern: '^[0-9a-f-]{36}$' } } } }
+  }, async (request, reply) => {
+    if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
+    if (!requireAdmin(request, reply)) return;
+    const result = await pool.query('UPDATE leaderboard_invitations SET revoked_at=COALESCE(revoked_at,NOW()) WHERE id=$1 RETURNING id', [(request.params as { id: string }).id]);
+    if (!result.rows[0]) return fail(reply, 404, 'not_found', 'Invitation not found');
+    return { ok: true };
   });
 
   app.post('/api/v1/join', {
@@ -72,7 +188,7 @@ export function buildApp() {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
+        const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
         if (!invitation.rows[0]) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_invite', 'Invitation code is invalid or exhausted'); }
         await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash) VALUES($1,$2,$3,$4)', [id, nickname, key, hashSecret(token)]);
         await client.query('UPDATE leaderboard_invitations SET uses=uses+1 WHERE id=$1', [invitation.rows[0].id]);

@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS leaderboard_invitations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE leaderboard_invitations ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS leaderboard_members (
   id TEXT PRIMARY KEY,
   nickname VARCHAR(96) NOT NULL,

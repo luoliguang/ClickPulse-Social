@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.1 · 2026-11-16
+
+### New
+
+- Download verified application updates directly from the domestic ClickPulse service.
+- Manage leaderboard invitation codes from a password-protected mobile-friendly web page.
+
+### Security
+
+- Keep update package checksums and source provenance verification in the desktop updater.
+- Store only invitation-code hashes and a memory-hard administrator password hash on the server.
+
 ## 0.4.0 · 2026-11-16
 
 ### New

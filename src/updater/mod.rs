@@ -18,7 +18,8 @@ pub use install::{
 };
 
 pub const RELEASES: &str = "https://github.com/luoliguang/ClickPulse-Social/releases";
-const API: &str = "https://api.github.com/repos/luoliguang/ClickPulse-Social/releases/latest";
+const UPDATE_BASE: &str = "https://clickpulse.fangdutex.cn/api/v1/updates";
+const API: &str = "https://clickpulse.fangdutex.cn/api/v1/updates/latest";
 const MAX_ARCHIVE: u64 = 128 * 1024 * 1024;
 const MAX_EXPANDED: u64 = 512 * 1024 * 1024;
 const MAX_FILES: usize = 2048;
@@ -211,7 +212,7 @@ impl Candidate {
                 "Invalid update asset size"
             );
             ensure!(
-                asset.browser_download_url == format!("{RELEASES}/download/v{version}/{name}"),
+                asset.browser_download_url == format!("{UPDATE_BASE}/download/{version}/{name}"),
                 "Unexpected update URL"
             );
             if let Some(digest) = &asset.digest {
