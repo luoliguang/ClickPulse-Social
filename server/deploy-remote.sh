@@ -37,6 +37,12 @@ elif [[ -f "$API_ROOT/ecosystem.config.cjs" && -f "$API_ROOT/dist/index.js" ]]; 
   previous_config="$API_ROOT/ecosystem.config.cjs"
 fi
 
+restart_api() {
+  config_path="$1"
+  pm2 delete clickpulse-api >/dev/null 2>&1 || true
+  pm2 start "$config_path" --update-env
+}
+
 switched=0
 rollback() {
   status=$?
@@ -48,11 +54,11 @@ rollback() {
       ln -sfn "$previous_target" "$current_link.rollback"
       mv -Tf "$current_link.rollback" "$current_link"
       CLICKPULSE_API_ROOT="$API_ROOT" CLICKPULSE_REVISION="rollback" \
-        pm2 startOrReload "$previous_config" --update-env
+        restart_api "$previous_config"
     elif [[ -n "$previous_config" ]]; then
       rm -f -- "$current_link"
       CLICKPULSE_API_ROOT="$API_ROOT" CLICKPULSE_REVISION="rollback" \
-        pm2 startOrReload "$previous_config" --update-env
+        restart_api "$previous_config"
     else
       pm2 delete clickpulse-api >/dev/null 2>&1 || true
     fi
@@ -75,9 +81,10 @@ switched=1
 
 export CLICKPULSE_API_ROOT="$API_ROOT"
 export CLICKPULSE_REVISION="$DEPLOY_REVISION"
-pm2 startOrReload "$current_link/ecosystem.config.cjs" --update-env
+restart_api "$current_link/ecosystem.config.cjs"
 
 healthy=0
+response=""
 for _ in $(seq 1 30); do
   if response="$(curl --fail --silent "http://127.0.0.1:$API_PORT/api/v1/health")" && \
     node -e 'const h=JSON.parse(process.argv[1]); if(h.ok!==true||h.revision!==process.argv[2]) process.exit(1)' "$response" "$DEPLOY_REVISION"; then
@@ -87,6 +94,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 if (( ! healthy )); then
+  echo "Health check did not report revision $DEPLOY_REVISION; last response: ${response:-unavailable}" >&2
   pm2 logs clickpulse-api --lines 50 --nostream || true
   false
 fi
