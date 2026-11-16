@@ -167,8 +167,8 @@ jobs:
           import json, os
           with open('published-latest.json', encoding='utf-8') as handle:
               metadata = json.load(handle)
-          expected = os.environ['RELEASE_VERSION']
-          actual = metadata.get('version')
+          expected = f"v{os.environ['RELEASE_VERSION']}"
+          actual = metadata.get('tag_name')
           if actual != expected:
               raise SystemExit(f'published update metadata reports {actual!r}, expected {expected!r}')
           PY
