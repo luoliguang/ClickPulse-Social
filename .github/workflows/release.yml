@@ -51,7 +51,7 @@ jobs:
     name: Verify and assemble release assets
     needs: [version, packages]
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -159,8 +159,8 @@ jobs:
           STAGING="$UPDATE_ROOT/.v$RELEASE_VERSION-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           TARGET="$UPDATE_ROOT/v$RELEASE_VERSION"
           $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; mkdir -p '$UPDATE_ROOT'; test ! -e '$STAGING'; mkdir '$STAGING'"
-          rsync -az -e "$SSH_CMD" dist/update-assets/ "$SSH_USER@$SSH_HOST:$STAGING/"
-          rsync -az -e "$SSH_CMD" dist/latest.json "$SSH_USER@$SSH_HOST:$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+          rsync -a --partial --timeout=300 -e "$SSH_CMD" dist/update-assets/ "$SSH_USER@$SSH_HOST:$STAGING/"
+          rsync -a --partial --timeout=300 -e "$SSH_CMD" dist/latest.json "$SSH_USER@$SSH_HOST:$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
           $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; if [ -d '$TARGET' ]; then rm -rf '$STAGING'; else mv '$STAGING' '$TARGET'; fi; mv '$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json' '$UPDATE_ROOT/latest.json'"
           curl --fail --silent --show-error --retry 5 --retry-delay 2 \
             'https://clickpulse.fangdutex.cn/api/v1/updates/latest' > published-latest.json
