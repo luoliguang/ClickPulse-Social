@@ -59,7 +59,7 @@ def validate(site: Path, revision: str) -> None:
         if parsed.path and not target.is_file():
             raise ValueError(f'Missing local website asset: {reference}')
     manifest = json.loads((site / 'site.webmanifest').read_text(encoding='utf-8'))
-    if manifest.get('start_url') != '/' or manifest.get('theme_color') != '#07111f':
+    if manifest.get('start_url') != '/' or manifest.get('theme_color') != '#171126':
         raise ValueError('Invalid web manifest')
     ET.parse(site / 'sitemap.xml')
     if 'http://' in text:

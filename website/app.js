@@ -5,80 +5,86 @@
   const translations = {
     'zh-CN': {
       skip: '跳到主要内容',
-      'nav.features': '功能', 'nav.privacy': '隐私', 'nav.download': '下载',
+      'nav.label': '主导航', 'nav.features': '它能做什么', 'nav.privacy': '隐私', 'nav.download': '下载',
       'version.loading': '正在获取最新版本',
-      'hero.title': '看见每天的<br>每一次输入',
-      'hero.lead': 'ClickPulse 在本地记录键盘和鼠标活动，把重复的按键与点击，变成趋势、热力图和可以回看的工作节奏。',
-      'hero.download': '选择下载版本', 'hero.preview': '看看它如何工作',
-      'hero.note': '无需账号 · 无遥测 · 数据默认只留在你的电脑',
-      'preview.alt': 'ClickPulse 概览页面，显示活动趋势和日历',
-      'proof.offline.title': '完全离线', 'proof.offline.text': '日常数据不离开设备',
-      'proof.platform.title': '三个平台', 'proof.opensource.title': '开放源码',
-      'proof.languages.title': '八种语言', 'proof.languages.text': '界面与时区自由选择',
-      'product.title': '不是监控，是一面镜子',
-      'product.lead': 'ClickPulse 不记录你输入了什么，也不知道你打开了哪个应用。它只保存聚合后的次数，帮助你理解自己的节奏。',
-      'product.heatmap.title': '最常按下的键，一眼看清',
-      'product.heatmap.text': '键盘热力图把长期习惯变成直观颜色。查看当天，也可以回到历史中的任意一天。',
-      'product.heatmap.alt': 'ClickPulse 键盘热力图',
-      'product.history.title': '趋势与历史', 'product.history.text': '从小时曲线到全年日历，找到高强度工作和休息的真实分布。',
-      'product.mini.alt': 'ClickPulse Mini 悬浮窗口', 'product.mini.text': '把今天的计数留在桌面一角，需要时看一眼，不打断正在做的事。',
-      'features.title': '数据属于你，使用方式也属于你',
-      'features.local.title': '本地数据库', 'features.local.text': '统计历史保存在你选择的本地目录，可备份、迁移或合并。',
-      'features.views.title': '多种视图', 'features.views.text': '概览、历史、热力图、矩形树图和 Mini 模式，各自回答不同问题。',
-      'features.personal.title': '按你的习惯工作', 'features.personal.text': '支持主题、语言、时区、紧凑窗口和开机启动。',
-      'download.title': '下载 ClickPulse', 'download.lead': '选择你的系统。官网会在正式 Release 发布后自动切换到最新稳定版。',
+      'hero.title': '<span>给今天的输入，</span><span>留一个数字。</span>',
+      'hero.lead': 'ClickPulse 在本地统计键盘和鼠标次数。看看今天有多忙，自己的节奏怎样变化，偶尔也和别人比一比。',
+      'hero.caveat': '次数不代表效率，但它能让普通的一天变得可见。',
+      'hero.download': '选择下载版本', 'hero.preview': '看看它记下了什么',
+      'hero.note': '无需账号　不含遥测　支持 Windows、macOS 和 Linux',
+      'overview.alt': 'ClickPulse 总览页面，显示今日、近七天和累计输入次数',
+      'overview.caption': '一天的输入，从一个数字开始。',
+      'milestone.kicker': '今日输入量级', 'milestone.title': '数字没有标准，只有参照。',
+      'milestone.lead': '每个岗位的输入方式不同。把今天和过去的自己放在一起看，比用次数评价谁更努力更有意义。',
+      'milestone.example': '示例：61,246 次', 'milestone.exampleLevel': '高频输入日',
+      'level.start': '刚刚启动', 'level.warm': '热身完成', 'level.flow': '正在状态', 'level.busy': '高频输入日', 'level.fire': '键盘冒烟',
+      'milestone.note': '这是一套趣味里程碑，不是生产力评分。',
+      'story.kicker': '一份电脑输入日记', 'story.title': '不解释你的一天，<br>只把它如实留下。',
+      'heatmap.title': '哪些键，成了你的肌肉记忆？',
+      'heatmap.text': '热力图把每一次按键叠成颜色。写代码、做表格、剪视频，每种工作都会留下不同的形状。',
+      'heatmap.alt': 'ClickPulse 键盘热力图，按键颜色随使用次数加深',
+      'leaderboard.title': '偶尔，和同路的人比一比。',
+      'leaderboard.text': '排行榜按日或按周汇总键盘和鼠标次数。加入完全自愿，昵称、身份和头像都由你决定。',
+      'leaderboard.alt': 'ClickPulse 社区排行榜，显示成员的键盘、鼠标和总次数',
+      'mini.title': '忙起来时，只看一眼。',
+      'mini.text': '小窗口留在桌面一角，显示今天的键盘、鼠标和实时速度。它不催促你，也不打断正在做的事。',
+      'mini.alt': 'ClickPulse 小窗口，显示今日输入总数和实时速度',
+      'privacy.kicker': '隐私边界', 'privacy.title': '我们记录次数，<br>不记录你输入了什么。',
+      'privacy.lead': '正常统计完全离线。只有你主动加入排行榜时，每日键盘和鼠标总次数才会上传。',
+      'privacy.keep.title': '会保存', 'privacy.keep.counts': '键盘和鼠标次数', 'privacy.keep.time': '日期与小时分布', 'privacy.keep.keys': '按键使用频率',
+      'privacy.never.title': '不会保存', 'privacy.never.content': '输入内容和具体字符', 'privacy.never.apps': '应用名称和浏览记录', 'privacy.never.pointer': '鼠标位置和屏幕内容',
+      'download.kicker': '带走你自己的输入日记', 'download.title': '下载 ClickPulse',
+      'download.lead': '选择你的系统。官网只跟随正式稳定版更新。',
       'download.checking': '正在检查最新版本…', 'download.recommended': '适合你的设备', 'download.windows': '下载便携版',
       'release.title': '这个版本有什么变化', 'release.loading': '版本信息加载后会显示更新内容。',
       'release.github': '在 GitHub 查看完整 Release', 'release.checksum': '下载 SHA256 校验文件',
       'warning.title': '首次打开提示：', 'warning.text': 'Windows 和 macOS 版本暂未购买代码签名证书，系统可能显示安全提醒。安装包可以通过 SHA256 和公开源码校验。', 'warning.guide': '查看安装说明',
-      'privacy.title': '你的输入，不该成为别人的数据',
-      'privacy.lead': 'ClickPulse 的正常统计完全离线。它不会保存按键内容、具体字符、应用名称、鼠标位置或浏览记录。',
-      'privacy.noaccount.title': '不需要账号', 'privacy.noaccount.text': '下载后即可使用，不需要邮箱或登录。',
-      'privacy.notelemetry.title': '没有遥测', 'privacy.notelemetry.text': '没有广告 SDK，也没有隐藏的行为分析。',
-      'privacy.optin.title': '排行榜明确自愿', 'privacy.optin.text': '只有你主动加入时，才上传每日键盘和鼠标总次数。',
-      'opensource.title': '开放源码，也保留来路',
-      'opensource.text': 'ClickPulse-Social 是 endNone/ClickPulse 的独立二次开发版本，由罗洋洋维护，继续采用 GPL-3.0-or-later 许可证。你可以审查源码、构建自己的版本，也可以参与改进。',
-      'opensource.action': '查看 GitHub 源码', 'footer.tagline': '让重复的输入，留下有用的痕迹。', 'footer.changelog': '更新日志', 'footer.issues': '问题反馈',
+      'opensource.kicker': '开放源码', 'opensource.title': '数据留在电脑，代码留在阳光下。',
+      'opensource.text': 'ClickPulse-Social 是 endNone/ClickPulse 的独立二次开发版本，由罗洋洋维护，继续采用 GPL-3.0-or-later 许可证。',
+      'opensource.action': '查看 GitHub 源码', 'footer.tagline': '给今天的输入，留一个数字。', 'footer.changelog': '更新日志', 'footer.issues': '问题反馈',
       'state.ready': '最新稳定版 {version}', 'state.fallback': '版本服务暂不可用，可前往 GitHub 下载',
       'version.ready': '{version} 已发布', 'notes.empty': '查看完整 Release 获取这个版本的更新说明。',
       'smart.windows': '下载 Windows 版', 'smart.linux': '下载 Linux x64 版', 'smart.default': '选择下载版本'
     },
     en: {
       skip: 'Skip to main content',
-      'nav.features': 'Features', 'nav.privacy': 'Privacy', 'nav.download': 'Download',
+      'nav.label': 'Primary navigation', 'nav.features': 'What it shows', 'nav.privacy': 'Privacy', 'nav.download': 'Download',
       'version.loading': 'Checking the latest release',
-      'hero.title': 'See every input<br>shape your day',
-      'hero.lead': 'ClickPulse counts keyboard and mouse activity locally, turning repeated keys and clicks into trends, heatmaps, and a work rhythm you can look back on.',
-      'hero.download': 'Choose a download', 'hero.preview': 'See how it works',
-      'hero.note': 'No account · No telemetry · Your data stays on your computer',
-      'preview.alt': 'ClickPulse overview showing activity trends and calendar',
-      'proof.offline.title': 'Fully offline', 'proof.offline.text': 'Daily data stays on your device',
-      'proof.platform.title': 'Three platforms', 'proof.opensource.title': 'Open source',
-      'proof.languages.title': 'Eight languages', 'proof.languages.text': 'Choose your interface and time zone',
-      'product.title': 'Not surveillance. A mirror.',
-      'product.lead': 'ClickPulse does not know what you type or which app you use. It stores only aggregate counts to help you understand your own rhythm.',
-      'product.heatmap.title': 'Your most-used keys, at a glance',
-      'product.heatmap.text': 'The keyboard heatmap turns long-term habits into color. Review today or return to any day in your history.',
-      'product.heatmap.alt': 'ClickPulse keyboard heatmap',
-      'product.history.title': 'Trends and history', 'product.history.text': 'From hourly curves to a full-year calendar, see where focused work and rest actually happen.',
-      'product.mini.alt': 'ClickPulse Mini floating window', 'product.mini.text': 'Keep today’s totals in a corner of the desktop. One glance, without leaving your work.',
-      'features.title': 'Your data, used your way',
-      'features.local.title': 'Local database', 'features.local.text': 'History lives in a local folder you choose, ready to back up, move, or merge.',
-      'features.views.title': 'Views with a purpose', 'features.views.text': 'Overview, history, heatmap, treemap, and Mini mode each answer a different question.',
-      'features.personal.title': 'Works around you', 'features.personal.text': 'Choose themes, language, time zone, compact view, and launch at login.',
-      'download.title': 'Download ClickPulse', 'download.lead': 'Choose your system. The site switches automatically when a new stable Release is published.',
+      'hero.title': '<span>Give today’s input</span><span>a number.</span>',
+      'hero.lead': 'ClickPulse counts keyboard and mouse activity locally. See how busy today was, how your rhythm changes, and—occasionally—how you compare.',
+      'hero.caveat': 'Counts are not productivity, but they can make an ordinary day visible.',
+      'hero.download': 'Choose a download', 'hero.preview': 'See what it keeps',
+      'hero.note': 'No account　No telemetry　Windows, macOS, and Linux',
+      'overview.alt': 'ClickPulse overview showing today, the last seven days, and all-time input counts',
+      'overview.caption': 'A day of input begins with one number.',
+      'milestone.kicker': 'Today’s input range', 'milestone.title': 'There is no standard. Only context.',
+      'milestone.lead': 'Every role uses a computer differently. Comparing today with your own past says more than using a count to judge who worked harder.',
+      'milestone.example': 'Example: 61,246 inputs', 'milestone.exampleLevel': 'High-input day',
+      'level.start': 'Getting started', 'level.warm': 'Warmed up', 'level.flow': 'In the flow', 'level.busy': 'High-input day', 'level.fire': 'Keyboard on fire',
+      'milestone.note': 'These are playful milestones, not a productivity score.',
+      'story.kicker': 'A computer input journal', 'story.title': 'It does not explain your day.<br>It simply keeps the trace.',
+      'heatmap.title': 'Which keys became muscle memory?',
+      'heatmap.text': 'The heatmap layers every keypress into color. Code, spreadsheets, and video edits each leave a different shape.',
+      'heatmap.alt': 'ClickPulse keyboard heatmap with deeper colors for more frequently used keys',
+      'leaderboard.title': 'Sometimes, compare with people on the same road.',
+      'leaderboard.text': 'The leaderboard totals keyboard and mouse activity by day or week. Joining is entirely optional; your name, role, and avatar are yours to choose.',
+      'leaderboard.alt': 'ClickPulse community leaderboard showing members and their keyboard, mouse, and total counts',
+      'mini.title': 'When work gets busy, take one glance.',
+      'mini.text': 'Mini stays in a corner of your desktop with today’s keyboard, mouse, and live speed. It does not hurry you or interrupt the work.',
+      'mini.alt': 'ClickPulse Mini showing today’s total input and live speed',
+      'privacy.kicker': 'The privacy boundary', 'privacy.title': 'We count the inputs.<br>We never record what you type.',
+      'privacy.lead': 'Normal tracking is fully offline. Daily keyboard and mouse totals upload only if you explicitly join the leaderboard.',
+      'privacy.keep.title': 'Stored locally', 'privacy.keep.counts': 'Keyboard and mouse counts', 'privacy.keep.time': 'Date and hourly distribution', 'privacy.keep.keys': 'Key usage frequency',
+      'privacy.never.title': 'Never stored', 'privacy.never.content': 'Typed content or characters', 'privacy.never.apps': 'App names or browsing history', 'privacy.never.pointer': 'Pointer position or screen content',
+      'download.kicker': 'Take your input journal with you', 'download.title': 'Download ClickPulse',
+      'download.lead': 'Choose your system. This site follows stable releases only.',
       'download.checking': 'Checking the latest release…', 'download.recommended': 'Recommended for this device', 'download.windows': 'Download portable app',
       'release.title': 'What changed in this release', 'release.loading': 'Release notes will appear when version data loads.',
       'release.github': 'View the full Release on GitHub', 'release.checksum': 'Download SHA256 checksums',
       'warning.title': 'First launch:', 'warning.text': 'The Windows and macOS builds are not code-signed yet, so your system may show a security prompt. Packages can be checked against SHA256 and the public source.', 'warning.guide': 'Read the install guide',
-      'privacy.title': 'Your input should not become someone else’s data',
-      'privacy.lead': 'Normal ClickPulse tracking is fully offline. It never saves typed content, individual characters, app names, pointer positions, or browsing history.',
-      'privacy.noaccount.title': 'No account', 'privacy.noaccount.text': 'Download and start. No email or sign-in required.',
-      'privacy.notelemetry.title': 'No telemetry', 'privacy.notelemetry.text': 'No advertising SDK and no hidden behavior analytics.',
-      'privacy.optin.title': 'Leaderboard is opt-in', 'privacy.optin.text': 'Only daily keyboard and mouse totals upload after you explicitly join.',
-      'opensource.title': 'Open source, with its history intact',
-      'opensource.text': 'ClickPulse-Social is an independent derivative of endNone/ClickPulse, maintained by Luo Yangyang under GPL-3.0-or-later. Review the source, build your own copy, or help improve it.',
-      'opensource.action': 'View source on GitHub', 'footer.tagline': 'Make repeated input leave a useful trace.', 'footer.changelog': 'Changelog', 'footer.issues': 'Report an issue',
+      'opensource.kicker': 'Open source', 'opensource.title': 'Data stays on your computer. Code stays in the open.',
+      'opensource.text': 'ClickPulse-Social is an independent derivative of endNone/ClickPulse, maintained by Luo Yangyang under GPL-3.0-or-later.',
+      'opensource.action': 'View source on GitHub', 'footer.tagline': 'Give today’s input a number.', 'footer.changelog': 'Changelog', 'footer.issues': 'Report an issue',
       'state.ready': 'Latest stable release {version}', 'state.fallback': 'Version service is unavailable. Downloads remain on GitHub.',
       'version.ready': '{version} is available', 'notes.empty': 'Open the full Release to read the notes for this version.',
       'smart.windows': 'Download for Windows', 'smart.linux': 'Download for Linux x64', 'smart.default': 'Choose a download'
@@ -89,6 +95,7 @@
   let language = preferred === 'en' || preferred === 'zh-CN' ? preferred : (navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en');
   let release = null;
   let detectedPlatform = 'other';
+  let languageSwitching = false;
 
   const text = (key, variables = {}) => {
     let value = translations[language][key] || translations['zh-CN'][key] || key;
@@ -97,18 +104,61 @@
   };
 
   function applyLanguage() {
+    const isChinese = language === 'zh-CN';
     document.documentElement.lang = language;
-    document.title = language === 'zh-CN' ? 'ClickPulse — 离线键盘与鼠标活动统计' : 'ClickPulse — Offline keyboard and mouse activity insights';
-    document.querySelector('meta[name="description"]').content = language === 'zh-CN'
-      ? 'ClickPulse 是一款隐私优先的离线键盘与鼠标活动统计工具，支持 Windows、macOS 和 Linux。'
-      : 'ClickPulse is a privacy-first offline keyboard and mouse activity tracker for Windows, macOS, and Linux.';
+    document.title = isChinese ? 'ClickPulse — 给今天的输入，留一个数字' : 'ClickPulse — Give today’s input a number';
+    document.querySelector('meta[name="description"]').content = isChinese
+      ? 'ClickPulse 在本地统计键盘和鼠标次数，让每天的工作节奏可以量化、回看，也可以偶尔和别人比一比。'
+      : 'ClickPulse counts keyboard and mouse activity locally, turning each day into a private input journal you can revisit.';
+    document.querySelector('meta[property="og:title"]').content = document.title;
+    document.querySelector('meta[property="og:description"]').content = isChinese
+      ? '不记录输入内容，只记录键盘和鼠标次数。一份只属于你的电脑输入日记。'
+      : 'Never the content—only keyboard and mouse counts. A computer input journal that belongs to you.';
     document.querySelectorAll('[data-i18n]').forEach(node => { node.innerHTML = text(node.dataset.i18n); });
     document.querySelectorAll('[data-i18n-alt]').forEach(node => { node.alt = text(node.dataset.i18nAlt); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(node => { node.setAttribute('aria-label', text(node.dataset.i18nAria)); });
     const switcher = document.getElementById('language-switch');
-    switcher.textContent = language === 'zh-CN' ? 'EN' : '中文';
-    switcher.setAttribute('aria-label', language === 'zh-CN' ? 'Switch to English' : '切换到中文');
+    switcher.querySelector('.language-current').textContent = isChinese ? '中' : 'EN';
+    switcher.querySelector('.language-next').textContent = isChinese ? 'EN' : '中';
+    switcher.setAttribute('aria-label', isChinese ? 'Switch to English' : '切换到中文');
     renderRelease();
     updateSmartDownload();
+  }
+
+  async function toggleLanguage() {
+    if (languageSwitching) return;
+    const nextLanguage = language === 'zh-CN' ? 'en' : 'zh-CN';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const shell = document.getElementById('site-shell');
+    const switcher = document.getElementById('language-switch');
+    languageSwitching = true;
+    switcher.disabled = true;
+    try {
+      if (reduceMotion || typeof shell.animate !== 'function') {
+        language = nextLanguage;
+        localStorage.setItem('clickpulse-site-language', language);
+        applyLanguage();
+        return;
+      }
+      const outgoing = shell.animate([
+        { opacity: 1, filter: 'blur(0)' },
+        { opacity: .42, filter: 'blur(1.5px)' }
+      ], { duration: 90, easing: 'ease-out', fill: 'forwards' });
+      await outgoing.finished;
+      language = nextLanguage;
+      localStorage.setItem('clickpulse-site-language', language);
+      applyLanguage();
+      const incoming = shell.animate([
+        { opacity: .42, filter: 'blur(1.5px)' },
+        { opacity: 1, filter: 'blur(0)' }
+      ], { duration: 180, easing: 'cubic-bezier(.23, 1, .32, 1)', fill: 'forwards' });
+      outgoing.cancel();
+      await incoming.finished;
+      incoming.cancel();
+    } finally {
+      languageSwitching = false;
+      switcher.disabled = false;
+    }
   }
 
   function detectPlatform() {
@@ -131,11 +181,11 @@
     if (page.protocol !== 'https:' || page.hostname !== 'github.com' || !page.pathname.endsWith(`/releases/tag/${data.tag_name}`)) throw new Error('Invalid release URL');
     const version = data.tag_name.slice(1);
     const assets = new Map();
-    for (const asset of data.assets) {
-      if (!asset || typeof asset.name !== 'string' || typeof asset.browser_download_url !== 'string') continue;
-      const url = new URL(asset.browser_download_url);
+    for (const item of data.assets) {
+      if (!item || typeof item.name !== 'string' || typeof item.browser_download_url !== 'string') continue;
+      const url = new URL(item.browser_download_url);
       if (url.protocol !== 'https:' || !['clickpulse.fangdutex.cn', 'github.com'].includes(url.hostname)) continue;
-      assets.set(asset.name, { url: url.href, size: Number(asset.size) || 0 });
+      assets.set(item.name, { url: url.href, size: Number(item.size) || 0 });
     }
     return { version, tag: data.tag_name, page: page.href, notes: Array.isArray(data.notes) ? data.notes.filter(note => typeof note === 'string').slice(0, 6) : [], assets };
   }
@@ -216,12 +266,7 @@
     }
   }
 
-  document.getElementById('language-switch').addEventListener('click', () => {
-    language = language === 'zh-CN' ? 'en' : 'zh-CN';
-    localStorage.setItem('clickpulse-site-language', language);
-    applyLanguage();
-  });
-
+  document.getElementById('language-switch').addEventListener('click', toggleLanguage);
   detectedPlatform = detectPlatform();
   applyLanguage();
   loadRelease();

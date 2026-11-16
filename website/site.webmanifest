@@ -1,11 +1,11 @@
 {
   "name": "ClickPulse",
   "short_name": "ClickPulse",
-  "description": "Offline keyboard and mouse activity insights",
+  "description": "A private keyboard and mouse input journal",
   "start_url": "/",
   "display": "browser",
-  "background_color": "#07111f",
-  "theme_color": "#07111f",
+  "background_color": "#171126",
+  "theme_color": "#171126",
   "icons": [
     { "src": "/assets/mark.png", "sizes": "1024x1024", "type": "image/png" }
   ]
