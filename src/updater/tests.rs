@@ -55,6 +55,7 @@ fn release(version: &str, target: Target) -> Release {
         html_url: format!("{RELEASES}/tag/v{version}"),
         draft: false,
         prerelease: false,
+        notes: vec!["A safer in-app update".into()],
         assets: [
             stem.clone() + ".zip",
             stem + ".manifest.json",
@@ -186,7 +187,7 @@ fn stable_release_selection_is_semantic_and_platform_specific() {
 #[test]
 fn release_metadata_cannot_redirect_to_another_repo_or_unsafe_version() {
     let target = Target::WindowsX64;
-    for mode in 0..8 {
+    for mode in 0..10 {
         let mut r = release("1.2.3", target);
         match mode {
             0 => r.draft = true,
@@ -199,7 +200,9 @@ fn release_metadata_cannot_redirect_to_another_repo_or_unsafe_version() {
             4 => r.assets[0].browser_download_url = "https://example.com/update/file".into(),
             5 => r.assets.push(r.assets[0].clone()),
             6 => r.assets[0].size = MAX_ARCHIVE + 1,
-            _ => r.assets[0].digest = Some("sha256:bad".into()),
+            7 => r.assets[0].digest = Some("sha256:bad".into()),
+            8 => r.notes = vec!["note".into(); 13],
+            _ => r.notes = vec!["\n".into()],
         }
         assert!(
             Candidate::from_release(r, "1.2.2", target).is_err(),

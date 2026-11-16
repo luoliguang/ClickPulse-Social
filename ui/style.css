@@ -201,6 +201,14 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .feedback-qr {display:flex;justify-content:center;margin:14px 0 2px}
 .feedback-qr img {width:168px;height:auto;padding:6px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .feedback-dialog .close-dialog-actions {grid-template-columns:1fr}
+.update-complete-dialog {width:min(470px,100%);padding:24px}
+.update-complete-mark {display:grid;place-items:center;width:46px;height:46px;margin-bottom:16px;border-radius:50%;background:color-mix(in srgb,var(--blue) 12%,var(--surface));color:var(--blue)}
+.update-complete-mark svg {width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.update-complete-notes {padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--blue) 4%,var(--surface))}
+.update-complete-notes>strong {font-size:var(--ui-label-size)}
+.update-complete-notes ul {display:grid;gap:8px;margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:var(--ui-detail-size);line-height:1.55}
+.update-complete-dialog .close-dialog-actions {grid-template-columns:auto;justify-content:end}
+.update-complete-dialog .button {min-width:104px}
 .leaderboard-join,.leaderboard-profile,.leaderboard-board {text-align:left}
 .leaderboard-form {display:grid;grid-template-columns:minmax(190px,260px) minmax(190px,260px) auto;gap:12px;align-items:end;justify-content:start}
 .leaderboard-form label {display:grid;gap:7px;color:var(--muted);font:600 var(--ui-detail-size)/1.4 var(--sans)}
@@ -211,8 +219,26 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-privacy,.leaderboard-empty {margin:15px 0 0;color:var(--muted);font-size:var(--ui-detail-size);line-height:1.6}
 .leaderboard-profile {display:flex;align-items:center;justify-content:space-between;gap:20px}
 .leaderboard-identity,.leaderboard-profile-actions,.leaderboard-toolbar {display:flex;align-items:center;gap:10px}
+.leaderboard-profile-copy {min-width:0}
 .leaderboard-identity p {margin:3px 0 0;color:var(--muted);font-size:var(--ui-detail-size)}
+.leaderboard-name-row,.leaderboard-name-form {display:flex;align-items:center;gap:8px;min-height:32px}
+.leaderboard-name-edit {padding:3px 5px;border:0;background:transparent;color:var(--blue);font:600 var(--ui-detail-size)/1.4 var(--sans);border-radius:4px;transition:background-color .16s,color .16s,transform .14s cubic-bezier(.23,1,.32,1)}
+.leaderboard-name-edit:hover {background:color-mix(in srgb,var(--blue) 9%,transparent)}
+.leaderboard-name-edit:active {transform:scale(.97)}
+.leaderboard-name-form input {box-sizing:border-box;width:min(220px,40vw);height:34px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 10px;font:600 var(--ui-label-size)/1.4 var(--sans);outline:none}
+.leaderboard-name-form input:focus {border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+.leaderboard-name-form .button {min-height:34px;padding:6px 10px}
 .leaderboard-avatar {width:44px;height:44px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:white;font:700 17px/1 var(--sans);background-size:cover;background-position:center}
+.leaderboard-board .table-wrap {transition:opacity .16s ease,transform .2s cubic-bezier(.23,1,.32,1)}
+.leaderboard-board.is-refreshing .table-wrap {opacity:.48;transform:translateY(2px);pointer-events:none}
+#leaderboard-loading {position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#leaderboard-sync.is-loading::before {content:"";width:11px;height:11px;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:leaderboard-spin .65s linear infinite}
+@keyframes leaderboard-spin {to{transform:rotate(360deg)}}
+.leaderboard-period-segments {position:relative;isolation:isolate;display:grid;grid-template-columns:1fr 1fr}
+.leaderboard-period-segments::before {content:"";position:absolute;z-index:0;inset:3px 50% 3px 3px;border-radius:4px;background:var(--surface);box-shadow:0 1px 4px #17376315;transition:transform .2s cubic-bezier(.23,1,.32,1)}
+.leaderboard-period-segments[data-period="week"]::before {transform:translateX(100%)}
+.leaderboard-period-segments button {position:relative;z-index:1}
+.leaderboard-period-segments button.selected {background:transparent;box-shadow:none}
 .leaderboard-table td:nth-child(n+3),.leaderboard-table th:nth-child(n+3) {text-align:right;font-variant-numeric:tabular-nums}
 .leaderboard-member {display:flex;align-items:center;gap:10px;min-width:150px}.leaderboard-member .leaderboard-avatar{width:32px;height:32px;font-size:12px}
 .leaderboard-self {background:#2563eb12;background:color-mix(in srgb,var(--blue) 8%,transparent)}
@@ -226,8 +252,8 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-confirm-note {padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd;color:#62748e;font-size:11px;line-height:1.6}
 .leaderboard-confirm-dialog .close-dialog-actions {grid-template-columns:auto auto;justify-content:end;margin-top:18px}
 .leaderboard-confirm-dialog .close-dialog-actions .button {min-width:104px;min-height:40px;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .14s cubic-bezier(.23,1,.32,1)}
-@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}}
-@media(prefers-reduced-motion:reduce){#leaderboard-join-button,.leaderboard-confirm-dialog .button{transition:none}}
+@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}}
+@media(prefers-reduced-motion:reduce){#leaderboard-join-button,.leaderboard-confirm-dialog .button,.leaderboard-name-edit,.leaderboard-board .table-wrap,.leaderboard-period-segments::before{transition:none}#leaderboard-sync.is-loading::before{animation:none}}
 body.compact .close-dialog {padding:14px}
 body.compact .close-dialog-heading h2 {font-size:14px}
 body.compact .close-dialog p {font-size:11px;margin:8px 0 10px}

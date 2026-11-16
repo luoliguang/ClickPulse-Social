@@ -115,6 +115,20 @@ fn custom_scoop_roots_are_identified_by_receipts_without_blocking_portable_copie
     }
 }
 
+#[test]
+fn an_incomplete_portable_folder_is_eligible_for_authenticated_repair() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("portable");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("ClickPulse.exe"), b"running program").unwrap();
+    let install = Installation {
+        root: root.canonicalize().unwrap(),
+        target: Target::WindowsX64,
+    };
+    assert!(install.check().is_ok());
+    assert!(!root.join("WebView2Loader.dll").exists());
+}
+
 fn windows_fixture() -> (tempfile::TempDir, Installation, PathBuf, Manifest) {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("installed");
@@ -495,6 +509,7 @@ fn helper_process_waits_for_saved_parent_and_preserves_profile_files() {
         previous_hash: previous_hash.clone(),
         manifest_hash: manifest_hash.clone(),
         version: next,
+        notes: vec!["Fixture update note".into()],
     };
     let plan_path = stage.join("apply.json");
     fs::write(&plan_path, serde_json::to_vec(&plan).unwrap()).unwrap();

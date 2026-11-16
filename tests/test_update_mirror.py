@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.prepare_update_mirror import TARGETS, prepare
+from scripts.prepare_update_mirror import TARGETS, changelog_notes, prepare
 
 
 class UpdateMirrorTests(unittest.TestCase):
@@ -23,12 +23,21 @@ class UpdateMirrorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.fixture(root)
-            metadata = prepare(root, root / 'latest.json', '1.2.3', 'a' * 40, 'owner/repo', 'https://clickpulse.example/')
+            metadata = prepare(root, root / 'latest.json', '1.2.3', 'a' * 40, 'owner/repo', 'https://clickpulse.example/', ['Direct in-app updates', 'Clear release notes'])
             self.assertEqual(metadata['tag_name'], 'v1.2.3')
+            self.assertEqual(metadata['notes'], ['Direct in-app updates', 'Clear release notes'])
             self.assertEqual(len(metadata['assets']), 11)
             for asset in metadata['assets']:
                 self.assertTrue(asset['browser_download_url'].startswith('https://clickpulse.example/api/v1/updates/download/1.2.3/'))
                 self.assertRegex(asset['digest'], r'^sha256:[0-9a-f]{64}$')
+
+    def test_extracts_bounded_notes_from_the_matching_changelog_section(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'CHANGELOG.md'
+            path.write_text('# Changelog\n\n## 1.2.3 · Today\n\n### New\n\n- First change.\n- Second change.\n\n## 1.2.2 · Yesterday\n\n- Old change.\n', encoding='utf-8')
+            self.assertEqual(changelog_notes(path, '1.2.3'), ['First change.', 'Second change.'])
+            with self.assertRaisesRegex(ValueError, 'Missing changelog'):
+                changelog_notes(path, '9.9.9')
 
     def test_rejects_package_checksum_or_manifest_provenance_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:

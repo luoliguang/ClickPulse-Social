@@ -57,7 +57,7 @@ function renderUpdateState(){
   const checked=window.presentationView?.last_update_check;
   const valid=scheduled&&Number.isFinite(checked)&&Math.abs(checked)<=8640000000000;
   if(last){last.hidden=!valid;setSelectableText(last,valid?t('update.last_checked',{time:I.date(checked*1000,{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}):'');}
-  button.textContent=t(state.status==='checking'?'update.checking':updateBusy()?'update.updating':available&&!managed?(state.status==='ready'&&state.can_install?'update.install':'update.download'):'update.check');
+  button.textContent=t(state.status==='checking'?'update.checking':updateBusy()?'update.updating':available&&!managed?'update.install':'update.check');
   button.disabled=dataOperationBusy||state.status==='checking'||updateBusy();
   button.setAttribute('aria-busy',String(state.status==='checking'||updateBusy()));
   details.hidden=!available&&state.status!=='error';
@@ -65,16 +65,41 @@ function renderUpdateState(){
 window.renderUpdatePreferences=renderUpdateState;
 window.receiveUpdateState=state=>{Object.assign(updateState,state);renderDataOperation();};
 window.receiveUpdateAvailable=version=>window.toast(t(updateState.update_command?'update.found_managed':'update.found',{version,command:updateState.update_command}),8000);
+const updateCompleteOverlay=$('update-complete-overlay');
+const updateCompleteSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
+let updateCompletePreviousFocus=null;
+function closeUpdateComplete(){
+  if(!updateCompleteOverlay||updateCompleteOverlay.hidden)return;
+  updateCompleteOverlay.hidden=true;for(const surface of updateCompleteSurfaces)surface.inert=false;updateCompletePreviousFocus?.focus();
+}
+function openUpdateComplete(notice){
+  if(!updateCompleteOverlay)return;
+  Dropdowns.closeAll();updateCompletePreviousFocus=document.activeElement;
+  $('update-complete-description').textContent=t('update.completed_description',{version:notice.version});
+  const notes=Array.isArray(notice.notes)&&notice.notes.length?notice.notes:[t('update.notes_unavailable')];
+  $('update-complete-list').replaceChildren(...notes.map(note=>{const item=document.createElement('li');item.textContent=String(note);return item;}));
+  updateCompleteOverlay.hidden=false;for(const surface of updateCompleteSurfaces)surface.inert=true;$('update-complete-done').focus();
+}
+$('update-complete-close')?.addEventListener('click',closeUpdateComplete);
+$('update-complete-done')?.addEventListener('click',closeUpdateComplete);
+updateCompleteOverlay?.addEventListener('click',event=>{if(event.target===updateCompleteOverlay)closeUpdateComplete();});
+updateCompleteOverlay?.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();closeUpdateComplete();}
+  if(event.key==='Tab'){
+    const focusable=[$('update-complete-close'),$('update-complete-done')],index=focusable.indexOf(document.activeElement);
+    event.preventDefault();focusable[(index+(event.shiftKey?-1:1)+focusable.length)%focusable.length].focus();
+  }
+});
 // An ad-hoc signed update can leave macOS showing a stale, ineffective grant.
 let updatedThisLaunch=false;
 window.receiveUpdateNotice=notice=>{
   updatedThisLaunch=updatedThisLaunch||!!notice.success;
-  window.toast(t(notice.success?'update.installed':'update.failed_last',{version:notice.version}));
+  if(notice.success)openUpdateComplete(notice);else window.toast(t('update.failed_last',{version:notice.version}));
   if(data)renderPermission();
 };
 $('check-updates')?.addEventListener('click',()=>{
   if(dataOperationBusy||updateBusy()||updateState.status==='checking')return;
-  send(['available','ready'].includes(updateState.status)&&!updateState.update_command?(updateState.can_install?'install_update':'update_release'):'check_updates');
+  send(['available','ready'].includes(updateState.status)&&!updateState.update_command?'install_update':'check_updates');
 });
 $('update-details')?.addEventListener('click',event=>{event.preventDefault();send('update_release');});
 $('automatic-updates')?.addEventListener('change',event=>{
@@ -104,7 +129,7 @@ $('feedback-done')?.addEventListener('click',closeFeedback);
 feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOverlay)closeFeedback();});
 feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});
 
-let leaderboardPeriod='today',leaderboardBusy=false,leaderboardState={profile:{joined:false},board:null};
+let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',leaderboardState={profile:{joined:false},board:null};
 function leaderboardAvatar(node,avatar,nickname){
   node.textContent=avatar?.initial||[...String(nickname||'?')][0]?.toUpperCase()||'?';
   node.style.backgroundColor=avatar?.color||'var(--blue)';
@@ -112,7 +137,15 @@ function leaderboardAvatar(node,avatar,nickname){
 }
 function setLeaderboardBusy(busy){
   leaderboardBusy=busy;$('leaderboard-loading').hidden=!busy;
-  for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave'])$(id).disabled=busy;
+  $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
+  $('leaderboard-sync').classList.toggle('is-loading',busy);
+  for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave'])$(id).disabled=busy;
+  for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.disabled=busy;
+}
+function setLeaderboardEditing(editing){
+  leaderboardEditing=editing;
+  $('leaderboard-name-display').hidden=editing;$('leaderboard-name-form').hidden=!editing;
+  if(editing){const input=$('leaderboard-name-input');input.value=leaderboardState.profile?.nickname||'';input.focus();input.select?.();}
 }
 function requestLeaderboard(sync=false){
   setLeaderboardBusy(true);$('leaderboard-error').hidden=true;
@@ -120,8 +153,9 @@ function requestLeaderboard(sync=false){
 }
 function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined;
+  if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
-  $('leaderboard-profile-actions').hidden=!!profile.demo;
+  $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;
   $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
     $('leaderboard-profile-name').textContent=profile.nickname;
@@ -137,11 +171,17 @@ function renderLeaderboard(){
     wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.textContent=entry.nickname;wrap.append(avatar,name);member.append(wrap);
     const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,keyboard,mouse,sum);return row;
   });
-  $('leaderboard-rows').replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
+  const body=$('leaderboard-rows');body.replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
   $('leaderboard-range').textContent=board?`${board.starts_on} — ${board.ends_on}`:'';
+  if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'cubic-bezier(.23,1,.32,1)'});
 }
-window.receiveLeaderboard=state=>{const joinedBefore=!!leaderboardState.profile?.joined;leaderboardState=state;setLeaderboardBusy(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);};
-window.receiveLeaderboardError=message=>{setLeaderboardBusy(false);$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
+window.receiveLeaderboard=state=>{
+  if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
+  const renamed=leaderboardRenamePending&&state.profile?.nickname===leaderboardRenameValue;
+  if(leaderboardRenamePending&&!renamed)return;
+  const joinedBefore=!!leaderboardState.profile?.joined;leaderboardRenamePending=false;leaderboardRenameValue='';leaderboardState=state;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
+};
+window.receiveLeaderboardError=message=>{leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>setLeaderboardBusy(false);
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
 const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
@@ -179,9 +219,19 @@ $('leaderboard-join-button')?.addEventListener('click',()=>{
   openLeaderboardConfirm('join',()=>{setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname});},{nickname});
 });
 for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.addEventListener('click',()=>{
-  leaderboardPeriod=button.dataset.leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));requestLeaderboard(false);
+  if(leaderboardBusy||button.dataset.leaderboardPeriod===leaderboardPeriod)return;
+  leaderboardPeriod=button.dataset.leaderboardPeriod;$('leaderboard-period-segments').dataset.period=leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));requestLeaderboard(false);
 });
 $('leaderboard-sync')?.addEventListener('click',()=>requestLeaderboard(true));
+$('leaderboard-name-edit')?.addEventListener('click',()=>setLeaderboardEditing(true));
+$('leaderboard-name-cancel')?.addEventListener('click',()=>setLeaderboardEditing(false));
+$('leaderboard-name-save')?.addEventListener('click',()=>{
+  const nickname=$('leaderboard-name-input').value.trim();
+  if(!nickname){window.toast(t('leaderboard.nickname_required'));return;}
+  if(nickname===leaderboardState.profile?.nickname){setLeaderboardEditing(false);return;}
+  leaderboardRenamePending=true;leaderboardRenameValue=nickname.replace(/\s+/g,' ');setLeaderboardBusy(true);$('leaderboard-error').hidden=true;send('leaderboard_rename',{nickname,period:leaderboardPeriod});
+});
+$('leaderboard-name-input')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('leaderboard-name-save').click();}else if(event.key==='Escape'){event.preventDefault();setLeaderboardEditing(false);}});
 $('leaderboard-avatar-change')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar',{period:leaderboardPeriod});});
 $('leaderboard-avatar-delete')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar_delete',{period:leaderboardPeriod});});
 $('leaderboard-leave')?.addEventListener('click',()=>{

@@ -23,7 +23,8 @@ class Element {
   get options(){return this.children;}
   setAttribute(name,value){this.attributes[name]=value;}
   addEventListener(event,handler){this.listeners[event]=handler;}
-  fire(event='click'){this.listeners[event]?.({target:this,button:0,preventDefault(){}});}
+  fire(event='click',values={}){this.listeners[event]?.({target:this,button:0,preventDefault(){},...values});}
+  click(){this.fire();}
   scrollIntoView(options){this.scrolled=options;}
   focus(){if(this.ownerDocument)this.ownerDocument.activeElement=this;}
 }
@@ -34,8 +35,9 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
     if(!nodes.has(id))nodes.set(id,new Element(id));
     const node=nodes.get(id);node.ownerDocument=document;return node;
   };
-  const nav=['overview','history','keys','settings'].map(id=>{const button=new Element();button.dataset.page=id;return button;});
+  const nav=['overview','history','keys','leaderboard','settings'].map(id=>{const button=new Element();button.dataset.page=id;return button;});
   const pages=nav.map(button=>get(button.dataset.page));
+  const leaderboardPeriods=['today','week'].map(period=>{const button=new Element();button.dataset.leaderboardPeriod=period;return button;});
   const settingsLinks=['personalization-settings','handoff-settings','capture-settings','storage-settings','app-settings'].map(id=>{const b=new Element();b.dataset.settingsSection=id;return b;});
   for(const id of ['handoff-settings','capture-settings'])get(id).hidden=true;
   const ranges=[14,30,90].map(days=>{const button=new Element();button.dataset.range=String(days);return button;});
@@ -45,7 +47,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   const root=new Element('root');root.lang='en';
   document={documentElement:root,body:new Element(),getElementById:id=>['export','history-export','settings-pause','recording-description','quit','sport-open-mini','refresh-time','calendar-description'].includes(id)?null:get(id),
     querySelector(selector){return get(selector==='header'?'header':selector==='.sidebar'?'sidebar':'main');},
-    querySelectorAll(selector){return selector==='nav button[data-page]'?nav:selector==='[data-settings-section]'?settingsLinks:selector==='.page'?pages:selector==='[data-range]'?ranges:[];},
+    querySelectorAll(selector){return selector==='nav button[data-page]'?nav:selector==='[data-settings-section]'?settingsLinks:selector==='.page'?pages:selector==='[data-range]'?ranges:selector==='[data-leaderboard-period]'?leaderboardPeriods:[];},
     createElement(){const node=new Element();node.ownerDocument=document;return node;},createElementNS(){const node=new Element();node.ownerDocument=document;return node;}};
   const window={ipc:{postMessage(){}},presentationView:{compact:false},clickpulsePlatform:platform,clickpulseMessages:messages,clickpulseLocale:'en'};
   Object.assign(window,{matchMedia:()=>({matches:reducedMotion,addEventListener(){}}),performance:{now:()=>now},setInterval(handler,ms){const id=++timerId;intervals.set(id,{handler,ms});return id;},clearInterval(id){intervals.delete(id);}});
@@ -58,7 +60,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   }
   vm.runInContext(readFileSync('ui/app.js','utf8'),context);
   vm.runInContext(readFileSync('ui/presentation.js','utf8'),context);
-  return {window,get,root,context,intervals,settingsLinks,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
+  return {window,get,root,context,intervals,settingsLinks,leaderboardPeriods,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
 }
 
 test('Mini-only startup accepts counts without history and preserves the full snapshot across expansion',()=>{
@@ -354,8 +356,11 @@ test('macOS access guidance explains stale grants and names a completed update',
   a.window.receiveUpdateNotice({success:false,version:'0.3.0'});
   assert.equal(a.get('permission-updated-title').hidden,true);
   // The notice can arrive after the first snapshot; the banner updates at once.
-  a.window.receiveUpdateNotice({success:true,version:'0.3.0'});
-  assert.equal(a.get('toast').textContent,messages.en['update.installed'].replace('{version}','0.3.0'));
+  a.window.receiveUpdateNotice({success:true,version:'0.3.0',notes:['Faster updates','Clearer results']});
+  assert.equal(a.get('update-complete-overlay').hidden,false);
+  assert.equal(a.get('update-complete-description').textContent,createI18n(messages,'en').t('update.completed_description',{version:'0.3.0'}));
+  assert.deepEqual(a.get('update-complete-list').children.map(item=>item.textContent),['Faster updates','Clearer results']);
+  a.get('update-complete-done').fire();assert.equal(a.get('update-complete-overlay').hidden,true);
   assert.equal(a.get('permission-title').hidden,true);assert.equal(a.get('permission-updated-title').hidden,false);
   a.window.receive(s);
   assert.equal(a.get('permission-banner').hidden,true);assert.equal(a.get('permission-reset-settings').hidden,true);
@@ -775,7 +780,7 @@ test('manual checks remain available and an offered update never installs withou
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'check_updates'});
     a.window.receiveUpdateState({status:'checking'});a.get('check-updates').fire();assert.equal(sent.length,0);
     a.window.receiveUpdateState({status:'available',version:'0.2.1',can_install:true});assert.equal(sent.length,0);
-    assert.equal(a.get('check-updates').textContent,messages.en['update.download']);
+    assert.equal(a.get('check-updates').textContent,messages.en['update.install']);
     assert.equal(a.get('update-details').hidden,false);
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
@@ -814,6 +819,27 @@ test('leaderboard join and leave use an in-app confirmation dialog before sendin
   assert.equal(sent.length,0);assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.leave_confirm_title']);
   a.get('leaderboard-confirm-cancel').fire();assert.equal(sent.length,0);
   a.get('leaderboard-leave').fire();a.get('leaderboard-confirm-submit').fire();assert.equal(sent[0].action,'leaderboard_leave');
+});
+
+test('leaderboard period changes preserve old rows while loading and nickname edits save through the existing API',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  const today={profile:{joined:true,nickname:'Luo',member_id:'self'},board:{period:'today',entries:[{rank:1,member_id:'self',nickname:'Luo',keyboard:10,mouse:2,total:12,is_self:true}],starts_on:'2026-11-16',ends_on:'2026-11-16',self_rank:1}};
+  a.window.receiveLeaderboard(today);
+  a.window.receiveLeaderboard(today);sent.length=0;
+  assert.equal(a.get('leaderboard-rows').children.length,1);
+  a.leaderboardPeriods[1].fire();
+  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week'});
+  assert.equal(a.get('leaderboard-rows').children.length,1,'the previous board remains visible until the response arrives');
+  assert.equal(a.get('leaderboard-period-segments').dataset.period,'week');
+  a.window.receiveLeaderboard({...today,board:{...today.board,period:'week',starts_on:'2026-11-10'}});
+  a.get('leaderboard-name-edit').fire();
+  assert.equal(a.get('leaderboard-name-form').hidden,false);assert.equal(a.get('leaderboard-name-input').value,'Luo');
+  a.get('leaderboard-name-input').value='Luo Yang';a.get('leaderboard-name-save').fire();
+  assert.deepEqual(sent.pop(),{action:'leaderboard_rename',nickname:'Luo Yang',period:'week'});
+  a.window.receiveLeaderboard({profile:{...today.profile,nickname:'Luo Yang'},board:{...today.board,period:'week',entries:[]}});
+  assert.equal(a.get('leaderboard-name-form').hidden,true);assert.equal(a.get('leaderboard-profile-name').textContent,'Luo Yang');
+  a.get('leaderboard-name-edit').fire();a.get('leaderboard-name-input').value='Taken';a.get('leaderboard-name-save').fire();a.window.receiveLeaderboardError('Nickname is already in use');
+  assert.equal(a.get('leaderboard-name-form').hidden,false,'a failed rename stays editable');assert.equal(a.get('leaderboard-name-input').disabled,false);
 });
 
 test('downloaded updates await confirmation in every language and never open a browser',()=>{
@@ -917,13 +943,13 @@ test('background downloads leave data controls available until installation star
   const sent=[];a.window.ipc.postMessage=m=>sent.push(JSON.parse(m));a.get('check-updates').fire();assert.equal(sent.length,0);
   a.window.receiveDataBusy(false);assert.equal(a.get('check-updates').disabled,false);
 });
-test('unsupported installations open release downloads and errors can be retried',()=>{
+test('an unavailable installation reports guidance but the update action stays inside the app',()=>{
   const a=app(),sent=[];a.window.ipc.postMessage=m=>sent.push(JSON.parse(m));
   a.window.receiveUpdateState({status:'available',version:'0.2.1',can_install:false});
-  assert.equal(a.get('check-updates').textContent,messages.en['update.download']);
+  assert.equal(a.get('check-updates').textContent,messages.en['update.install']);
   assert.equal(a.get('update-install-help').hidden,false);
   assert.equal(a.get('update-install-help').textContent,messages.en['update.install_help']);
-  a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'update_release'});
+  a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   a.window.receiveUpdateState({status:'error'});a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'check_updates'});
   a.window.receiveUpdateState({status:'current'});assert.equal(a.get('update-status').textContent,messages.en['update.current']);
   assert.equal(a.get('update-details').hidden,true);

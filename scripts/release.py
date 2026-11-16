@@ -160,6 +160,11 @@ def release_notes(version, repository, revision, private=False, *, artwork_revis
                    '- Manage readable invitation codes from a redesigned password-protected admin page.\n'
                    '- Reuse valid invitation capacity after a member leaves the leaderboard.\n'
                    '- Keep GitHub Releases available as the public source and overseas fallback.\n')
+    elif version == '0.4.2':
+        changes = ('- Switch and refresh leaderboard periods with smoother transitions.\n'
+                   '- Edit leaderboard nicknames directly from the profile card.\n'
+                   '- Complete verified updates in-app with one click, including incomplete portable folders.\n'
+                   '- See a clear summary of improvements after an update finishes.\n')
     return f'''Local keyboard and mouse activity statistics. Fully offline.
 {access}
 ## Downloads

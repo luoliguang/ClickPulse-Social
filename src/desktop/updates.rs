@@ -458,6 +458,7 @@ pub(super) struct Controller {
     id: u64,
     pub guard: Option<ApplyGuard>,
     notice: Option<updater::Notice>,
+    install_after_download: bool,
 }
 impl Controller {
     pub fn new(allowed: bool) -> Self {
@@ -495,6 +496,7 @@ impl Controller {
             } else {
                 None
             },
+            install_after_download: false,
         }
     }
     pub fn installing(&self) -> bool {
@@ -620,8 +622,17 @@ impl Controller {
         );
     }
     pub fn install(&mut self, proxy: EventLoopProxy<super::UiEvent>) -> anyhow::Result<()> {
-        let result = self.start_install(proxy);
+        let result = if self.staged.is_some() {
+            self.install_after_download = false;
+            self.start_install(proxy)
+        } else {
+            // A click on an offered update is one complete user intent: download,
+            // verify, install and restart. Background downloads still stop at Ready.
+            self.install_after_download = true;
+            self.start_download(proxy)
+        };
         if let Err(error) = &result {
+            self.install_after_download = false;
             self.log_failure(CheckSource::Manual, "install-start", &format!("{error:#}"));
         }
         result
@@ -636,11 +647,6 @@ impl Controller {
     }
     fn start_install(&mut self, proxy: EventLoopProxy<super::UiEvent>) -> anyhow::Result<()> {
         anyhow::ensure!(!self.busy(), "Update already in progress");
-        // A request before the download is ready only downloads. Starting a
-        // helper is a separate, explicit confirmation after verification.
-        if self.staged.is_none() {
-            return self.start_download(proxy);
-        }
         let installation = self.install_target()?;
         let staged = self.staged.take().expect("verified download");
         self.id += 1;
@@ -658,6 +664,20 @@ impl Controller {
             return Err(error.into());
         }
         Ok(())
+    }
+    pub fn continue_requested_install(&mut self, proxy: EventLoopProxy<super::UiEvent>) {
+        if !self.install_after_download || self.view.status != "ready" || self.staged.is_none() {
+            return;
+        }
+        self.install_after_download = false;
+        if let Err(error) = self.start_install(proxy) {
+            self.view.status = "error";
+            self.log_failure(
+                CheckSource::Manual,
+                "install-prepare",
+                &format!("{error:#}"),
+            );
+        }
     }
     fn download_available(&self) -> bool {
         self.automatic_allowed
@@ -764,6 +784,7 @@ impl Controller {
                     self.view.status = "ready";
                 }
                 Err(error) => {
+                    self.install_after_download = false;
                     self.log_failure(self.check_source, "download", &error);
                     self.view.status = "error";
                 }

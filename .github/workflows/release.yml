@@ -131,7 +131,8 @@ jobs:
             --output dist/latest.json \
             --version "$RELEASE_VERSION" \
             --revision "$SOURCE_REVISION" \
-            --repository "$GITHUB_REPOSITORY"
+            --repository "$GITHUB_REPOSITORY" \
+            --changelog CHANGELOG.md
       - name: Configure update mirror SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}

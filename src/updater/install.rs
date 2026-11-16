@@ -106,12 +106,10 @@ impl Installation {
                     && manifest.files.keys().all(|name| linux_payload(name)),
                 "Use the complete Linux portable application folder"
             );
-        } else {
-            ensure!(
-                self.root.join("WebView2Loader.dll").is_file(),
-                "Use the complete portable application folder"
-            );
         }
+        // A running Windows executable may come from an older or incomplete
+        // portable folder. The authenticated update payload repairs the folder
+        // by installing the loader, manifest and every declared program file.
         Ok(())
     }
 }
@@ -276,6 +274,7 @@ struct Plan {
     previous_hash: String,
     manifest_hash: String,
     version: String,
+    notes: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -337,10 +336,10 @@ pub fn launch_installer(update: StagedUpdate, installation: Installation) -> Res
         "Could not stage updater helper"
     );
     if update.target == Target::WindowsX64 {
-        fs::copy(
-            installation.root.join("WebView2Loader.dll"),
-            update.directory.path().join("WebView2Loader.dll"),
-        )?;
+        let loader = installation.root.join("WebView2Loader.dll");
+        if loader.is_file() {
+            fs::copy(loader, update.directory.path().join("WebView2Loader.dll"))?;
+        }
     }
     let lock = File::options()
         .read(true)
@@ -354,6 +353,7 @@ pub fn launch_installer(update: StagedUpdate, installation: Installation) -> Res
         previous_hash,
         manifest_hash: update.manifest_hash.clone(),
         version: update.manifest.version.clone(),
+        notes: update.notes.clone(),
     };
     let path = update.directory.path().join("apply.json");
     let mut file = File::create_new(&path)?;
@@ -577,14 +577,17 @@ fn replace_windows(
 pub struct Notice {
     pub success: bool,
     pub version: String,
+    #[serde(default)]
+    pub notes: Vec<String>,
 }
-fn write_notice(success: bool, version: &str) -> Result<()> {
+fn write_notice(success: bool, version: &str, notes: &[String]) -> Result<()> {
     let base = cache_dir()?;
     fs::create_dir_all(&base)?;
     let mut file = tempfile::NamedTempFile::new_in(&base)?;
     file.write_all(&serde_json::to_vec(&Notice {
         success,
         version: version.to_owned(),
+        notes: notes.to_vec(),
     })?)?;
     file.as_file().sync_all()?;
     file.persist(base.join("last-update.json"))?;
@@ -754,7 +757,7 @@ fn apply_update_with_restart(
         drop(profile_lock);
         Ok(backup)
     })();
-    let _ = write_notice(result.is_ok(), &plan.version);
+    let _ = write_notice(result.is_ok(), &plan.version, &plan.notes);
     relaunch(&plan.installation, paused)?;
     result.map(|_| ())
 }

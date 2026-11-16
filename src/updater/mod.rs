@@ -20,6 +20,8 @@ pub use install::{
 pub const RELEASES: &str = "https://github.com/luoliguang/ClickPulse-Social/releases";
 const UPDATE_BASE: &str = "https://clickpulse.fangdutex.cn/api/v1/updates";
 const API: &str = "https://clickpulse.fangdutex.cn/api/v1/updates/latest";
+const GITHUB_API: &str =
+    "https://api.github.com/repos/luoliguang/ClickPulse-Social/releases/latest";
 const MAX_ARCHIVE: u64 = 128 * 1024 * 1024;
 const MAX_EXPANDED: u64 = 512 * 1024 * 1024;
 const MAX_FILES: usize = 2048;
@@ -144,6 +146,8 @@ struct Release {
     html_url: String,
     draft: bool,
     prerelease: bool,
+    #[serde(default)]
+    notes: Vec<String>,
     assets: Vec<Asset>,
 }
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -157,6 +161,7 @@ struct Asset {
 pub struct Candidate {
     pub version: String,
     pub release_url: String,
+    pub notes: Vec<String>,
     target: Target,
     archive: Asset,
     manifest: Asset,
@@ -176,6 +181,7 @@ impl Candidate {
         Self {
             version: version.into(),
             release_url: RELEASES.into(),
+            notes: Vec::new(),
             target: Target::MacArm64,
             archive: asset.clone(),
             manifest: asset.clone(),
@@ -196,6 +202,14 @@ impl Candidate {
             release.html_url == format!("{RELEASES}/tag/v{version}"),
             "Unexpected release repository"
         );
+        ensure!(
+            release.notes.len() <= 12
+                && release.notes.iter().all(|note| {
+                    let length = note.chars().count();
+                    (1..=240).contains(&length) && !note.chars().any(char::is_control)
+                }),
+            "Invalid release notes"
+        );
         if latest <= stable_version(current)? {
             return Ok(None);
         }
@@ -211,8 +225,10 @@ impl Candidate {
                 asset.size > 0 && asset.size <= limit,
                 "Invalid update asset size"
             );
+            let mirror = format!("{UPDATE_BASE}/download/{version}/{name}");
+            let github = format!("{RELEASES}/download/v{version}/{name}");
             ensure!(
-                asset.browser_download_url == format!("{UPDATE_BASE}/download/{version}/{name}"),
+                asset.browser_download_url == mirror || asset.browser_download_url == github,
                 "Unexpected update URL"
             );
             if let Some(digest) = &asset.digest {
@@ -226,6 +242,7 @@ impl Candidate {
         Ok(Some(Self {
             version: version.to_owned(),
             release_url: release.html_url.clone(),
+            notes: release.notes,
             target,
             archive: find(&(stem.clone() + ".zip"), MAX_ARCHIVE)?,
             manifest: find(&(stem + ".manifest.json"), 1024 * 1024)?,
@@ -269,14 +286,24 @@ fn fetch_small(client: &ureq::Agent, asset: &Asset) -> Result<Vec<u8>> {
     }
     Ok(bytes)
 }
-pub fn check(current: &str, target: Target) -> Result<Option<Candidate>> {
-    let client = agent(Duration::from_secs(30));
+fn fetch_release(client: &ureq::Agent, url: &str) -> Result<Release> {
     let mut response = client
-        .get(API)
+        .get(url)
         .header("Accept", "application/vnd.github+json")
         .call()?;
     let bytes = read_limited(response.body_mut().as_reader(), 1024 * 1024)?;
-    Candidate::from_release(serde_json::from_slice(&bytes)?, current, target)
+    Ok(serde_json::from_slice(&bytes)?)
+}
+pub fn check(current: &str, target: Target) -> Result<Option<Candidate>> {
+    let client = agent(Duration::from_secs(30));
+    let primary = fetch_release(&client, API)
+        .and_then(|release| Candidate::from_release(release, current, target));
+    match primary {
+        Ok(candidate) => Ok(candidate),
+        Err(primary_error) => fetch_release(&client, GITHUB_API)
+            .and_then(|release| Candidate::from_release(release, current, target))
+            .with_context(|| format!("Domestic update service failed: {primary_error:#}")),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -294,6 +321,7 @@ pub struct StagedUpdate {
     pub(crate) manifest: Manifest,
     pub(crate) manifest_hash: String,
     pub(crate) target: Target,
+    pub(crate) notes: Vec<String>,
 }
 
 pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<StagedUpdate> {
@@ -352,6 +380,7 @@ pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<Stage
         manifest,
         manifest_hash: hash_bytes(&external),
         target: candidate.target,
+        notes: candidate.notes.clone(),
     })
 }
 

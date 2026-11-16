@@ -31,7 +31,18 @@ def parse_sums(path: Path) -> dict[str, str]:
     return result
 
 
-def prepare(release_dir: Path, output: Path, version: str, revision: str, repository: str, public_base: str) -> dict:
+def changelog_notes(path: Path, version: str) -> list[str]:
+    text = path.read_text(encoding='utf-8')
+    match = re.search(rf'^## {re.escape(version)}(?:\s|·|—).*$([\s\S]*?)(?=^## |\Z)', text, re.MULTILINE)
+    if not match:
+        raise ValueError(f'Missing changelog section for {version}')
+    notes = [line[2:].strip() for line in match.group(1).splitlines() if line.startswith('- ')]
+    if not notes or len(notes) > 12 or any(len(note) > 240 or any(ord(char) < 32 for char in note) for note in notes):
+        raise ValueError('Invalid in-app release notes')
+    return notes
+
+
+def prepare(release_dir: Path, output: Path, version: str, revision: str, repository: str, public_base: str, notes: list[str] | None = None) -> dict:
     if not VERSION.fullmatch(version):
         raise ValueError('A stable numeric version is required')
     if not REVISION.fullmatch(revision):
@@ -70,6 +81,7 @@ def prepare(release_dir: Path, output: Path, version: str, revision: str, reposi
         'draft': False,
         'prerelease': False,
         'source_revision': revision,
+        'notes': notes or [],
         'assets': assets,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -85,8 +97,9 @@ def main() -> None:
     parser.add_argument('--revision', required=True)
     parser.add_argument('--repository', required=True)
     parser.add_argument('--public-base', default='https://clickpulse.fangdutex.cn')
+    parser.add_argument('--changelog', type=Path, required=True)
     args = parser.parse_args()
-    prepare(args.release_dir, args.output, args.version, args.revision, args.repository, args.public_base)
+    prepare(args.release_dir, args.output, args.version, args.revision, args.repository, args.public_base, changelog_notes(args.changelog, args.version))
 
 
 if __name__ == '__main__':

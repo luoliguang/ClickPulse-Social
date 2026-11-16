@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2 · 2026-11-16
+
+### Improved
+
+- Switch and refresh leaderboard periods with smoother transitions.
+- Edit leaderboard nicknames directly from the profile card.
+- Complete an in-app update from one click, including download, verification, installation, and restart.
+- Repair incomplete portable folders from the authenticated update payload instead of sending users to a ZIP download.
+- Fall back to the trusted GitHub Release when the domestic update metadata service is unavailable.
+- Show an in-app summary of changes after a successful update.
+
 ## 0.4.1 · 2026-11-16
 
 ### New

@@ -446,6 +446,8 @@ pub fn run(
             Event::UserEvent(UiEvent::Update(event)) => {
                 if updates.receive(event) {
                     *flow = ControlFlow::Exit;
+                } else {
+                    updates.continue_requested_install(snapshot_proxy.clone());
                 }
                 view_changed |= updates.sync_notifications(&mut preferences.update_notifications);
                 if ready {
