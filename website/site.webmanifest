@@ -1,0 +1,12 @@
+{
+  "name": "ClickPulse",
+  "short_name": "ClickPulse",
+  "description": "Offline keyboard and mouse activity insights",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "icons": [
+    { "src": "/assets/mark.png", "sizes": "1024x1024", "type": "image/png" }
+  ]
+}

@@ -16,6 +16,7 @@
 | --- | --- |
 | [Development](development.md) | Prerequisites, source builds, isolated checks and explicit migration |
 | [Builds and releases](releases.md) | GitHub Actions, platform packages, source/checksum verification and preview drafts |
+| [Official website](website.md) | Static site, release-driven downloads, deployment and Nginx routing |
 | [Contributing](../CONTRIBUTING.md#contributing) | Bug reports, change scope and verification |
 | [Changelog](../CHANGELOG.md) | Features and known limits in the initial preview |
 | [Roadmap](roadmap.md) | Release preparation and possible future work |

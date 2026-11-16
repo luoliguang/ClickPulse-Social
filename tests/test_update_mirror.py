@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.prepare_update_mirror import TARGETS, changelog_notes, prepare
+from scripts.prepare_update_mirror import TARGETS, WEBSITE_ASSETS, changelog_notes, prepare
 
 
 class UpdateMirrorTests(unittest.TestCase):
@@ -17,6 +17,10 @@ class UpdateMirrorTests(unittest.TestCase):
             manifest.write_text(json.dumps({'version': version, 'source_revision': revision}), encoding='utf-8')
             for path in (archive, manifest):
                 sums.append(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}')
+        for suffix in WEBSITE_ASSETS:
+            image = root / f'ClickPulse-{version}-{suffix}'
+            image.write_bytes(f'installer-{suffix}'.encode())
+            sums.append(f'{hashlib.sha256(image.read_bytes()).hexdigest()}  {image.name}')
         (root / 'SHA256SUMS.txt').write_text('\n'.join(sums) + '\n', encoding='utf-8')
 
     def test_writes_exact_https_urls_and_digests_for_every_updater_asset(self):
@@ -26,7 +30,7 @@ class UpdateMirrorTests(unittest.TestCase):
             metadata = prepare(root, root / 'latest.json', '1.2.3', 'a' * 40, 'owner/repo', 'https://clickpulse.example/', ['Direct in-app updates', 'Clear release notes'])
             self.assertEqual(metadata['tag_name'], 'v1.2.3')
             self.assertEqual(metadata['notes'], ['Direct in-app updates', 'Clear release notes'])
-            self.assertEqual(len(metadata['assets']), 11)
+            self.assertEqual(len(metadata['assets']), 13)
             for asset in metadata['assets']:
                 self.assertTrue(asset['browser_download_url'].startswith('https://clickpulse.example/api/v1/updates/download/1.2.3/'))
                 self.assertRegex(asset['digest'], r'^sha256:[0-9a-f]{64}$')

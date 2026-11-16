@@ -125,6 +125,7 @@ jobs:
           for target in windows-x64 macos-arm64 macos-x64 linux-arm64 linux-x64; do
             cp "dist/release/ClickPulse-$RELEASE_VERSION-$target.zip" "dist/release/ClickPulse-$RELEASE_VERSION-$target.manifest.json" dist/update-assets/
           done
+          cp "dist/release/ClickPulse-$RELEASE_VERSION-macos-arm64.dmg" "dist/release/ClickPulse-$RELEASE_VERSION-macos-x64.dmg" dist/update-assets/
           cp dist/release/SHA256SUMS.txt dist/update-assets/
           python scripts/prepare_update_mirror.py \
             --release-dir dist/update-assets \

@@ -101,7 +101,7 @@ export function buildApp() {
     schema: { params: { type: 'object', additionalProperties: false, required: ['version', 'file'], properties: { version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' }, file: { type: 'string', minLength: 1, maxLength: 128 } } } }
   }, async (request, reply) => {
     const { version, file } = request.params as { version: string; file: string };
-    const allowed = new Set(['SHA256SUMS.txt', ...updateTargets.flatMap(target => [`ClickPulse-${version}-${target}.zip`, `ClickPulse-${version}-${target}.manifest.json`])]);
+    const allowed = new Set(['SHA256SUMS.txt', ...updateTargets.flatMap(target => [`ClickPulse-${version}-${target}.zip`, `ClickPulse-${version}-${target}.manifest.json`]), `ClickPulse-${version}-macos-arm64.dmg`, `ClickPulse-${version}-macos-x64.dmg`]);
     if (!allowed.has(file)) return fail(reply, 404, 'not_found', 'Update file not found');
     const path = join(updateRoot(), `v${version}`, file);
     try {

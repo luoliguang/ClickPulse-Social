@@ -59,13 +59,14 @@ test('admin login rejects cross-origin requests and issues a hardened cookie on 
   if (previous === undefined) delete process.env.ADMIN_PASSWORD_HASH; else process.env.ADMIN_PASSWORD_HASH = previous;
 });
 
-test('update mirror serves only versioned updater assets from the private root', async () => {
+test('update mirror serves only allowlisted versioned release assets from the private root', async () => {
   const root = await mkdtemp(join(tmpdir(), 'clickpulse-updates-'));
   const previous = process.env.UPDATE_ROOT;
   process.env.UPDATE_ROOT = root;
   await writeFile(join(root, 'latest.json'), JSON.stringify({ tag_name: 'v1.2.3' }));
   await mkdir(join(root, 'v1.2.3'));
   await writeFile(join(root, 'v1.2.3', 'ClickPulse-1.2.3-windows-x64.zip'), 'verified fixture');
+  await writeFile(join(root, 'v1.2.3', 'ClickPulse-1.2.3-macos-arm64.dmg'), 'verified dmg');
   const app = buildApp();
   const metadata = await app.inject({ method: 'GET', url: '/api/v1/updates/latest' });
   assert.equal(metadata.statusCode, 200);
@@ -75,6 +76,9 @@ test('update mirror serves only versioned updater assets from the private root',
   assert.equal(asset.statusCode, 200);
   assert.equal(asset.body, 'verified fixture');
   assert.equal(asset.headers['cache-control'], 'public, max-age=31536000, immutable');
+  const installer = await app.inject({ method: 'GET', url: '/api/v1/updates/download/1.2.3/ClickPulse-1.2.3-macos-arm64.dmg' });
+  assert.equal(installer.statusCode, 200);
+  assert.equal(installer.body, 'verified dmg');
   const rejected = await app.inject({ method: 'GET', url: '/api/v1/updates/download/1.2.3/package.zip' });
   assert.equal(rejected.statusCode, 404);
   await app.close();

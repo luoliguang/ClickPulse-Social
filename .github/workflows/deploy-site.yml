@@ -1,0 +1,86 @@
+name: Deploy official website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/build_website.py'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: clickpulse-website-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://clickpulse.fangdutex.cn/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Build and validate website
+        run: |
+          python scripts/build_website.py --revision "$GITHUB_SHA"
+          node --check dist/website/app.js
+      - name: Require deployment configuration
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          WEB_ROOT: ${{ vars.WEB_ROOT }}
+        run: |
+          missing=0
+          for name in SSH_HOST SSH_USER SSH_KEY WEB_ROOT; do
+            if [ -z "${!name}" ]; then echo "- ❌ $name" >> "$GITHUB_STEP_SUMMARY"; missing=1; else echo "- ✅ $name" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          if [ "$missing" != 0 ]; then echo '::error::Website deployment configuration is incomplete.'; exit 1; fi
+          if [[ "$WEB_ROOT" != '/www/wwwroot/clickpulse.fangdutex.cn' ]]; then echo '::error::WEB_ROOT must be the dedicated ClickPulse website directory.'; exit 1; fi
+          if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]] || (( SSH_PORT < 1 || SSH_PORT > 65535 )); then echo '::error::SSH_PORT must be a valid TCP port.'; exit 1; fi
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          timeout 10 ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Preview and publish static files
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          WEB_ROOT: ${{ vars.WEB_ROOT }}
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          $SSH_CMD "$SSH_USER@$SSH_HOST" "test '$WEB_ROOT' = '/www/wwwroot/clickpulse.fangdutex.cn'; mkdir -p '$WEB_ROOT'"
+          rsync -azn --delete --itemize-changes \
+            --exclude='.user.ini' --exclude='.well-known/' --exclude='.htaccess' \
+            -e "$SSH_CMD" dist/website/ "$SSH_USER@$SSH_HOST:$WEB_ROOT/"
+          rsync -az --delete \
+            --exclude='.user.ini' --exclude='.well-known/' --exclude='.htaccess' \
+            -e "$SSH_CMD" dist/website/ "$SSH_USER@$SSH_HOST:$WEB_ROOT/"
+      - name: Verify website and API routing
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+        run: |
+          page="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 'https://clickpulse.fangdutex.cn/')"
+          grep -F "<meta name=\"clickpulse-site-revision\" content=\"$EXPECTED_REVISION\">" <<< "$page"
+          health="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 'https://clickpulse.fangdutex.cn/api/v1/health')"
+          node -e 'const h=JSON.parse(process.argv[1]); if(h.ok!==true||h.service!=="clickpulse-leaderboard") process.exit(1)' "$health"
+          echo "Website and API routing verified for $EXPECTED_REVISION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Clean up key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub

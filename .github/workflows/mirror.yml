@@ -54,6 +54,7 @@ jobs:
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern 'SHA256SUMS.txt' \
             --pattern "ClickPulse-${VERSION}-*.zip" \
+            --pattern "ClickPulse-${VERSION}-macos-*.dmg" \
             --pattern "ClickPulse-${VERSION}-*.manifest.json"
           test -f SHA256SUMS.txt
       - name: Verify mirror assets and build metadata

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="clickpulse-site-revision" content="__SITE_REVISION__">
+  <meta name="description" content="ClickPulse 是一款隐私优先的离线键盘与鼠标活动统计工具，支持 Windows、macOS 和 Linux。">
+  <meta name="keywords" content="ClickPulse,键盘统计,鼠标统计,热力图,效率工具,离线应用,隐私">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ClickPulse — 看见每天的每一次输入">
+  <meta property="og:description" content="离线记录键盘和鼠标活动，用趋势、热力图与历史数据看见自己的工作节奏。">
+  <meta property="og:image" content="https://clickpulse.fangdutex.cn/assets/overview.jpg">
+  <meta property="og:url" content="https://clickpulse.fangdutex.cn/">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>ClickPulse — 离线键盘与鼠标活动统计</title>
+  <link rel="icon" type="image/png" href="assets/mark.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="skip">跳到主要内容</a>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="ClickPulse 首页">
+      <img src="assets/mark.png" width="38" height="38" alt="">
+      <span>ClickPulse</span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="#features" data-i18n="nav.features">功能</a>
+      <a href="#privacy" data-i18n="nav.privacy">隐私</a>
+      <a href="#download" data-i18n="nav.download">下载</a>
+      <a href="https://github.com/luoliguang/ClickPulse-Social" target="_blank" rel="noreferrer">GitHub</a>
+    </nav>
+    <button class="language-switch" id="language-switch" type="button" aria-label="Switch to English">EN</button>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="version-line"><span class="live-dot" aria-hidden="true"></span><span id="hero-version" data-i18n="version.loading">正在获取最新版本</span></p>
+        <h1 data-i18n="hero.title">看见每天的<br>每一次输入</h1>
+        <p class="hero-lead" data-i18n="hero.lead">ClickPulse 在本地记录键盘和鼠标活动，把重复的按键与点击，变成趋势、热力图和可以回看的工作节奏。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" id="smart-download" href="#download">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
+            <span data-i18n="hero.download">选择下载版本</span>
+          </a>
+          <a class="button button-quiet" href="#product" data-i18n="hero.preview">看看它如何工作</a>
+        </div>
+        <p class="hero-note" data-i18n="hero.note">无需账号 · 无遥测 · 数据默认只留在你的电脑</p>
+      </div>
+
+      <div class="hero-visual" aria-label="ClickPulse 应用预览">
+        <div class="pulse-rail" aria-hidden="true">
+          <span style="--h:35%"></span><span style="--h:62%"></span><span style="--h:46%"></span><span style="--h:88%"></span><span style="--h:54%"></span><span style="--h:72%"></span><span style="--h:42%"></span><span style="--h:95%"></span><span style="--h:66%"></span><span style="--h:50%"></span><span style="--h:78%"></span><span style="--h:58%"></span>
+        </div>
+        <div class="app-frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span>ClickPulse</span></div>
+          <img src="assets/overview.jpg" width="1280" height="1444" alt="ClickPulse 概览页面，显示活动趋势和日历" data-i18n-alt="preview.alt">
+        </div>
+        <div class="live-counter" aria-hidden="true"><span>⌨</span><strong>14,862</strong><small>today</small></div>
+        <div class="click-counter" aria-hidden="true"><span>↖</span><strong>3,918</strong><small>clicks</small></div>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="产品特性">
+      <div><strong data-i18n="proof.offline.title">完全离线</strong><span data-i18n="proof.offline.text">日常数据不离开设备</span></div>
+      <div><strong data-i18n="proof.platform.title">三个平台</strong><span>Windows · macOS · Linux</span></div>
+      <div><strong data-i18n="proof.opensource.title">开放源码</strong><span>GPL-3.0-or-later</span></div>
+      <div><strong data-i18n="proof.languages.title">八种语言</strong><span data-i18n="proof.languages.text">界面与时区自由选择</span></div>
+    </section>
+
+    <section class="product-section" id="product">
+      <div class="section-heading">
+        <h2 data-i18n="product.title">不是监控，是一面镜子</h2>
+        <p data-i18n="product.lead">ClickPulse 不记录你输入了什么，也不知道你打开了哪个应用。它只保存聚合后的次数，帮助你理解自己的节奏。</p>
+      </div>
+      <div class="product-grid">
+        <article class="feature-main">
+          <div class="feature-copy">
+            <h3 data-i18n="product.heatmap.title">最常按下的键，一眼看清</h3>
+            <p data-i18n="product.heatmap.text">键盘热力图把长期习惯变成直观颜色。查看当天，也可以回到历史中的任意一天。</p>
+          </div>
+          <img src="assets/keyboard.jpg" width="1026" height="427" loading="lazy" alt="ClickPulse 键盘热力图" data-i18n-alt="product.heatmap.alt">
+        </article>
+        <article class="feature-side feature-history">
+          <span class="feature-symbol" aria-hidden="true">↗</span>
+          <h3 data-i18n="product.history.title">趋势与历史</h3>
+          <p data-i18n="product.history.text">从小时曲线到全年日历，找到高强度工作和休息的真实分布。</p>
+        </article>
+        <article class="feature-side feature-mini">
+          <img src="assets/mini.jpg" width="480" height="312" loading="lazy" alt="ClickPulse Mini 悬浮窗口" data-i18n-alt="product.mini.alt">
+          <div><h3>Mini</h3><p data-i18n="product.mini.text">把今天的计数留在桌面一角，需要时看一眼，不打断正在做的事。</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="features-section" id="features">
+      <div class="section-heading compact">
+        <h2 data-i18n="features.title">数据属于你，使用方式也属于你</h2>
+      </div>
+      <div class="feature-list">
+        <article><span>01</span><div><h3 data-i18n="features.local.title">本地数据库</h3><p data-i18n="features.local.text">统计历史保存在你选择的本地目录，可备份、迁移或合并。</p></div></article>
+        <article><span>02</span><div><h3 data-i18n="features.views.title">多种视图</h3><p data-i18n="features.views.text">概览、历史、热力图、矩形树图和 Mini 模式，各自回答不同问题。</p></div></article>
+        <article><span>03</span><div><h3 data-i18n="features.personal.title">按你的习惯工作</h3><p data-i18n="features.personal.text">支持主题、语言、时区、紧凑窗口和开机启动。</p></div></article>
+      </div>
+    </section>
+
+    <section class="download-section" id="download">
+      <div class="download-intro">
+        <div>
+          <h2 data-i18n="download.title">下载 ClickPulse</h2>
+          <p data-i18n="download.lead">选择你的系统。官网会在正式 Release 发布后自动切换到最新稳定版。</p>
+        </div>
+        <div class="release-state" id="release-state" role="status" aria-live="polite">
+          <span data-i18n="download.checking">正在检查最新版本…</span>
+        </div>
+      </div>
+
+      <div class="download-grid">
+        <article class="platform-card" data-platform="windows">
+          <div class="platform-title">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5.5 10.5 4v7H3V5.5Zm8.5-1.7L21 2v9h-9.5V3.8ZM3 12h7.5v7L3 17.5V12Zm8.5 0H21v9l-9.5-1.8V12Z"/></svg>
+            <div><h3>Windows</h3><p>Windows 10 / 11 · x64</p></div>
+          </div>
+          <span class="recommended" data-i18n="download.recommended">适合你的设备</span>
+          <a class="download-link" id="download-windows" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" rel="noreferrer">
+            <span><strong data-i18n="download.windows">下载便携版</strong><small id="size-windows">ZIP · x64</small></span><b aria-hidden="true">↓</b>
+          </a>
+        </article>
+
+        <article class="platform-card" data-platform="macos">
+          <div class="platform-title">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M16.7 12.7c0-2.6 2.2-3.9 2.3-4-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-1-3.4-.9-1.7 0-3.4 1-4.3 2.6-1.9 3.2-.5 7.9 1.3 10.5.9 1.3 2 2.7 3.4 2.6 1.3-.1 1.9-.9 3.5-.9s2.1.9 3.5.8c1.5 0 2.4-1.3 3.3-2.6 1.1-1.5 1.5-3 1.5-3.1-.1 0-3.4-1.3-3.4-3.9ZM14.2 5c.7-.9 1.2-2.1 1.1-3.3-1.1.1-2.4.7-3.2 1.6-.7.8-1.3 2-1.2 3.2 1.2.1 2.5-.6 3.3-1.5Z"/></svg>
+            <div><h3>macOS</h3><p>macOS 12+</p></div>
+          </div>
+          <span class="recommended" data-i18n="download.recommended">适合你的设备</span>
+          <div class="download-pair">
+            <a class="download-link" id="download-mac-arm" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" rel="noreferrer"><span><strong>Apple Silicon</strong><small id="size-mac-arm">DMG · M1 / M2 / M3 / M4</small></span><b aria-hidden="true">↓</b></a>
+            <a class="download-link secondary" id="download-mac-x64" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" rel="noreferrer"><span><strong>Intel</strong><small id="size-mac-x64">DMG · x64</small></span><b aria-hidden="true">↓</b></a>
+          </div>
+        </article>
+
+        <article class="platform-card" data-platform="linux">
+          <div class="platform-title">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2c-2.8 0-4.5 2.5-4.5 5.5 0 1.1.2 2 .4 2.8-1.2 1.2-2.4 3.1-2.4 5.2 0 1 .2 1.8.6 2.5-.8.8-1.4 1.8-1.6 3h15c-.2-1.2-.8-2.2-1.6-3 .4-.7.6-1.5.6-2.5 0-2.1-1.2-4-2.4-5.2.2-.8.4-1.7.4-2.8C16.5 4.5 14.8 2 12 2Zm-1.8 5.3c-.5 0-.8-.4-.8-.9s.3-.9.8-.9.8.4.8.9-.3.9-.8.9Zm3.6 0c-.5 0-.8-.4-.8-.9s.3-.9.8-.9.8.4.8.9-.3.9-.8.9Z"/></svg>
+            <div><h3>Linux</h3><p>Ubuntu 22.04 / 24.04</p></div>
+          </div>
+          <span class="recommended" data-i18n="download.recommended">适合你的设备</span>
+          <div class="download-pair">
+            <a class="download-link" id="download-linux-x64" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" rel="noreferrer"><span><strong>x64</strong><small id="size-linux-x64">ZIP · Intel / AMD</small></span><b aria-hidden="true">↓</b></a>
+            <a class="download-link secondary" id="download-linux-arm" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" rel="noreferrer"><span><strong>ARM64</strong><small id="size-linux-arm">ZIP · ARM</small></span><b aria-hidden="true">↓</b></a>
+          </div>
+        </article>
+      </div>
+
+      <div class="release-details">
+        <div>
+          <h3 data-i18n="release.title">这个版本有什么变化</h3>
+          <ul id="release-notes"><li data-i18n="release.loading">版本信息加载后会显示更新内容。</li></ul>
+        </div>
+        <div class="release-links">
+          <a id="release-page" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" target="_blank" rel="noreferrer" data-i18n="release.github">在 GitHub 查看完整 Release</a>
+          <a id="checksums" href="https://github.com/luoliguang/ClickPulse-Social/releases/latest" target="_blank" rel="noreferrer" data-i18n="release.checksum">下载 SHA256 校验文件</a>
+        </div>
+      </div>
+
+      <p class="install-warning"><strong data-i18n="warning.title">首次打开提示：</strong> <span data-i18n="warning.text">Windows 和 macOS 版本暂未购买代码签名证书，系统可能显示安全提醒。安装包可以通过 SHA256 和公开源码校验。</span> <a href="https://github.com/luoliguang/ClickPulse-Social/tree/main/docs" target="_blank" rel="noreferrer" data-i18n="warning.guide">查看安装说明</a></p>
+    </section>
+
+    <section class="privacy-section" id="privacy">
+      <div class="privacy-statement">
+        <span class="privacy-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3m-11 0h12v11H6V10Zm6 4v3"/></svg></span>
+        <h2 data-i18n="privacy.title">你的输入，不该成为别人的数据</h2>
+        <p data-i18n="privacy.lead">ClickPulse 的正常统计完全离线。它不会保存按键内容、具体字符、应用名称、鼠标位置或浏览记录。</p>
+      </div>
+      <div class="privacy-facts">
+        <div><strong data-i18n="privacy.noaccount.title">不需要账号</strong><p data-i18n="privacy.noaccount.text">下载后即可使用，不需要邮箱或登录。</p></div>
+        <div><strong data-i18n="privacy.notelemetry.title">没有遥测</strong><p data-i18n="privacy.notelemetry.text">没有广告 SDK，也没有隐藏的行为分析。</p></div>
+        <div><strong data-i18n="privacy.optin.title">排行榜明确自愿</strong><p data-i18n="privacy.optin.text">只有你主动加入时，才上传每日键盘和鼠标总次数。</p></div>
+      </div>
+    </section>
+
+    <section class="opensource-section">
+      <div><h2 data-i18n="opensource.title">开放源码，也保留来路</h2><p data-i18n="opensource.text">ClickPulse-Social 是 endNone/ClickPulse 的独立二次开发版本，由罗洋洋维护，继续采用 GPL-3.0-or-later 许可证。你可以审查源码、构建自己的版本，也可以参与改进。</p></div>
+      <a class="button button-outline" href="https://github.com/luoliguang/ClickPulse-Social" target="_blank" rel="noreferrer" data-i18n="opensource.action">查看 GitHub 源码</a>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand footer-brand" href="#top"><img src="assets/mark.png" width="34" height="34" alt=""><span>ClickPulse</span></a>
+    <p data-i18n="footer.tagline">让重复的输入，留下有用的痕迹。</p>
+    <div><a href="https://github.com/luoliguang/ClickPulse-Social/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer" data-i18n="footer.changelog">更新日志</a><a href="https://github.com/luoliguang/ClickPulse-Social/issues" target="_blank" rel="noreferrer" data-i18n="footer.issues">问题反馈</a><a href="https://github.com/luoliguang/ClickPulse-Social/blob/main/LICENSE" target="_blank" rel="noreferrer">GPL-3.0</a></div>
+  </footer>
+</body>
+</html>

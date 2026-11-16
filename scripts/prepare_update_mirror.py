@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 TARGETS = ('windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64')
+WEBSITE_ASSETS = ('macos-arm64.dmg', 'macos-x64.dmg')
 VERSION = re.compile(r'^[0-9]+\.[0-9]+\.[0-9]+$')
 REVISION = re.compile(r'^[0-9a-f]{40}$')
 
@@ -57,6 +58,7 @@ def prepare(release_dir: Path, output: Path, version: str, revision: str, reposi
     names = ['SHA256SUMS.txt']
     for target in TARGETS:
         names.extend((f'ClickPulse-{version}-{target}.zip', f'ClickPulse-{version}-{target}.manifest.json'))
+    names.extend(f'ClickPulse-{version}-{suffix}' for suffix in WEBSITE_ASSETS)
     assets = []
     for name in names:
         path = release_dir / name
