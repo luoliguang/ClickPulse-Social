@@ -42,12 +42,17 @@ pub(super) enum Request {
     LeaderboardJoin {
         invite_code: String,
         nickname: String,
+        role: String,
     },
     LeaderboardSync {
         period: clickpulse::leaderboard::Period,
     },
     LeaderboardRename {
         nickname: String,
+        period: clickpulse::leaderboard::Period,
+    },
+    LeaderboardRole {
+        role: String,
         period: clickpulse::leaderboard::Period,
     },
     LeaderboardAvatar {
@@ -129,11 +134,11 @@ mod tests {
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_join","invite_code":"CP_123456","nickname":"Luo"}"#
+                r#"{"action":"leaderboard_join","invite_code":"CP_123456","nickname":"Luo","role":"developer"}"#
             )
             .unwrap(),
-            Request::LeaderboardJoin { invite_code, nickname }
-                if invite_code == "CP_123456" && nickname == "Luo"
+            Request::LeaderboardJoin { invite_code, nickname, role }
+                if invite_code == "CP_123456" && nickname == "Luo" && role == "developer"
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week"}"#)

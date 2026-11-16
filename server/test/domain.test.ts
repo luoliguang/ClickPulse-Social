@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allowedUploadDates, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, periodBounds } from '../src/domain';
+import { allowedUploadDates, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from '../src/domain';
 
 test('nicknames are normalized and unsafe or oversized names are rejected', () => {
   assert.deepEqual(normalizeNickname('  Luo   Yang  '), { nickname: 'Luo Yang', key: 'luo yang' });
   for (const value of ['', '<script>', 'x'.repeat(25), null]) assert.throws(() => normalizeNickname(value));
+});
+
+test('roles fall back to other and reject unknown values', () => {
+  assert.equal(normalizeRole(undefined), 'other');
+  assert.equal(normalizeRole(''), 'other');
+  assert.equal(normalizeRole('  developer  '), 'developer');
+  assert.throws(() => normalizeRole('astronaut'));
 });
 
 test('daily payload accepts only bounded absolute totals and known Shanghai dates', () => {

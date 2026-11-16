@@ -29,10 +29,12 @@ test('joining records the invitation slot and leaving releases it atomically', a
   try {
     (pool as any).connect = async () => fakeClient;
     const app = buildApp();
-    const joined = await app.inject({ method: 'POST', url: '/api/v1/join', payload: { invite_code: 'CP_123456', nickname: 'Luo' } });
+    const joined = await app.inject({ method: 'POST', url: '/api/v1/join', payload: { invite_code: 'CP_123456', nickname: 'Luo', role: 'designer' } });
     assert.equal(joined.statusCode, 201);
+    assert.equal(joined.json().member.role, 'designer');
     const insert = clientQueries.find(entry => entry.sql.startsWith('INSERT INTO leaderboard_members'));
     assert.equal(insert?.values?.[4], 'invite-1');
+    assert.equal(insert?.values?.[5], 'designer');
     clientQueries.length = 0;
     (pool as any).query = async (sql: string) => {
       assert.match(sql, /invitation_id/);

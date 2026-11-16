@@ -15,9 +15,12 @@ CREATE TABLE IF NOT EXISTS leaderboard_members (
   nickname_key VARCHAR(96) UNIQUE NOT NULL,
   token_hash CHAR(64) UNIQUE NOT NULL,
   avatar_file TEXT,
+  role TEXT NOT NULL DEFAULT 'other',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'other';
 
 DO $$
 BEGIN

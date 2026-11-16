@@ -130,16 +130,20 @@ feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOver
 feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});
 
 let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',leaderboardState={profile:{joined:false},board:null};
+const LEADERBOARD_ROLES=['developer','designer','product_manager','operations','marketing','data','engineer','researcher','teacher','writer','student','office','finance','sales','hr','customer_support','legal','medical','freelancer','other'];
+function leaderboardRoleLabel(role){return t('leaderboard.role.'+(role||'other'));}
+function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';}
 function leaderboardAvatar(node,avatar,nickname){
-  node.textContent=avatar?.initial||[...String(nickname||'?')][0]?.toUpperCase()||'?';
-  node.style.backgroundColor=avatar?.color||'var(--blue)';
-  node.style.backgroundImage=avatar?.url?`url("${String(avatar.url).replace(/["\\]/g,'')}")`:'';
+  const url=avatar?.url;
+  node.textContent=url?'':(avatar?.initial||[...String(nickname||'?')][0]?.toUpperCase()||'?');
+  node.style.backgroundColor=url?'transparent':(avatar?.color||'var(--blue)');
+  node.style.backgroundImage=url?`url("${String(url).replace(/["\\]/g,'')}")`:'';
 }
 function setLeaderboardBusy(busy){
   leaderboardBusy=busy;$('leaderboard-loading').hidden=!busy;
   $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
   $('leaderboard-sync').classList.toggle('is-loading',busy);
-  for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave'])$(id).disabled=busy;
+  for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit'])$(id).disabled=busy;
   for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.disabled=busy;
 }
 function setLeaderboardEditing(editing){
@@ -155,10 +159,11 @@ function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined;
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
-  $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;
+  $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=!!profile.demo;
   $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
     $('leaderboard-profile-name').textContent=profile.nickname;
+    $('leaderboard-role-edit').value=profile.role||'other';
     const self=board?.entries?.find(entry=>entry.is_self||entry.member_id===profile.member_id);
     leaderboardAvatar($('leaderboard-avatar'),self?.avatar,profile.nickname);
     $('leaderboard-avatar-delete').hidden=!self?.avatar?.url;
@@ -167,8 +172,8 @@ function renderLeaderboard(){
   const rows=(board?.entries||[]).map(entry=>{
     const row=document.createElement('tr');row.classList.toggle('leaderboard-self',!!entry.is_self||entry.member_id===profile.member_id);
     const rank=document.createElement('td');rank.textContent=n(entry.rank);
-    const member=document.createElement('td'),wrap=document.createElement('div'),avatar=document.createElement('span'),name=document.createElement('span');
-    wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.textContent=entry.nickname;wrap.append(avatar,name);member.append(wrap);
+    const member=document.createElement('td'),wrap=document.createElement('div'),avatar=document.createElement('span'),name=document.createElement('span'),role=document.createElement('span');
+    wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.textContent=entry.nickname;role.className='leaderboard-role';role.textContent=leaderboardRoleLabel(entry.role);wrap.append(avatar,name,role);member.append(wrap);
     const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,keyboard,mouse,sum);return row;
   });
   const body=$('leaderboard-rows');body.replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
@@ -181,7 +186,8 @@ window.receiveLeaderboard=state=>{
   if(leaderboardRenamePending&&!renamed)return;
   const joinedBefore=!!leaderboardState.profile?.joined;leaderboardRenamePending=false;leaderboardRenameValue='';leaderboardState=state;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
 };
-window.receiveLeaderboardError=message=>{leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
+window.receiveLeaderboardBackground=state=>{if(leaderboardBusy||(state.board?.period&&state.board.period!==leaderboardPeriod))return;leaderboardState=state;renderLeaderboard();};
+window.receiveLeaderboardError=message=>{leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>setLeaderboardBusy(false);
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
 const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
@@ -214,9 +220,9 @@ leaderboardConfirmOverlay?.addEventListener('keydown',event=>{
   }
 });
 $('leaderboard-join-button')?.addEventListener('click',()=>{
-  const invite_code=$('leaderboard-invite').value.trim(),nickname=$('leaderboard-nickname').value.trim();
+  const invite_code=$('leaderboard-invite').value.trim(),nickname=$('leaderboard-nickname').value.trim(),role=$('leaderboard-role').value;
   if(!invite_code||!nickname){window.toast(t('leaderboard.required'));return;}
-  openLeaderboardConfirm('join',()=>{setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname});},{nickname});
+  openLeaderboardConfirm('join',()=>{setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname,role});},{nickname});
 });
 for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.addEventListener('click',()=>{
   if(leaderboardBusy||button.dataset.leaderboardPeriod===leaderboardPeriod)return;
@@ -232,11 +238,18 @@ $('leaderboard-name-save')?.addEventListener('click',()=>{
   leaderboardRenamePending=true;leaderboardRenameValue=nickname.replace(/\s+/g,' ');setLeaderboardBusy(true);$('leaderboard-error').hidden=true;send('leaderboard_rename',{nickname,period:leaderboardPeriod});
 });
 $('leaderboard-name-input')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('leaderboard-name-save').click();}else if(event.key==='Escape'){event.preventDefault();setLeaderboardEditing(false);}});
+$('leaderboard-role-edit')?.addEventListener('change',()=>{
+  const role=$('leaderboard-role-edit').value;
+  if(!role||role===leaderboardState.profile?.role)return;
+  setLeaderboardBusy(true);$('leaderboard-error').hidden=true;send('leaderboard_role',{role,period:leaderboardPeriod});
+});
 $('leaderboard-avatar-change')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar',{period:leaderboardPeriod});});
 $('leaderboard-avatar-delete')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar_delete',{period:leaderboardPeriod});});
 $('leaderboard-leave')?.addEventListener('click',()=>{
   openLeaderboardConfirm('leave',()=>{setLeaderboardBusy(true);send('leaderboard_leave');});
 });
+buildRoleOptions($('leaderboard-role'),'other');
+buildRoleOptions($('leaderboard-role-edit'),'other');
 
 function renderDataOperation(){
   $('data-operation-status').hidden=!dataOperationBusy;
@@ -278,6 +291,7 @@ window.setInterfaceLanguage=(locale,preference)=>{
   Dropdowns.sync('language-select');
   if(I.locale===locale)return;
   I.setLocale(locale);I.apply(document);updateHeading();renderDataOperation();
+  buildRoleOptions($('leaderboard-role'),$('leaderboard-role').value);buildRoleOptions($('leaderboard-role-edit'),leaderboardState.profile?.role||$('leaderboard-role-edit').value);renderLeaderboard();
   renderTimeZoneOptions();Dropdowns.syncAll();
   calendarLayout='';historySignature='';
   sportView?.render();

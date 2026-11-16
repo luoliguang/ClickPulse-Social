@@ -7,6 +7,16 @@ export function hashSecret(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
+export const ROLES = ['developer', 'designer', 'product_manager', 'operations', 'marketing', 'data', 'engineer', 'researcher', 'teacher', 'writer', 'student', 'office', 'finance', 'sales', 'hr', 'customer_support', 'legal', 'medical', 'freelancer', 'other'] as const;
+
+export function normalizeRole(value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'other';
+  if (typeof value !== 'string') throw new Error('invalid_role');
+  const role = value.trim() || 'other';
+  if (!(ROLES as readonly string[]).includes(role)) throw new Error('invalid_role');
+  return role;
+}
+
 export function normalizeNickname(value: unknown): { nickname: string; key: string } {
   if (typeof value !== 'string') throw new Error('invalid_nickname');
   const nickname = value.trim().replace(/\s+/g, ' ');

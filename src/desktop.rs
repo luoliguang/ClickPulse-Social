@@ -59,6 +59,7 @@ enum UiEvent {
         result: std::result::Result<DataOutcome, String>,
     },
     Leaderboard(std::result::Result<serde_json::Value, String>),
+    LeaderboardBackground(std::result::Result<serde_json::Value, String>),
     #[cfg(target_os = "windows")]
     Activate,
 }
@@ -410,8 +411,10 @@ pub fn run(
         .flatten()
         .is_some();
     let mut leaderboard_syncing = false;
+    let mut leaderboard_background_refreshing = false;
     let mut leaderboard_period = clickpulse::leaderboard::Period::Today;
     let mut next_leaderboard_sync = Instant::now();
+    let mut next_leaderboard_refresh = Instant::now();
     let mut data_job: Option<u64> = None;
     let mut next_data_job = 0u64;
     let mut quit_after_data = false;
@@ -507,6 +510,17 @@ pub fn run(
                 };
                 if ready {
                     let _ = webview.evaluate_script(&script);
+                }
+            }
+            Event::UserEvent(UiEvent::LeaderboardBackground(result)) => {
+                leaderboard_background_refreshing = false;
+                if ready
+                    && !leaderboard_syncing
+                    && let Ok(value) = result
+                {
+                    let _ = webview.evaluate_script(&format!(
+                        "window.receiveLeaderboardBackground?.({value});"
+                    ));
                 }
             }
             Event::UserEvent(UiEvent::SportSample { id, result })
@@ -800,17 +814,25 @@ pub fn run(
                                     leaderboard::demo(period),
                                 )));
                             } else {
+                                leaderboard_syncing = true;
                                 leaderboard::load(snapshot_proxy.clone(), period);
                             }
                         }
                         Request::LeaderboardJoin {
                             invite_code,
                             nickname,
+                            role,
                         } => {
                             if demo || source_mode || runtime.is_none() {
                                 let _ = webview.evaluate_script("window.receiveLeaderboardError?.('Leaderboard membership is only available for the normal local profile.');");
                             } else {
-                                leaderboard::join(snapshot_proxy.clone(), invite_code, nickname);
+                                leaderboard_syncing = true;
+                                leaderboard::join(
+                                    snapshot_proxy.clone(),
+                                    invite_code,
+                                    nickname,
+                                    role,
+                                );
                             }
                         }
                         Request::LeaderboardSync { period } => {
@@ -848,7 +870,12 @@ pub fn run(
                             }
                         }
                         Request::LeaderboardRename { nickname, period } => {
+                            leaderboard_syncing = true;
                             leaderboard::rename(snapshot_proxy.clone(), nickname, period);
+                        }
+                        Request::LeaderboardRole { role, period } => {
+                            leaderboard_syncing = true;
+                            leaderboard::set_role(snapshot_proxy.clone(), role, period);
                         }
                         Request::LeaderboardAvatar { period } => {
                             if let Some(path) = rfd::FileDialog::new()
@@ -856,6 +883,7 @@ pub fn run(
                                 .add_filter("Images", &["jpg", "jpeg", "png", "webp"])
                                 .pick_file()
                             {
+                                leaderboard_syncing = true;
                                 leaderboard::upload_avatar(snapshot_proxy.clone(), path, period);
                             } else {
                                 let _ = webview
@@ -863,9 +891,11 @@ pub fn run(
                             }
                         }
                         Request::LeaderboardAvatarDelete { period } => {
+                            leaderboard_syncing = true;
                             leaderboard::delete_avatar(snapshot_proxy.clone(), period);
                         }
                         Request::LeaderboardLeave {} => {
+                            leaderboard_syncing = true;
                             leaderboard::leave(snapshot_proxy.clone());
                         }
                         Request::SportSample {} => {
@@ -1125,6 +1155,18 @@ pub fn run(
                     {
                         leaderboard_syncing = false;
                     }
+                }
+                if ready
+                    && leaderboard_joined
+                    && !leaderboard_syncing
+                    && !leaderboard_background_refreshing
+                    && !demo
+                    && !source_mode
+                    && Instant::now() >= next_leaderboard_refresh
+                {
+                    leaderboard_background_refreshing = true;
+                    next_leaderboard_refresh = Instant::now() + Duration::from_secs(30);
+                    leaderboard::load_background(snapshot_proxy.clone(), leaderboard_period);
                 }
                 if ready
                     && data_job.is_none()

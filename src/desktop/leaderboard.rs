@@ -11,6 +11,12 @@ fn finish(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
     ));
 }
 
+fn finish_background(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardBackground(
+        result.map_err(|error| format!("{error:#}")),
+    ));
+}
+
 fn spawn(proxy: EventLoopProxy<UiEvent>, task: impl FnOnce() -> Result<Value> + Send + 'static) {
     thread::Builder::new()
         .name("clickpulse-leaderboard".into())
@@ -33,18 +39,18 @@ pub(super) fn demo(period: Period) -> Value {
         Period::Week => "week",
     };
     let entries = [
-        ("m1", "Lin", 24_820, 5_416, "#7c3aed"),
-        ("demo", "罗洋洋", 21_460, 4_982, "#2563eb"),
-        ("m3", "Mika", 18_305, 3_744, "#0f766e"),
-        ("m4", "Alex", 15_920, 4_101, "#c2410c"),
-        ("m5", "小北", 12_638, 2_877, "#be123c"),
-    ].into_iter().enumerate().map(|(index, (id, nickname, keyboard, mouse, color))| json!({
-        "rank":index + 1,"member_id":id,"nickname":nickname,
+        ("m1", "Lin", "designer", 24_820, 5_416, "#7c3aed"),
+        ("demo", "罗洋洋", "developer", 21_460, 4_982, "#2563eb"),
+        ("m3", "Mika", "student", 18_305, 3_744, "#0f766e"),
+        ("m4", "Alex", "operations", 15_920, 4_101, "#c2410c"),
+        ("m5", "小北", "writer", 12_638, 2_877, "#be123c"),
+    ].into_iter().enumerate().map(|(index, (id, nickname, role, keyboard, mouse, color))| json!({
+        "rank":index + 1,"member_id":id,"nickname":nickname,"role":role,
         "avatar":{"url":null,"initial":nickname.chars().next().unwrap_or('?').to_string(),"color":color},
         "keyboard":keyboard,"mouse":mouse,"total":keyboard + mouse,"is_self":id == "demo"
     })).collect::<Vec<_>>();
     json!({
-        "profile":{"joined":true,"member_id":"demo","nickname":"罗洋洋","demo":true},
+        "profile":{"joined":true,"member_id":"demo","nickname":"罗洋洋","role":"developer","demo":true},
         "board":{"period":period_name,"starts_on":"2026-11-10","ends_on":"2026-11-16","entries":entries,"self_rank":2}
     })
 }
@@ -53,13 +59,25 @@ pub(super) fn load(proxy: EventLoopProxy<UiEvent>, period: Period) {
     spawn(proxy, move || state(period));
 }
 
-pub(super) fn join(proxy: EventLoopProxy<UiEvent>, invite_code: String, nickname: String) {
+pub(super) fn load_background(proxy: EventLoopProxy<UiEvent>, period: Period) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-refresh".into())
+        .spawn(move || finish_background(proxy, state(period)))
+        .ok();
+}
+
+pub(super) fn join(
+    proxy: EventLoopProxy<UiEvent>,
+    invite_code: String,
+    nickname: String,
+    role: String,
+) {
     spawn(proxy, move || {
         ensure!(
             leaderboard::load_profile()?.is_none(),
             "This installation has already joined the leaderboard"
         );
-        leaderboard::join(invite_code.trim(), nickname.trim())?;
+        leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
         state(Period::Today)
     });
 }
@@ -114,6 +132,15 @@ pub(super) fn rename(proxy: EventLoopProxy<UiEvent>, nickname: String, period: P
         let mut profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::rename(&mut profile, nickname.trim())?;
+        state(period)
+    });
+}
+
+pub(super) fn set_role(proxy: EventLoopProxy<UiEvent>, role: String, period: Period) {
+    spawn(proxy, move || {
+        let mut profile =
+            leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+        leaderboard::set_role(&mut profile, role.trim())?;
         state(period)
     });
 }

@@ -11,10 +11,48 @@ pub const API_BASE: &str = "https://clickpulse.fangdutex.cn/api/v1";
 const MAX_RESPONSE: u64 = 1024 * 1024;
 const MAX_AVATAR: usize = 200 * 1024;
 
+pub const ROLES: &[&str] = &[
+    "developer",
+    "designer",
+    "product_manager",
+    "operations",
+    "marketing",
+    "data",
+    "engineer",
+    "researcher",
+    "teacher",
+    "writer",
+    "student",
+    "office",
+    "finance",
+    "sales",
+    "hr",
+    "customer_support",
+    "legal",
+    "medical",
+    "freelancer",
+    "other",
+];
+
+fn default_role() -> String {
+    "other".to_owned()
+}
+
+fn normalize_role(role: &str) -> Result<String> {
+    let role = role.trim();
+    if role.is_empty() {
+        return Ok(default_role());
+    }
+    ensure!(ROLES.contains(&role), "Leaderboard role is invalid");
+    Ok(role.to_owned())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Profile {
     pub member_id: String,
     pub nickname: String,
+    #[serde(default = "default_role")]
+    pub role: String,
     pub token: String,
 }
 
@@ -37,6 +75,8 @@ pub struct Entry {
     pub rank: u64,
     pub member_id: String,
     pub nickname: String,
+    #[serde(default = "default_role")]
+    pub role: String,
     pub avatar: Avatar,
     pub keyboard: i64,
     pub mouse: i64,
@@ -63,6 +103,8 @@ struct JoinResponse {
 struct Member {
     id: String,
     nickname: String,
+    #[serde(default = "default_role")]
+    role: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -193,24 +235,28 @@ fn json_request<T: Serialize, R: DeserializeOwned>(
     read_json(response)
 }
 
-pub fn join(invite_code: &str, nickname: &str) -> Result<Profile> {
+pub fn join(invite_code: &str, nickname: &str, role: &str) -> Result<Profile> {
     #[derive(Serialize)]
     struct Join<'a> {
         invite_code: &'a str,
         nickname: &'a str,
+        role: &'a str,
     }
+    let role = normalize_role(role)?;
     let response: JoinResponse = json_request(
         "POST",
         "/join",
         &Join {
             invite_code,
             nickname,
+            role: &role,
         },
         None,
     )?;
     let profile = Profile {
         member_id: response.member.id,
         nickname: response.member.nickname,
+        role: response.member.role,
         token: response.token,
     };
     save_profile(&profile)?;
@@ -248,6 +294,17 @@ pub fn rename(profile: &mut Profile, nickname: &str) -> Result<()> {
     }
     let member: Member = json_request("PATCH", "/me", &Rename { nickname }, Some(profile))?;
     profile.nickname = member.nickname;
+    save_profile(profile)
+}
+
+pub fn set_role(profile: &mut Profile, role: &str) -> Result<()> {
+    #[derive(Serialize)]
+    struct Role<'a> {
+        role: &'a str,
+    }
+    let role = normalize_role(role)?;
+    let member: Member = json_request("PATCH", "/me", &Role { role: &role }, Some(profile))?;
+    profile.role = member.role;
     save_profile(profile)
 }
 
@@ -323,7 +380,7 @@ pub fn upload_avatar(profile: &Profile, bytes: &[u8]) -> Result<()> {
 pub fn profile_summary(profile: Option<&Profile>) -> serde_json::Value {
     match profile {
         Some(profile) => {
-            serde_json::json!({"joined":true,"member_id":profile.member_id,"nickname":profile.nickname})
+            serde_json::json!({"joined":true,"member_id":profile.member_id,"nickname":profile.nickname,"role":profile.role})
         }
         None => serde_json::json!({"joined":false}),
     }
@@ -337,10 +394,18 @@ mod tests {
         let value = profile_summary(Some(&Profile {
             member_id: "m1".into(),
             nickname: "Luo".into(),
+            role: "developer".into(),
             token: "secret".into(),
         }));
         assert_eq!(value["nickname"], "Luo");
+        assert_eq!(value["role"], "developer");
         assert!(value.get("token").is_none());
+    }
+    #[test]
+    fn role_normalization_falls_back_to_other_and_rejects_unknown_values() {
+        assert_eq!(normalize_role("  ").unwrap(), "other");
+        assert_eq!(normalize_role("developer").unwrap(), "developer");
+        assert!(normalize_role("astronaut").is_err());
     }
     #[test]
     fn avatar_processing_strips_input_and_produces_bounded_webp() {

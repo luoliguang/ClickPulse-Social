@@ -5,7 +5,7 @@ import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ADMIN_APP_JS, ADMIN_HTML, cookieValue, createAdminSession, generateInviteCode, verifyAdminSession, verifyPassword } from './admin';
 import { pool } from './db';
-import { allowedUploadDates, assertInvite, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, periodBounds } from './domain';
+import { allowedUploadDates, assertInvite, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from './domain';
 
 const avatarRoot = process.env.AVATAR_ROOT || join(process.cwd(), 'avatars');
 const updateRoot = () => process.env.UPDATE_ROOT || join(process.cwd(), 'updates');
@@ -14,7 +14,7 @@ const limiter = new Map<string, { count: number; reset: number }>();
 const adminCookie = 'clickpulse_admin';
 const updateTargets = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64'];
 
-type MemberRow = { id: string; nickname: string; avatar_file: string | null; invitation_id?: string | null };
+type MemberRow = { id: string; nickname: string; avatar_file: string | null; invitation_id?: string | null; role: string };
 type InvitationRow = { id: string; max_uses: number; uses: number; expires_at: string | null; revoked_at: string | null; created_at: string; expired: boolean };
 
 function limited(key: string, maximum: number, windowMs: number): boolean {
@@ -36,7 +36,7 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply): Promi
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ') || header.length > 256) { fail(reply, 401, 'unauthorized', 'Membership token is required'); return; }
   const token = header.slice(7);
-  const result = await pool.query<MemberRow>('SELECT id,nickname,avatar_file,invitation_id FROM leaderboard_members WHERE token_hash=$1', [hashSecret(token)]);
+  const result = await pool.query<MemberRow>('SELECT id,nickname,avatar_file,invitation_id,role FROM leaderboard_members WHERE token_hash=$1', [hashSecret(token)]);
   if (!result.rows[0]) { fail(reply, 401, 'unauthorized', 'Membership token is invalid'); return; }
   return result.rows[0];
 }
@@ -48,7 +48,7 @@ function avatar(member: MemberRow) {
 }
 
 function memberJson(member: MemberRow) {
-  return { id: member.id, nickname: member.nickname, avatar: avatar(member) };
+  return { id: member.id, nickname: member.nickname, role: member.role, avatar: avatar(member) };
 }
 
 function sameOrigin(request: FastifyRequest): boolean {
@@ -76,6 +76,8 @@ export function buildApp() {
     trustProxy: '127.0.0.1',
     ajv: { customOptions: { removeAdditional: false } },
   });
+  const boardCache = new Map<string, { expires: number; starts_on: string; ends_on: string; entries: Array<{ rank: number; member_id: string; nickname: string; role: string; avatar: ReturnType<typeof avatar>; keyboard: number; mouse: number; total: number }> }>();
+  const boardCacheMs = 10_000;
   app.addContentTypeParser('image/webp', { parseAs: 'buffer', bodyLimit: 200 * 1024 }, (_request, body, done) => done(null, body));
 
   app.get('/api/v1/health', async () => {
@@ -176,13 +178,14 @@ export function buildApp() {
   });
 
   app.post('/api/v1/join', {
-    schema: { body: { type: 'object', additionalProperties: false, required: ['invite_code', 'nickname'], properties: { invite_code: { type: 'string', minLength: 6, maxLength: 64 }, nickname: { type: 'string', minLength: 1, maxLength: 96 } } } }
+    schema: { body: { type: 'object', additionalProperties: false, required: ['invite_code', 'nickname'], properties: { invite_code: { type: 'string', minLength: 6, maxLength: 64 }, nickname: { type: 'string', minLength: 1, maxLength: 96 }, role: { type: 'string', minLength: 1, maxLength: 32 } } } }
   }, async (request, reply) => {
     if (limited(`join:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many join attempts');
     try {
-      const body = request.body as { invite_code: unknown; nickname: unknown };
+      const body = request.body as { invite_code: unknown; nickname: unknown; role?: unknown };
       const code = assertInvite(body.invite_code);
       const { nickname, key } = normalizeNickname(body.nickname);
+      const role = normalizeRole(body.role);
       const token = randomBytes(32).toString('base64url');
       const id = randomUUID();
       const client = await pool.connect();
@@ -190,7 +193,7 @@ export function buildApp() {
         await client.query('BEGIN');
         const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
         if (!invitation.rows[0]) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_invite', 'Invitation code is invalid or exhausted'); }
-        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id) VALUES($1,$2,$3,$4,$5)', [id, nickname, key, hashSecret(token), invitation.rows[0].id]);
+        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id,role) VALUES($1,$2,$3,$4,$5,$6)', [id, nickname, key, hashSecret(token), invitation.rows[0].id, role]);
         await client.query('UPDATE leaderboard_invitations SET uses=uses+1 WHERE id=$1', [invitation.rows[0].id]);
         await client.query('COMMIT');
       } catch (error: any) {
@@ -198,9 +201,9 @@ export function buildApp() {
         if (error?.code === '23505') return fail(reply, 409, 'nickname_taken', 'Nickname is already in use');
         throw error;
       } finally { client.release(); }
-      return reply.code(201).send({ member: memberJson({ id, nickname, avatar_file: null }), token });
+      return reply.code(201).send({ member: memberJson({ id, nickname, avatar_file: null, role }), token });
     } catch (error: any) {
-      if (['invalid_invite', 'invalid_nickname'].includes(error?.message)) return fail(reply, 400, error.message, 'Invalid invitation code or nickname');
+      if (['invalid_invite', 'invalid_nickname', 'invalid_role'].includes(error?.message)) return fail(reply, 400, error.message, 'Invalid invitation code, nickname, or role');
       throw error;
     }
   });
@@ -211,16 +214,29 @@ export function buildApp() {
   });
 
   app.patch('/api/v1/me', {
-    schema: { body: { type: 'object', additionalProperties: false, required: ['nickname'], properties: { nickname: { type: 'string', minLength: 1, maxLength: 96 } } } }
+    schema: { body: { type: 'object', additionalProperties: false, minProperties: 1, properties: { nickname: { type: 'string', minLength: 1, maxLength: 96 }, role: { type: 'string', minLength: 1, maxLength: 32 } } } }
   }, async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
     try {
-      const { nickname, key } = normalizeNickname((request.body as { nickname: unknown }).nickname);
-      const result = await pool.query<MemberRow>('UPDATE leaderboard_members SET nickname=$1,nickname_key=$2,updated_at=NOW() WHERE id=$3 RETURNING id,nickname,avatar_file', [nickname, key, member.id]);
+      const body = request.body as { nickname?: unknown; role?: unknown };
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      if (body.nickname !== undefined) {
+        const { nickname, key } = normalizeNickname(body.nickname);
+        values.push(nickname, key);
+        updates.push(`nickname=$${values.length - 1}`, `nickname_key=$${values.length}`);
+      }
+      if (body.role !== undefined) {
+        values.push(normalizeRole(body.role));
+        updates.push(`role=$${values.length}`);
+      }
+      updates.push('updated_at=NOW()');
+      const result = await pool.query<MemberRow>(`UPDATE leaderboard_members SET ${updates.join(',')} WHERE id=$${values.length + 1} RETURNING id,nickname,avatar_file,role`, [...values, member.id]);
+      boardCache.clear();
       return memberJson(result.rows[0]);
     } catch (error: any) {
       if (error?.code === '23505') return fail(reply, 409, 'nickname_taken', 'Nickname is already in use');
-      if (error?.message === 'invalid_nickname') return fail(reply, 400, 'invalid_nickname', 'Nickname is invalid');
+      if (['invalid_nickname', 'invalid_role'].includes(error?.message)) return fail(reply, 400, error.message, 'Nickname or role is invalid');
       throw error;
     }
   });
@@ -244,6 +260,7 @@ export function buildApp() {
         }
         await client.query('COMMIT');
       } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+      boardCache.clear();
       return { ok: true, synced: days.length };
     } catch (error: any) {
       if (error?.message === 'invalid_stats') return fail(reply, 400, 'invalid_stats', 'Statistics payload is invalid');
@@ -256,15 +273,25 @@ export function buildApp() {
   }, async (request, reply) => {
     if (limited(`board:${request.ip}`, 120, 60_000)) return fail(reply, 429, 'rate_limited', 'Leaderboard is refreshing too frequently');
     const period = (request.query as { period: 'today' | 'week' }).period;
-    const bounds = periodBounds(period);
     let selfId: string | undefined;
     if (request.headers.authorization) {
       const member = await authenticate(request, reply); if (!member) return;
       selfId = member.id;
     }
-    const result = await pool.query<MemberRow & { keyboard: string; mouse: string }>(`SELECT m.id,m.nickname,m.avatar_file,COALESCE(SUM(s.keyboard),0)::text keyboard,COALESCE(SUM(s.mouse),0)::text mouse FROM leaderboard_members m JOIN leaderboard_daily_stats s ON s.member_id=m.id AND s.day BETWEEN $1 AND $2 GROUP BY m.id,m.nickname,m.avatar_file HAVING SUM(s.keyboard+s.mouse)>0 ORDER BY SUM(s.keyboard+s.mouse) DESC,m.created_at ASC LIMIT 100`, [bounds.start, bounds.end]);
-    const entries = result.rows.map((row, index) => ({ rank: index + 1, member_id: row.id, nickname: row.nickname, avatar: avatar(row), keyboard: Number(row.keyboard), mouse: Number(row.mouse), total: Number(row.keyboard) + Number(row.mouse), is_self: row.id === selfId }));
-    return { period, starts_on: bounds.start, ends_on: bounds.end, entries, self_rank: entries.find(entry => entry.is_self)?.rank ?? null };
+    const cached = boardCache.get(period);
+    let starts_on = ''; let ends_on = '';
+    let base: Array<{ rank: number; member_id: string; nickname: string; role: string; avatar: ReturnType<typeof avatar>; keyboard: number; mouse: number; total: number }> = [];
+    if (cached && cached.expires > Date.now()) {
+      ({ starts_on, ends_on, entries: base } = cached);
+    } else {
+      const bounds = periodBounds(period);
+      starts_on = bounds.start; ends_on = bounds.end;
+      const result = await pool.query<MemberRow & { keyboard: string; mouse: string }>(`SELECT m.id,m.nickname,m.avatar_file,m.role,COALESCE(SUM(s.keyboard),0)::text keyboard,COALESCE(SUM(s.mouse),0)::text mouse FROM leaderboard_members m JOIN leaderboard_daily_stats s ON s.member_id=m.id AND s.day BETWEEN $1 AND $2 GROUP BY m.id,m.nickname,m.avatar_file,m.role HAVING SUM(s.keyboard+s.mouse)>0 ORDER BY SUM(s.keyboard+s.mouse) DESC,m.created_at ASC LIMIT 100`, [bounds.start, bounds.end]);
+      base = result.rows.map((row, index) => ({ rank: index + 1, member_id: row.id, nickname: row.nickname, role: row.role, avatar: avatar(row), keyboard: Number(row.keyboard), mouse: Number(row.mouse), total: Number(row.keyboard) + Number(row.mouse) }));
+      boardCache.set(period, { expires: Date.now() + boardCacheMs, starts_on, ends_on, entries: base });
+    }
+    const entries = base.map(entry => ({ ...entry, is_self: entry.member_id === selfId }));
+    return { period, starts_on, ends_on, entries, self_rank: entries.find(entry => entry.is_self)?.rank ?? null };
   });
 
   app.get('/api/v1/avatar/:memberId', async (request, reply) => {
@@ -296,6 +323,7 @@ export function buildApp() {
         throw error;
       }
       if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+      boardCache.clear();
       return memberJson({ ...member, avatar_file: file });
     } catch (error: any) {
       if (error?.message === 'invalid_avatar') return fail(reply, 400, 'invalid_avatar', 'Avatar must be a WebP image up to 200 KB');
@@ -307,6 +335,7 @@ export function buildApp() {
     const member = await authenticate(request, reply); if (!member) return;
     await pool.query('UPDATE leaderboard_members SET avatar_file=NULL,updated_at=NOW() WHERE id=$1', [member.id]);
     if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+    boardCache.clear();
     return { ok: true };
   });
 
@@ -324,6 +353,7 @@ export function buildApp() {
       throw error;
     } finally { client.release(); }
     if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+    boardCache.clear();
     return { ok: true };
   });
 

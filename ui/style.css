@@ -212,8 +212,8 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-join,.leaderboard-profile,.leaderboard-board {text-align:left}
 .leaderboard-form {display:grid;grid-template-columns:minmax(190px,260px) minmax(190px,260px) auto;gap:12px;align-items:end;justify-content:start}
 .leaderboard-form label {display:grid;gap:7px;color:var(--muted);font:600 var(--ui-detail-size)/1.4 var(--sans)}
-.leaderboard-form input {box-sizing:border-box;width:100%;height:42px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 12px;font:500 var(--ui-label-size)/1.4 var(--sans);outline:none}
-.leaderboard-form input:focus {border-color:var(--blue);box-shadow:0 0 0 3px #2563eb2e;box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+.leaderboard-form input,.leaderboard-form select {box-sizing:border-box;width:100%;height:42px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 12px;font:500 var(--ui-label-size)/1.4 var(--sans);outline:none}
+.leaderboard-form input:focus,.leaderboard-form select:focus {border-color:var(--blue);box-shadow:0 0 0 3px #2563eb2e;box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
 #leaderboard-join-button {height:42px;min-width:112px;padding:0 19px;font-size:var(--ui-detail-size)}
 #leaderboard-join-button:active,.leaderboard-confirm-dialog .button:active {transform:scale(.97)}
 .leaderboard-privacy,.leaderboard-empty {margin:15px 0 0;color:var(--muted);font-size:var(--ui-detail-size);line-height:1.6}
@@ -227,6 +227,9 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-name-edit:active {transform:scale(.97)}
 .leaderboard-name-form input {box-sizing:border-box;width:min(220px,40vw);height:34px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 10px;font:600 var(--ui-label-size)/1.4 var(--sans);outline:none}
 .leaderboard-name-form input:focus {border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+.leaderboard-role-field {display:grid;gap:5px;color:var(--muted);font:600 var(--ui-detail-size)/1.4 var(--sans);margin-top:4px}
+.leaderboard-role-field select {box-sizing:border-box;width:min(220px,40vw);height:32px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);padding:0 8px;font:500 var(--ui-label-size)/1.4 var(--sans);outline:none}
+.leaderboard-role-field select:focus {border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
 .leaderboard-name-form .button {min-height:34px;padding:6px 10px}
 .leaderboard-avatar {width:44px;height:44px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:white;font:700 17px/1 var(--sans);background-size:cover;background-position:center}
 .leaderboard-board .table-wrap {transition:opacity .16s ease,transform .2s cubic-bezier(.23,1,.32,1)}
@@ -241,6 +244,7 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-period-segments button.selected {background:transparent;box-shadow:none}
 .leaderboard-table td:nth-child(n+3),.leaderboard-table th:nth-child(n+3) {text-align:right;font-variant-numeric:tabular-nums}
 .leaderboard-member {display:flex;align-items:center;gap:10px;min-width:150px}.leaderboard-member .leaderboard-avatar{width:32px;height:32px;font-size:12px}
+.leaderboard-role {color:var(--muted);font-size:11px;line-height:1;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--muted) 10%,transparent);white-space:nowrap}
 .leaderboard-self {background:#2563eb12;background:color-mix(in srgb,var(--blue) 8%,transparent)}
 .button.danger {color:#b42318;border-color:#e3b5b0;border-color:color-mix(in srgb,#b42318 30%,var(--line))}
 .button.danger.solid {background:#b42318;border-color:#b42318;color:#fff}.button.danger.solid:hover {background:#912018;border-color:#912018}
