@@ -83,8 +83,8 @@ def main() -> None:
     shutil.copytree(SOURCE, output)
     index = output / 'index.html'
     text = index.read_text(encoding='utf-8')
-    if text.count('__SITE_REVISION__') != 1:
-        raise ValueError('Expected exactly one website revision placeholder')
+    if text.count('__SITE_REVISION__') != 3:
+        raise ValueError('Expected revision placeholders for the page, stylesheet and script')
     index.write_text(text.replace('__SITE_REVISION__', revision), encoding='utf-8')
     validate(output, revision)
     print(f'Website ready at {output.relative_to(ROOT)} for {revision}')
