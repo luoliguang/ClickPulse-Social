@@ -8,7 +8,10 @@ module.exports = {
     autorestart: true,
     max_restarts: 10,
     max_memory_restart: '300M',
-    env: { NODE_ENV: 'production' },
+    env: {
+      NODE_ENV: 'production',
+      UPDATE_ROOT: '/www/wwwroot/clickpulse-data/updates',
+    },
     error_file: './logs/error.log',
     out_file: './logs/out.log',
     merge_logs: true,

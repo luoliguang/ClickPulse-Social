@@ -161,6 +161,17 @@ jobs:
           rsync -az -e "$SSH_CMD" dist/update-assets/ "$SSH_USER@$SSH_HOST:$STAGING/"
           rsync -az -e "$SSH_CMD" dist/latest.json "$SSH_USER@$SSH_HOST:$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
           $SSH_CMD "$SSH_USER@$SSH_HOST" "set -eu; if [ -d '$TARGET' ]; then rm -rf '$STAGING'; else mv '$STAGING' '$TARGET'; fi; mv '$UPDATE_ROOT/.latest-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json' '$UPDATE_ROOT/latest.json'"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            'https://clickpulse.fangdutex.cn/api/v1/updates/latest' > published-latest.json
+          python - <<'PY'
+          import json, os
+          with open('published-latest.json', encoding='utf-8') as handle:
+              metadata = json.load(handle)
+          expected = os.environ['RELEASE_VERSION']
+          actual = metadata.get('version')
+          if actual != expected:
+              raise SystemExit(f'published update metadata reports {actual!r}, expected {expected!r}')
+          PY
       - name: Clean up mirror key
         if: always()
         run: rm -f ~/.ssh/deploy_key ~/.ssh/deploy_key.pub
