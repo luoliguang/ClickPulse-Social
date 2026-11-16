@@ -26,7 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15
+          # Xcode supports cross-compiling this target on Intel macOS. Using the
+          # Intel pool avoids release failures when hosted arm64 runners are full.
+          - os: macos-15-intel
             platform: macos-arm64
             rust-target: aarch64-apple-darwin
           - os: windows-2025
