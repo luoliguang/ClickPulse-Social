@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.3 · 2026-11-17
+
+### Improved
+
+- Show available updates directly in Mini, with options to update now or defer the reminder for three days.
+- Let demo users explore all leaderboard roles without changing a real profile or contacting the service.
+
+### Fixed
+
+- Populate and refresh leaderboard role menus when their options or availability change.
+- Show uploaded leaderboard avatars without retaining the fallback initial underneath.
+
 ## 0.4.2 · 2026-11-16
 
 ### Improved
