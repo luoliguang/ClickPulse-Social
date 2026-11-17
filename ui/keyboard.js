@@ -49,11 +49,11 @@ function createClickPulseKeyboard(platform='macos') {
       [key('delete','Del',117),key('end','End',119),key('pagedown','PgDn',121)]
     );
     numpadRows.push(
-      [key('numlock','Num',71),key('numdivide','Num ÷',75),key('nummultiply','Num ×',67),key('numminus','Num −',78)],
-      [key('num7','Num 7',89),key('num8','Num 8',91),key('num9','Num 9',92),key('numplus','Num +',69,'',1,[],{rowspan:2})],
-      [key('num4','Num 4',86),key('num5','Num 5',87),key('num6','Num 6',88)],
-      [key('num1','Num 1',83),key('num2','Num 2',84),key('num3','Num 3',85),key('numenter','Num Enter',76,'',1,[],{rowspan:2})],
-      [key('num0','Num 0',82,'',2,[],{colspan:2}),key('numdecimal','Num .',65)]
+      [key('numlock','Num Lock',71,'',1,[],{cap:'Num'}),key('numdivide','Num ÷',75,'',1,[],{cap:'÷'}),key('nummultiply','Num ×',67,'',1,[],{cap:'×'}),key('numminus','Num −',78,'',1,[],{cap:'−'})],
+      [key('num7','Num 7',89,'',1,[],{cap:'7'}),key('num8','Num 8',91,'',1,[],{cap:'8'}),key('num9','Num 9',92,'',1,[],{cap:'9'}),key('numplus','Num +',69,'',1,[],{rowspan:2,cap:'+'})],
+      [key('num4','Num 4',86,'',1,[],{cap:'4'}),key('num5','Num 5',87,'',1,[],{cap:'5'}),key('num6','Num 6',88,'',1,[],{cap:'6'})],
+      [key('num1','Num 1',83,'',1,[],{cap:'1'}),key('num2','Num 2',84,'',1,[],{cap:'2'}),key('num3','Num 3',85,'',1,[],{cap:'3'}),key('numenter','Num Enter',76,'',1,[],{rowspan:2,cap:'Enter'})],
+      [key('num0','Num 0',82,'',2,[],{colspan:2,cap:'0'}),key('numdecimal','Num .',65,'',1,[],{cap:'.'})]
     );
   } else {
     supplemental.push(

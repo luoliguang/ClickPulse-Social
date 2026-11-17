@@ -715,7 +715,7 @@ function renderKeyboard(){
       const cell=document.createElement('div');cell.className=className;cell.style.setProperty('--key-width',key.width);cell.dataset.key=key.id;cell.tabIndex=0;cell.setAttribute('role','img');
       if(key.rowspan)cell.dataset.rowspan=key.rowspan;
       if(key.colspan)cell.dataset.colspan=key.colspan;
-      const label=document.createElement('span');label.className='key-label';label.textContent=key.label;
+      const label=document.createElement('span');label.className='key-label';label.textContent=key.cap||key.label;
       const count=document.createElement('span');count.className='key-count';cell.append(label,count);
       keyboardCells.set(key.id,cell);return cell;
     }
@@ -742,10 +742,11 @@ function renderKeyboard(){
     const numpad=document.createElement('div');numpad.className='keyboard-numpad';
     numpad.hidden=!view.numpadActive;
     if(view.numpadActive){
-      view.numpadCluster.forEach(row=>numpad.append(renderRow(row,-1)));
+      const editing=document.createElement('div');editing.className='keyboard-editing';
+      view.numpadCluster.forEach(row=>editing.append(renderRow(row,-1)));
       const grid=document.createElement('div');grid.className='numpad-grid';
       view.numpadGrid.flat().forEach(key=>grid.append(createCell(key)));
-      numpad.append(grid);
+      numpad.append(editing,grid);
     }
     $('keyboard-layout').replaceChildren(main,numpad);
   }
@@ -754,7 +755,7 @@ function renderKeyboard(){
     const hex=keyColor(key.count,max);
     cell.style.setProperty('--key-bg',hex);cell.style.setProperty('--key-text',T.textFor(hex));
     const label=key.label;
-    cell.firstElementChild.textContent=label;
+    cell.firstElementChild.textContent=key.cap||label;
     cell.lastElementChild.textContent=K.compact(key.count);
     const detail=t('keys.tooltip',{key:label,count:n(key.count),percent:I.percent(view.total?key.count/view.total:0)});
     cell.title=detail;cell.setAttribute('aria-label',detail);

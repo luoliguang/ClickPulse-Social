@@ -473,7 +473,13 @@ test('the Windows heatmap shows the main keyboard plus a numpad for extended inp
     assert.equal(rows.length,6);
     assert.ok(rows[5].children.some(cell=>cell.dataset.key==='space'));
     assert.ok(!rows.flatMap(row=>row.children).some(cell=>['home','num4'].includes(cell.dataset.key)));
-    assert.equal(a.get('keyboard-layout').children[1].hidden,!physical.length);
+    const extended=a.get('keyboard-layout').children[1];
+    assert.equal(extended.hidden,!physical.length);
+    if(physical.length){
+      assert.equal(extended.children[0].className,'keyboard-editing');
+      assert.equal(extended.children[1].className,'numpad-grid');
+      assert.equal(extended.children[1].children.find(cell=>cell.dataset.key==='num4').firstElementChild.textContent,'4');
+    }
     assert.equal(a.get('keyboard-coverage').textContent,physical.length?'3 keys used':'0 keys used');
   }
   assert.match(readFileSync('ui/style.css','utf8'),/\.numpad-grid\s*\{display:grid/);

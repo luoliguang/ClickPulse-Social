@@ -104,6 +104,9 @@ test('Windows layout distinguishes modifiers, navigation and number pad without 
   assert.equal(windows.byId.get('command-left').label,'Win');
   assert.equal(windows.byId.get('option-left').label,'Alt');
   assert.equal(windows.byId.get('return').label,'Enter');
+  assert.equal(windows.byId.get('num7').cap,'7');
+  assert.equal(windows.byId.get('numplus').rowspan,2);
+  assert.equal(windows.byId.get('num0').colspan,2);
   assert.equal(windows.byId.has('fn'),false);
 });
 test('native physical history has exact attribution while old encodings remain estimated',()=>{
