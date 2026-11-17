@@ -4,7 +4,8 @@ const ClickPulseThemes=(() => {
     blue:{accent:'#2563eb',hover:'#1d4ed8',strong:'#2459a2',navy:'#102543',selected:'#1c3c68',navHover:'#193456',background:'#f3f6fc',empty:'#edf4ff',full:'#1f53a0',mouse:'#67c9f4'},
     teal:{accent:'#0f8177',hover:'#096a62',strong:'#17685f',navy:'#102d2e',selected:'#1b5051',navHover:'#173d3e',background:'#f2f8f7',empty:'#eaf7f4',full:'#14665f',mouse:'#64c9bc'},
     violet:{accent:'#7c3aed',hover:'#6d28d9',strong:'#6639a2',navy:'#251e3c',selected:'#493568',navHover:'#352849',background:'#f6f3fc',empty:'#f3edff',full:'#60319c',mouse:'#b49ae8'},
-    graphite:{accent:'#52667e',hover:'#3b4e66',strong:'#344b66',navy:'#182330',selected:'#34465b',navHover:'#253446',background:'#f4f6f8',empty:'#edf1f6',full:'#34485f',mouse:'#95aabd'}
+    graphite:{accent:'#52667e',hover:'#3b4e66',strong:'#344b66',navy:'#182330',selected:'#34465b',navHover:'#253446',background:'#f4f6f8',empty:'#edf1f6',full:'#34485f',mouse:'#95aabd'},
+    pink:{accent:'#db2777',hover:'#be185d',strong:'#b0246a',navy:'#2b1522',selected:'#3d2030',navHover:'#2f1a27',background:'#fdf2f7',empty:'#fcecf4',full:'#a81f63',mouse:'#f9a8d4'}
   };
   const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
   const mix=(a,b,amount)=>'#'+rgb(a).map((value,i)=>Math.round(value+(rgb(b)[i]-value)*amount).toString(16).padStart(2,'0')).join('');

@@ -11,6 +11,7 @@ pub enum Theme {
     Teal,
     Violet,
     Graphite,
+    Pink,
 }
 impl Theme {
     pub fn code(self) -> &'static str {
@@ -19,6 +20,7 @@ impl Theme {
             Self::Teal => "teal",
             Self::Violet => "violet",
             Self::Graphite => "graphite",
+            Self::Pink => "pink",
         }
     }
 }
@@ -296,7 +298,13 @@ mod tests {
 
     #[test]
     fn every_supported_theme_round_trips_in_saved_preferences() {
-        for theme in [Theme::Blue, Theme::Teal, Theme::Violet, Theme::Graphite] {
+        for theme in [
+            Theme::Blue,
+            Theme::Teal,
+            Theme::Violet,
+            Theme::Graphite,
+            Theme::Pink,
+        ] {
             let prefs = Preferences {
                 theme,
                 ..Default::default()

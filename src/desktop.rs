@@ -1025,11 +1025,9 @@ pub fn run(
                                 }
                             }
                         }
-                        Request::Autostart {} => {
+                        Request::Autostart { enabled } => {
                             if runtime.as_ref().is_some_and(Runtime::can_manage_auto_start) {
-                                match clickpulse::platform::set_auto_start(
-                                    !clickpulse::platform::auto_start_enabled(),
-                                ) {
+                                match clickpulse::platform::set_auto_start(enabled) {
                                     Ok(()) => refresh = true,
                                     Err(e) => report_error(
                                         &webview,

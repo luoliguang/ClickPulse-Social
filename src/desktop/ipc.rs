@@ -67,7 +67,9 @@ pub(super) enum Request {
     LeaderboardLeave {},
     Pause {},
     Permission {},
-    Autostart {},
+    Autostart {
+        enabled: bool,
+    },
     Reveal {},
     StorageDirectory {},
     ImportHistory {},
@@ -124,6 +126,7 @@ mod tests {
             r#"{"action":"leaderboard_join","invite_code":"x"}"#,
             r#"{"action":"leaderboard_sync","period":"today","keyboard":1}"#,
             r#"{"action":"leaderboard_leave","keep_data":true}"#,
+            r#"{"action":"autostart"}"#,
         ] {
             assert!(serde_json::from_str::<Request>(body).is_err(), "{body}");
         }

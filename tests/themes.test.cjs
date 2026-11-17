@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const T=require('../ui/themes.js');
 
-test('all four themes change full, heatmap and mini colors without introducing layout tokens',()=>{
+test('all five themes change full, heatmap and mini colors without introducing layout tokens',()=>{
   const colors=[];
   for(const name of T.names){
     const values={},root={dataset:{},style:{setProperty(key,value){values[key]=value;}}};
@@ -11,7 +11,7 @@ test('all four themes change full, heatmap and mini colors without introducing l
     assert.equal(Object.keys(values).some(key=>/width|height|font|gap/.test(key)),false);
     colors.push(values['--blue']);
   }
-  assert.equal(new Set(colors).size,4);assert.equal(T.get('unsupported').name,'blue');
+  assert.equal(new Set(colors).size,5);assert.equal(T.get('unsupported').name,'blue');
   assert.equal(T.get('constructor').accent,T.get('blue').accent);
   assert.equal(T.get('__proto__').name,'blue');
 });

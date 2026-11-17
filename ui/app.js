@@ -228,7 +228,7 @@ function renderLeaderboard(){
   });
   const body=$('leaderboard-rows');body.replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
   $('leaderboard-range').textContent=board?`${board.starts_on} — ${board.ends_on}`:'';
-  if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'cubic-bezier(.23,1,.32,1)'});
+  if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25},{opacity:1}],{duration:160,easing:'ease-out'});
 }
 window.receiveLeaderboard=state=>{
   if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
@@ -524,7 +524,7 @@ function renderSettings(){
   $('takeover').disabled=dataOperationBusy || !data.capture.listening || data.capture.permission_needed;
   $('handoff-description').textContent=t(data.capture.listening?'settings.takeover_ready':'settings.takeover_wait');
   $('autostart-row').hidden=data.auto_start_available!==true;
-  $('autostart').textContent=t(data.auto_start?'action.disable':'action.enable');
+  $('autostart').checked=data.auto_start===true;
   setSelectableText($('db-path'),data.demo?t('demo.storage'):data.database_path);
   const storageMode=data.demo?'demo':data.database_mode||'custom';
   const storageDescriptions={default:'settings.storage_default',custom:'settings.storage_custom',source:'settings.storage_source',demo:'settings.storage_demo'};
@@ -778,4 +778,8 @@ function renderKeyboardTreemap(view){
 send('ready');
 
 $('takeover').addEventListener('click',()=>send('takeover'));
-$('autostart').addEventListener('click',()=>send('autostart'));
+$('autostart')?.addEventListener('change',event=>{
+  const enabled=event.target.checked;
+  event.target.checked=data.auto_start===true;
+  send('autostart',{enabled});
+});
