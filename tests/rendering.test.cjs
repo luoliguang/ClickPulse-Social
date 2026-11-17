@@ -802,6 +802,24 @@ test('Mini offers update and restart or a persisted three-day deferral',()=>{
   a.window.receiveUpdateState({status:'ready',version:'0.4.5',can_install:true});
   assert.equal(a.get('mini-update').hidden,false,'a newer version is not hidden by the old deferral');
 });
+test('demo leaderboard role stays selectable and local across refreshes and languages',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  const demo=period=>({profile:{joined:true,nickname:'Luo',member_id:'demo',role:'developer',demo:true},board:{period,entries:[
+    {rank:1,member_id:'demo',nickname:'Luo',role:'developer',keyboard:10,mouse:2,total:12,is_self:true}
+  ],starts_on:'2026-11-16',ends_on:'2026-11-16',self_rank:1}});
+  a.window.receiveLeaderboard(demo('today'));a.window.receiveLeaderboard(demo('today'));sent.length=0;
+  const select=a.get('leaderboard-role-edit');
+  assert.equal(select.disabled,false);assert.equal(select.options.length,20);
+  select.value='designer';select.fire('change');
+  assert.equal(sent.length,0,'demo changes never call the profile API');
+  assert.equal(a.get('leaderboard-rows').children[0].children[1].children[0].children[2].textContent,'Designer');
+  a.leaderboardPeriods[1].fire();assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week'});
+  a.window.receiveLeaderboard(demo('week'));
+  assert.equal(select.value,'designer','a demo refresh keeps the current session choice');
+  a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
+  assert.equal(select.value,'designer');
+  assert.equal(a.get('leaderboard-rows').children[0].children[1].children[0].children[2].textContent,'设计师');
+});
 test('uploaded leaderboard avatars never retain default initials',()=>{
   const a=app();
   a.window.receiveLeaderboard({profile:{joined:true,nickname:'Luo',member_id:'self'},board:{period:'today',entries:[

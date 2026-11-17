@@ -167,10 +167,17 @@ $('feedback-done')?.addEventListener('click',closeFeedback);
 feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOverlay)closeFeedback();});
 feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});
 
-let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',leaderboardState={profile:{joined:false},board:null};
+let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',demoLeaderboardRole=null,leaderboardState={profile:{joined:false},board:null};
 const LEADERBOARD_ROLES=['developer','designer','product_manager','operations','marketing','data','engineer','researcher','teacher','writer','student','office','finance','sales','hr','customer_support','legal','medical','freelancer','other'];
 function leaderboardRoleLabel(role){return t('leaderboard.role.'+(role||'other'));}
-function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';}
+function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';Dropdowns.sync(select);}
+function applyDemoLeaderboardRole(state){
+  if(!state.profile?.demo)return state;
+  demoLeaderboardRole=demoLeaderboardRole||state.profile.role||'other';state.profile.role=demoLeaderboardRole;
+  const self=state.board?.entries?.find(entry=>entry.is_self||entry.member_id===state.profile.member_id);
+  if(self)self.role=demoLeaderboardRole;
+  return state;
+}
 function leaderboardAvatar(node,avatar,nickname){
   const url=typeof avatar?.url==='string'?avatar.url.trim():'';
   const hasImage=!!url;
@@ -186,6 +193,7 @@ function setLeaderboardBusy(busy){
   $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
   $('leaderboard-sync').classList.toggle('is-loading',busy);
   for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit'])$(id).disabled=busy;
+  Dropdowns.sync('leaderboard-role');Dropdowns.sync('leaderboard-role-edit');
   for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.disabled=busy;
 }
 function setLeaderboardEditing(editing){
@@ -201,11 +209,11 @@ function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined;
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
-  $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=!!profile.demo;
+  $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=leaderboardBusy;
   $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
     $('leaderboard-profile-name').textContent=profile.nickname;
-    $('leaderboard-role-edit').value=profile.role||'other';
+    $('leaderboard-role-edit').value=profile.role||'other';Dropdowns.sync('leaderboard-role-edit');
     const self=board?.entries?.find(entry=>entry.is_self||entry.member_id===profile.member_id);
     leaderboardAvatar($('leaderboard-avatar'),self?.avatar,profile.nickname);
     $('leaderboard-avatar-delete').hidden=!self?.avatar?.url;
@@ -226,9 +234,9 @@ window.receiveLeaderboard=state=>{
   if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
   const renamed=leaderboardRenamePending&&state.profile?.nickname===leaderboardRenameValue;
   if(leaderboardRenamePending&&!renamed)return;
-  const joinedBefore=!!leaderboardState.profile?.joined;leaderboardRenamePending=false;leaderboardRenameValue='';leaderboardState=state;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
+  const joinedBefore=!!leaderboardState.profile?.joined;leaderboardRenamePending=false;leaderboardRenameValue='';leaderboardState=applyDemoLeaderboardRole(state);setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
 };
-window.receiveLeaderboardBackground=state=>{if(leaderboardBusy||(state.board?.period&&state.board.period!==leaderboardPeriod))return;leaderboardState=state;renderLeaderboard();};
+window.receiveLeaderboardBackground=state=>{if(leaderboardBusy||(state.board?.period&&state.board.period!==leaderboardPeriod))return;leaderboardState=applyDemoLeaderboardRole(state);renderLeaderboard();};
 window.receiveLeaderboardError=message=>{leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>setLeaderboardBusy(false);
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
@@ -283,6 +291,7 @@ $('leaderboard-name-input')?.addEventListener('keydown',event=>{if(event.key==='
 $('leaderboard-role-edit')?.addEventListener('change',()=>{
   const role=$('leaderboard-role-edit').value;
   if(!role||role===leaderboardState.profile?.role)return;
+  if(leaderboardState.profile?.demo){demoLeaderboardRole=role;applyDemoLeaderboardRole(leaderboardState);renderLeaderboard();return;}
   setLeaderboardBusy(true);$('leaderboard-error').hidden=true;send('leaderboard_role',{role,period:leaderboardPeriod});
 });
 $('leaderboard-avatar-change')?.addEventListener('click',()=>{setLeaderboardBusy(true);send('leaderboard_avatar',{period:leaderboardPeriod});});
