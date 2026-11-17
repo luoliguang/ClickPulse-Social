@@ -510,6 +510,7 @@ fn helper_process_waits_for_saved_parent_and_preserves_profile_files() {
         manifest_hash: manifest_hash.clone(),
         version: next,
         notes: vec!["Fixture update note".into()],
+        notes_zh_cn: vec!["测试更新说明".into()],
     };
     let plan_path = stage.join("apply.json");
     fs::write(&plan_path, serde_json::to_vec(&plan).unwrap()).unwrap();
