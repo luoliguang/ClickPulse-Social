@@ -146,9 +146,10 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .keyboard-block:hover,.keyboard-block:focus-visible {outline:2px solid var(--focus);z-index:1}
 .keyboard-treemap .empty-label {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#7186a3;font-size:12px}
 .keyboard-scroll {padding:3px 2px 8px;min-width:0}
-.keyboard-layout {width:100%;min-width:0;container-type:inline-size;display:flex;flex-direction:column;gap:5px}
+.keyboard-layout {width:100%;min-width:0;container-type:inline-size;display:flex;flex-direction:row;align-items:flex-start;gap:clamp(8px,1.4cqw,16px)}
+.keyboard-main {flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
+.keyboard-numpad {flex:0 0 auto;display:flex;flex-direction:column;gap:5px}
 .keyboard-row {display:flex;flex-wrap:nowrap;gap:clamp(3px,.7cqw,6px);min-width:0}
-.keyboard-row.supplemental-row {display:none}
 .keyboard-row.modifier-row {align-items:flex-end}
 .keyboard-arrow-cluster {flex:3.25 1 0;min-width:0;height:44px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));grid-template-areas:". up ." "left down right";gap:3px}
 .keyboard-key {position:relative;flex:var(--key-width,1) 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:3px;height:44px;border:1px solid #397bdd26;border-bottom:3px solid #397bdd38;border-radius:5px;background:var(--key-bg,#edf4ff);color:var(--key-text,#254b80);padding:6px clamp(3px,.9cqw,9px);text-align:left}
@@ -157,7 +158,14 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .keyboard-key .key-label {font:600 clamp(9px,1.35cqw,11px)/1.1 var(--sans);white-space:nowrap}
 .keyboard-key .key-count {align-self:flex-end;font:500 clamp(8px,1.2cqw,10px)/1.1 var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:0}
 .keyboard-row.function-row .keyboard-key {height:34px;padding:4px clamp(3px,.9cqw,8px);gap:2px}
-.keyboard-row.supplemental-row .keyboard-key {height:40px;padding-top:4px;padding-bottom:4px}
+.keyboard-numpad .keyboard-row {gap:5px}
+.keyboard-numpad .keyboard-key {flex:none;width:42px;padding:5px}
+.keyboard-numpad .key-label {font-size:9px}
+.keyboard-numpad .key-count {font-size:8px}
+.numpad-grid {display:grid;grid-template-columns:repeat(4,42px);grid-auto-rows:44px;gap:5px}
+.numpad-grid .keyboard-key {width:auto;height:auto}
+.numpad-grid .keyboard-key[data-rowspan="2"] {grid-row:span 2}
+.numpad-grid .keyboard-key[data-colspan="2"] {grid-column:span 2}
 .keyboard-arrow-cluster .keyboard-key {height:100%;flex-direction:row;align-items:center;padding:0 clamp(2px,.35cqw,3px);gap:1px;border-bottom-width:1px;border-radius:3px}
 .keyboard-arrow-cluster .key-count {align-self:auto}
 .keyboard-arrow-cluster [data-key="up"] {grid-area:up}
@@ -168,6 +176,8 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .keyboard-bottom {display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:9px;color:#6f85a4}
 .keyboard-scale {display:flex;align-items:center;gap:4px}.keyboard-scale i {width:11px;height:7px;border-radius:1px}
 @media(max-width:1000px) {
+  .keyboard-layout {flex-wrap:wrap}
+  .keyboard-numpad {flex-direction:row;flex-wrap:wrap;align-items:flex-start}
   .sidebar {width:210px;padding:26px 12px}
   nav button.selected:before {left:-12px}.content {padding:25px 22px}header {padding:0 22px}
   .metric {padding:18px 16px 14px}.metric-number {font-size:30px}.metric-details {font-size:8px}

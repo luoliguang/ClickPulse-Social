@@ -283,11 +283,11 @@ test('view toggle replaces the total, uses current proportional counts and resto
     assert.equal(a.get('keyboard-view-toggle').attributes['aria-pressed'],'true');
     assert.equal(a.get('keyboard-view-label').textContent,'Keyboard layout');
     assert.equal(blocks.children.some(cell=>cell.dataset.key==='other'),false);
-    assert.equal(blocks.children.some(cell=>cell.dataset.key==='home'),false);
+    assert.equal(blocks.children.some(cell=>cell.dataset.key==='home'),platform==='windows');
     const area=id=>{const cell=blocks.children.find(cell=>cell.dataset.key===id);return parseFloat(cell.style.width)*parseFloat(cell.style.height);};
     assert.ok(Math.abs(area('A')/area('S')-4)<1e-9);
     const first=blocks.children.find(cell=>cell.dataset.key==='A'),before=first.style.values['--key-bg'];
-    a.window.receive({...s,keyboard_stats:{physical:[{code:0,count:100},{code:1,count:20}]}});
+    a.window.receive({...s,keyboard_stats:{physical:[{code:0,count:100},{code:1,count:20},{code:115,count:2}]}});
     assert.match(first.attributes['aria-label'],/100/);assert.ok(Math.abs(area('A')/area('S')-5)<1e-9);
     a.window.receiveView({theme:'teal',locale:'zh-CN',language_preference:'system'});
     assert.notEqual(first.style.values['--key-bg'],before);
@@ -311,7 +311,7 @@ test('an empty treemap recovers when new counts arrive and follows locale change
 });
 test('both keyboard footers share visible used keys across hidden counts, live additions, locale and navigation',()=>{
   for(const platform of ['macos','windows']){
-    const a=app(platform),s=snapshot(),count=0;
+    const a=app(platform),s=snapshot(),count=platform==='macos'?0:2;
     const next=physical=>({...s,keyboard_stats:{physical}});
     const hidden=[{code:115,count:1000},{code:86,count:7},{code:999,count:3}];
     a.window.receive(next(hidden));a.navigate('keys');
@@ -464,17 +464,19 @@ test('history processing stays visible across language switches and blocks overl
   assert.equal(a.get('takeover').disabled,true);
 });
 
-test('the Windows heatmap ends at the space row even after extended-key input arrives',()=>{
+test('the Windows heatmap shows the main keyboard plus a numpad for extended input',()=>{
   const a=app('windows'),s=snapshot();a.navigate('keys');
   for(const physical of [[],[{code:115,count:100},{code:86,count:40},{code:49,count:2}]]){
     a.window.receive({...s,keyboard_stats:{physical}});
-    const rows=a.get('keyboard-layout').children.filter(row=>!row.className.includes('supplemental-row'));
+    const main=a.get('keyboard-layout').children[0];
+    const rows=main.children.filter(row=>!row.className.includes('supplemental-row'));
     assert.equal(rows.length,6);
     assert.ok(rows[5].children.some(cell=>cell.dataset.key==='space'));
     assert.ok(!rows.flatMap(row=>row.children).some(cell=>['home','num4'].includes(cell.dataset.key)));
-    assert.equal(a.get('keyboard-coverage').textContent,physical.length?'1 keys used':'0 keys used');
+    assert.equal(a.get('keyboard-layout').children[1].hidden,!physical.length);
+    assert.equal(a.get('keyboard-coverage').textContent,physical.length?'3 keys used':'0 keys used');
   }
-  assert.match(readFileSync('ui/style.css','utf8'),/\.keyboard-row\.supplemental-row\s*\{display:none\}/);
+  assert.match(readFileSync('ui/style.css','utf8'),/\.numpad-grid\s*\{display:grid/);
 });
 test('refresh only draws the selected page and skips unchanged charts',()=>{
   const a=app(),s=snapshot();a.window.receive(s);
@@ -505,7 +507,7 @@ test('a page visited after hidden updates receives the latest keyboard counts',(
   assert.equal(a.get('keyboard-layout').replacements,1);
 });
 test('extended keys refresh while unresolved history never creates a key in either language',()=>{
-  const a=app(),s=snapshot();a.window.receive(s);a.navigate('keys');
+  const a=app('windows'),s=snapshot();a.window.receive(s);a.navigate('keys');
   const next={...s,keyboard_stats:{physical:[{code:0,count:100},{code:115,count:4},{code:999,count:7}]}};
   a.window.receive(next);
   const cells=()=>keyCells(a);
@@ -592,14 +594,14 @@ test('grouped arrows retain unique per-key counts through refresh, theme and lan
     const a=app(platform),s=snapshot();
     s.keyboard_stats={physical:[{code:0,count:55},{code:123,count:11},{code:124,count:22},{code:125,count:33},{code:126,count:44}]};
     a.window.receive(s);a.navigate('keys');
-    const layout=a.get('keyboard-layout'),cluster=layout.children[5].children.find(node=>node.className==='keyboard-arrow-cluster');
+    const layout=a.get('keyboard-layout'),cluster=layout.children[0].children[5].children.find(node=>node.className==='keyboard-arrow-cluster');
     assert.deepEqual(cluster.children.map(cell=>cell.dataset.key),['up','left','down','right']);
     assert.equal(new Set(keyCells(a).map(cell=>cell.dataset.key)).size,keyCells(a).length);
     const counts=()=>Object.fromEntries(cluster.children.map(cell=>[cell.dataset.key,cell.lastElementChild.textContent]));
     assert.deepEqual(counts(),{up:'44',left:'11',down:'33',right:'22'});assert.equal(keyCells(a).find(cell=>cell.dataset.key==='A').lastElementChild.textContent,'55');
     a.window.receive({...s,keyboard_stats:{physical:[...s.keyboard_stats.physical,{code:126,count:1}]}});
     a.window.receiveView({theme:'teal',locale:'zh-CN',language_preference:'system'});
-    assert.equal(layout.replacements,1);assert.equal(layout.children[5].children.at(-1),cluster);
+    assert.equal(layout.replacements,1);assert.equal(layout.children[0].children[5].children.at(-1),cluster);
     assert.deepEqual(counts(),{up:'45',left:'11',down:'33',right:'22'});assert.equal(keyCells(a).find(cell=>cell.dataset.key==='A').lastElementChild.textContent,'55');
     assert.match(cluster.children[0].attributes['aria-label'],/45/);
   }

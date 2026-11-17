@@ -708,20 +708,25 @@ function renderKeyboard(){
     renderKeyboardTreemap(view);return;
   }
   const max=Math.max(1,...view.visibleRanked.map(k=>k.count));
-  const signature=JSON.stringify(view.rows.map(row=>row.map(key=>key.id)));
+  const signature=JSON.stringify([view.rows,view.numpadCluster,view.numpadGrid].map(group=>group.map(row=>row.map(key=>key.id))))+'|'+(view.numpadActive?1:0);
   if(keyboardLayoutSignature!==signature){
     keyboardCells.clear();keyboardLayoutSignature=signature;
-    $('keyboard-layout').replaceChildren(...view.rows.map((row,index)=>{
-      const arrowIds=['up','left','down','right'],arrows=row.filter(key=>arrowIds.includes(key.id));
-      const node=document.createElement('div');node.className='keyboard-row'+(index===0?' function-row':row.some(key=>key.supplemental)?' supplemental-row':arrows.length?' modifier-row':'');
-      function createCell(key){
-        const cell=document.createElement('div');cell.className='keyboard-key';cell.style.setProperty('--key-width',key.width);cell.dataset.key=key.id;cell.tabIndex=0;cell.setAttribute('role','img');
-        const label=document.createElement('span');label.className='key-label';label.textContent=key.label;
-        const count=document.createElement('span');count.className='key-count';cell.append(label,count);
-        keyboardCells.set(key.id,cell);return cell;
-      }
+    function createCell(key,className='keyboard-key'){
+      const cell=document.createElement('div');cell.className=className;cell.style.setProperty('--key-width',key.width);cell.dataset.key=key.id;cell.tabIndex=0;cell.setAttribute('role','img');
+      if(key.rowspan)cell.dataset.rowspan=key.rowspan;
+      if(key.colspan)cell.dataset.colspan=key.colspan;
+      const label=document.createElement('span');label.className='key-label';label.textContent=key.label;
+      const count=document.createElement('span');count.className='key-count';cell.append(label,count);
+      keyboardCells.set(key.id,cell);return cell;
+    }
+    function renderRow(row,index){
+      const arrowIds=['up','left','down','right'];
+      const visible=row.filter(key=>!key.supplemental);
+      if(!visible.length)return null;
+      const arrows=visible.filter(key=>arrowIds.includes(key.id));
+      const node=document.createElement('div');node.className='keyboard-row'+(index===0?' function-row':arrows.length?' modifier-row':'');
       let arrowCluster=null;
-      for(const key of row){
+      for(const key of visible){
         if(arrowIds.includes(key.id)){
           if(!arrowCluster){
             arrowCluster=document.createElement('div');arrowCluster.className='keyboard-arrow-cluster';
@@ -731,10 +736,22 @@ function renderKeyboard(){
         }else node.append(createCell(key));
       }
       return node;
-    }));
+    }
+    const main=document.createElement('div');main.className='keyboard-main';
+    main.append(...view.rows.map((row,index)=>renderRow(row,index)).filter(Boolean));
+    const numpad=document.createElement('div');numpad.className='keyboard-numpad';
+    numpad.hidden=!view.numpadActive;
+    if(view.numpadActive){
+      view.numpadCluster.forEach(row=>numpad.append(renderRow(row,-1)));
+      const grid=document.createElement('div');grid.className='numpad-grid';
+      view.numpadGrid.flat().forEach(key=>grid.append(createCell(key)));
+      numpad.append(grid);
+    }
+    $('keyboard-layout').replaceChildren(main,numpad);
   }
-  for(const key of view.rows.flat()){
-    const cell=keyboardCells.get(key.id),hex=keyColor(key.count,max);
+  for(const key of [...view.rows.flat(),...view.numpadCluster.flat(),...view.numpadGrid.flat()]){
+    const cell=keyboardCells.get(key.id);if(!cell)continue;
+    const hex=keyColor(key.count,max);
     cell.style.setProperty('--key-bg',hex);cell.style.setProperty('--key-text',T.textFor(hex));
     const label=key.label;
     cell.firstElementChild.textContent=label;

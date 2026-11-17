@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const K = require('../ui/keyboard.js');
-const counts = view => new Map(view.rows.flat().map(key => [key.id, key.count]));
+const counts = view => new Map([...view.rows.flat(), ...view.numpadCluster.flat(), ...view.numpadGrid.flat()].map(key => [key.id, key.count]));
 
 test('frequency blocks conserve relative area and cover the canvas once across shapes and skewed usage',()=>{
   for(const [width,height]of [[640,279],[360,279],[1200,279],[279,640]]){
@@ -69,7 +69,7 @@ test('compact layouts on both platforms exclude extended keys while preserving e
   const stats={physical:[{code:0,count:5},{code:115,count:1000},{code:86,count:7},{code:999,count:3}]};
   for(const platform of ['macos','windows']){
     const model=K.create(platform),view=model.distribution(stats);
-    assert.deepEqual(view.visibleRanked.map(key=>key.id),['A']);
+    assert.deepEqual(view.visibleRanked.map(key=>key.id),platform==='macos'?['A']:['home','num4','A']);
     const visibleRows=view.rows.filter(row=>!row.some(key=>key.supplemental));
     assert.equal(visibleRows.length,6);
     assert.ok(visibleRows[5].some(key=>key.id==='space'));
