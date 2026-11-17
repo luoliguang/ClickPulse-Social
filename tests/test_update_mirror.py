@@ -43,6 +43,15 @@ class UpdateMirrorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Missing changelog'):
                 changelog_notes(path, '9.9.9')
 
+    def test_writes_localized_chinese_notes_alongside_english(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            metadata = prepare(root, root / 'latest.json', '1.2.3', 'a' * 40, 'owner/repo', 'https://clickpulse.example/', ['Direct in-app updates'], ['直接应用内更新'])
+            self.assertEqual(metadata['notes'], ['Direct in-app updates'])
+            self.assertEqual(metadata['notes_zh_cn'], ['直接应用内更新'])
+            self.assertEqual(metadata['notes'], json.loads((root / 'latest.json').read_text(encoding='utf-8'))['notes'])
+
     def test_rejects_package_checksum_or_manifest_provenance_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

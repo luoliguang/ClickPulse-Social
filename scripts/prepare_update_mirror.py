@@ -43,7 +43,7 @@ def changelog_notes(path: Path, version: str) -> list[str]:
     return notes
 
 
-def prepare(release_dir: Path, output: Path, version: str, revision: str, repository: str, public_base: str, notes: list[str] | None = None) -> dict:
+def prepare(release_dir: Path, output: Path, version: str, revision: str, repository: str, public_base: str, notes: list[str] | None = None, notes_zh_cn: list[str] | None = None) -> dict:
     if not VERSION.fullmatch(version):
         raise ValueError('A stable numeric version is required')
     if not REVISION.fullmatch(revision):
@@ -84,6 +84,7 @@ def prepare(release_dir: Path, output: Path, version: str, revision: str, reposi
         'prerelease': False,
         'source_revision': revision,
         'notes': notes or [],
+        'notes_zh_cn': notes_zh_cn or [],
         'assets': assets,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -100,8 +101,10 @@ def main() -> None:
     parser.add_argument('--repository', required=True)
     parser.add_argument('--public-base', default='https://clickpulse.fangdutex.cn')
     parser.add_argument('--changelog', type=Path, required=True)
+    parser.add_argument('--changelog-zh-cn', type=Path, default=None)
     args = parser.parse_args()
-    prepare(args.release_dir, args.output, args.version, args.revision, args.repository, args.public_base, changelog_notes(args.changelog, args.version))
+    notes_zh_cn = changelog_notes(args.changelog_zh_cn, args.version) if args.changelog_zh_cn else None
+    prepare(args.release_dir, args.output, args.version, args.revision, args.repository, args.public_base, changelog_notes(args.changelog, args.version), notes_zh_cn)
 
 
 if __name__ == '__main__':

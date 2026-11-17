@@ -368,6 +368,22 @@ test('macOS access guidance explains stale grants and names a completed update',
   assert.equal(w.get('permission-reset-settings').hidden,true);
 });
 
+test('update notice picks localized Chinese notes by locale',()=>{
+  const a=app();
+  const items=()=>a.get('update-complete-list').children.map(item=>item.textContent);
+  a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
+  a.window.receiveUpdateNotice({success:true,version:'0.3.0',notes:['Faster updates'],notes_zh_cn:['更快的更新','更清晰的结果']});
+  assert.deepEqual(items(),['更快的更新','更清晰的结果']);
+  a.get('update-complete-done').fire();
+  a.window.receiveView({locale:'en',language_preference:'en'});
+  a.window.receiveUpdateNotice({success:true,version:'0.3.1',notes:['Faster updates'],notes_zh_cn:['更快的更新']});
+  assert.deepEqual(items(),['Faster updates']);
+  a.get('update-complete-done').fire();
+  a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
+  a.window.receiveUpdateNotice({success:true,version:'0.3.2',notes:['English only']});
+  assert.deepEqual(items(),['English only'],'falls back to English when Chinese notes are absent');
+});
+
 test('settings distinguish storage modes and only offer login startup for the default database',()=>{
   const a=app('windows');a.navigate('settings');
   for(const mode of ['default','custom','source','demo']){

@@ -275,6 +275,8 @@ struct Plan {
     manifest_hash: String,
     version: String,
     notes: Vec<String>,
+    #[serde(default)]
+    notes_zh_cn: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -354,6 +356,7 @@ pub fn launch_installer(update: StagedUpdate, installation: Installation) -> Res
         manifest_hash: update.manifest_hash.clone(),
         version: update.manifest.version.clone(),
         notes: update.notes.clone(),
+        notes_zh_cn: update.notes_zh_cn.clone(),
     };
     let path = update.directory.path().join("apply.json");
     let mut file = File::create_new(&path)?;
@@ -579,8 +582,15 @@ pub struct Notice {
     pub version: String,
     #[serde(default)]
     pub notes: Vec<String>,
+    #[serde(default)]
+    pub notes_zh_cn: Vec<String>,
 }
-fn write_notice(success: bool, version: &str, notes: &[String]) -> Result<()> {
+fn write_notice(
+    success: bool,
+    version: &str,
+    notes: &[String],
+    notes_zh_cn: &[String],
+) -> Result<()> {
     let base = cache_dir()?;
     fs::create_dir_all(&base)?;
     let mut file = tempfile::NamedTempFile::new_in(&base)?;
@@ -588,6 +598,7 @@ fn write_notice(success: bool, version: &str, notes: &[String]) -> Result<()> {
         success,
         version: version.to_owned(),
         notes: notes.to_vec(),
+        notes_zh_cn: notes_zh_cn.to_vec(),
     })?)?;
     file.as_file().sync_all()?;
     file.persist(base.join("last-update.json"))?;
@@ -757,7 +768,12 @@ fn apply_update_with_restart(
         drop(profile_lock);
         Ok(backup)
     })();
-    let _ = write_notice(result.is_ok(), &plan.version, &plan.notes);
+    let _ = write_notice(
+        result.is_ok(),
+        &plan.version,
+        &plan.notes,
+        &plan.notes_zh_cn,
+    );
     relaunch(&plan.installation, paused)?;
     result.map(|_| ())
 }

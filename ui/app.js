@@ -98,7 +98,9 @@ function openUpdateComplete(notice){
   if(!updateCompleteOverlay)return;
   Dropdowns.closeAll();updateCompletePreviousFocus=document.activeElement;
   $('update-complete-description').textContent=t('update.completed_description',{version:notice.version});
-  const notes=Array.isArray(notice.notes)&&notice.notes.length?notice.notes:[t('update.notes_unavailable')];
+  const chinese=String(I.locale||'').toLowerCase().startsWith('zh');
+  const localized=chinese&&Array.isArray(notice.notes_zh_cn)&&notice.notes_zh_cn.length?notice.notes_zh_cn:notice.notes;
+  const notes=Array.isArray(localized)&&localized.length?localized:[t('update.notes_unavailable')];
   $('update-complete-list').replaceChildren(...notes.map(note=>{const item=document.createElement('li');item.textContent=String(note);return item;}));
   updateCompleteOverlay.hidden=false;for(const surface of updateCompleteSurfaces)surface.inert=true;$('update-complete-done').focus();
 }

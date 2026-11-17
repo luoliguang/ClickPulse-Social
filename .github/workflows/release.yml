@@ -133,7 +133,8 @@ jobs:
             --version "$RELEASE_VERSION" \
             --revision "$SOURCE_REVISION" \
             --repository "$GITHUB_REPOSITORY" \
-            --changelog CHANGELOG.md
+            --changelog CHANGELOG.md \
+            --changelog-zh-cn CHANGELOG.zh-CN.md
       - name: Configure update mirror SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}

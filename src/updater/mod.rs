@@ -148,6 +148,8 @@ struct Release {
     prerelease: bool,
     #[serde(default)]
     notes: Vec<String>,
+    #[serde(default)]
+    notes_zh_cn: Vec<String>,
     assets: Vec<Asset>,
 }
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -162,6 +164,7 @@ pub struct Candidate {
     pub version: String,
     pub release_url: String,
     pub notes: Vec<String>,
+    pub notes_zh_cn: Vec<String>,
     target: Target,
     archive: Asset,
     manifest: Asset,
@@ -182,6 +185,7 @@ impl Candidate {
             version: version.into(),
             release_url: RELEASES.into(),
             notes: Vec::new(),
+            notes_zh_cn: Vec::new(),
             target: Target::MacArm64,
             archive: asset.clone(),
             manifest: asset.clone(),
@@ -243,6 +247,7 @@ impl Candidate {
             version: version.to_owned(),
             release_url: release.html_url.clone(),
             notes: release.notes,
+            notes_zh_cn: release.notes_zh_cn,
             target,
             archive: find(&(stem.clone() + ".zip"), MAX_ARCHIVE)?,
             manifest: find(&(stem + ".manifest.json"), 1024 * 1024)?,
@@ -322,6 +327,7 @@ pub struct StagedUpdate {
     pub(crate) manifest_hash: String,
     pub(crate) target: Target,
     pub(crate) notes: Vec<String>,
+    pub(crate) notes_zh_cn: Vec<String>,
 }
 
 pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<StagedUpdate> {
@@ -381,6 +387,7 @@ pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<Stage
         manifest_hash: hash_bytes(&external),
         target: candidate.target,
         notes: candidate.notes.clone(),
+        notes_zh_cn: candidate.notes_zh_cn.clone(),
     })
 }
 

@@ -56,6 +56,7 @@ fn release(version: &str, target: Target) -> Release {
         draft: false,
         prerelease: false,
         notes: vec!["A safer in-app update".into()],
+        notes_zh_cn: Vec::new(),
         assets: [
             stem.clone() + ".zip",
             stem + ".manifest.json",
