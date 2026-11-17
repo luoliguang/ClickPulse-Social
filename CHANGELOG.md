@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.4 · 2026-11-17
+
+### New
+
+- Add a pink theme across the full and Mini interfaces.
+- Show the complete Windows and Linux keyboard heatmap, including navigation keys and the numeric keypad.
+
+### Improved
+
+- Use a clear switch for launch at login.
+- Refresh leaderboard results without positional movement.
+- Show Simplified Chinese release notes when the app uses Simplified Chinese.
+- Keep the extended keyboard aligned and readable at narrower window sizes.
+
 ## 0.4.3 · 2026-11-17
 
 ### Improved
