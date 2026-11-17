@@ -54,6 +54,7 @@
     if(next.locale)window.setInterfaceLanguage(next.locale,next.language_preference);
     if(next.theme)window.setInterfaceTheme(next.theme);
     Object.assign(view,next);
+    if(next.share_card)window.receiveSharePreferences?.(next.share_card);
     window.renderUpdatePreferences?.();
     if(onWindows||onLinux){
       const key=view.maximized?'window.restore':'window.maximize';

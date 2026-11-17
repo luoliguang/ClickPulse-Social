@@ -7,6 +7,7 @@
     <button data-page="overview" class="selected"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></span><span data-i18n="page.overview">总览</span></button>
     <button data-page="history"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span><span data-i18n="page.history">历史记录</span></button>
     <button data-page="keys"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 9h.5m3.5 0h.5m3.5 0h.5m3.5 0h.5M6 12.5h.5m3.5 0h.5m3.5 0h.5m3.5 0h.5M8 16h8"/></svg></span><span data-i18n="page.keys">键盘热力图</span></button>
+    <button data-page="share"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v11m0-11 4 4m-4-4L8 8"/><path d="M5 13v6h14v-6"/></svg></span><span data-i18n="page.share">每日卡片</span></button>
     <button data-page="leaderboard"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M6 4H3v3c0 2 1.5 3.5 4 4M18 4h3v3c0 2-1.5 3.5-4 4"/><path d="M7 3h10v6a5 5 0 0 1-10 0Z"/></svg></span><span data-i18n="page.leaderboard">排行榜</span></button>
     <button id="settings-nav" data-page="settings" aria-expanded="false" aria-controls="settings-subnav"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9.5 3-.5 2-2 1-2-.5-2 3.5L4.5 11v2L3 15l2 3.5 2-.5 2 1 .5 2h5l.5-2 2-1 2 .5 2-3.5-1.5-2v-2L21 9l-2-3.5-2 .5-2-1-.5-2Z"/><circle cx="12" cy="12" r="3"/></svg></span><span data-i18n="page.settings">偏好设置</span></button>
     <div id="settings-subnav" class="settings-subnav" hidden>
@@ -60,6 +61,27 @@
         <div id="keyboard-treemap" class="keyboard-treemap" aria-label="按键使用频率色块图" data-i18n-aria="keys.treemap" hidden></div>
         <div class="keyboard-bottom"><span id="keyboard-coverage"></span><span class="keyboard-scale"><span data-i18n="common.low">少 </span><i class="level-0"></i><i class="level-1"></i><i class="level-2"></i><i class="level-3"></i><i class="level-4"></i><span data-i18n="common.high"> 多</span></span></div>
       </article>
+    </section>
+    <section class="page" id="share" hidden>
+      <div class="share-workspace">
+        <article class="card share-preview-card">
+          <div class="card-heading share-preview-heading"><div><h2 data-i18n="share.preview">卡片预览</h2><p id="share-preview-description" data-i18n="share.preview_description">输入指纹由所选日期的本地统计生成</p></div><select id="share-date" aria-label="卡片日期" data-i18n-aria="share.date"></select></div>
+          <div id="share-preview-frame" class="share-preview-frame" data-ratio="portrait"><div id="share-preview" class="share-preview" role="img" aria-label="每日输入卡片预览" data-i18n-aria="share.preview_aria"></div></div>
+        </article>
+        <aside class="share-controls">
+          <article class="card share-control-card"><h2 data-i18n="share.style">样式</h2><div class="share-field"><label for="share-theme" data-i18n="share.theme">配色</label><select id="share-theme"><option value="blue" data-i18n="theme.blue">蓝色</option><option value="teal" data-i18n="theme.teal">青绿</option><option value="violet" data-i18n="theme.violet">紫色</option><option value="graphite" data-i18n="theme.graphite">石墨灰</option><option value="pink" data-i18n="theme.pink">粉色</option></select></div><div class="share-field"><span data-i18n="share.ratio">尺寸</span><div class="segments share-ratios" id="share-ratios"><button class="selected" data-share-ratio="portrait">4:5</button><button data-share-ratio="square">1:1</button><button data-share-ratio="story">9:16</button></div></div></article>
+          <article class="card share-control-card"><h2 data-i18n="share.content">显示内容</h2>
+            <label class="share-toggle"><span data-i18n="common.keyboard">键盘</span><span class="preference-switch"><input id="share-keyboard" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span data-i18n="common.mouse">鼠标</span><span class="preference-switch"><input id="share-mouse" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span data-i18n="share.peak">活跃时段</span><span class="preference-switch"><input id="share-peak" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span data-i18n="share.qr">官网二维码</span><span class="preference-switch"><input id="share-qr" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span data-i18n="share.brand">ClickPulse 标记</span><span class="preference-switch"><input id="share-brand" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span><span data-i18n="share.privacy">隐私模式</span><small data-i18n="share.privacy_hint">隐藏具体次数和精确时段</small></span><span class="preference-switch"><input id="share-privacy" type="checkbox"><span aria-hidden="true"></span></span></label>
+          </article>
+          <div class="share-actions"><button class="button" id="share-copy" data-i18n="share.copy">复制图片</button><button class="button primary" id="share-save" data-i18n="share.save">保存 PNG</button></div>
+          <p class="share-local-note" data-i18n="share.local_note">卡片完全在本机生成，不上传统计数据。</p>
+        </aside>
+      </div>
     </section>
     <section class="page" id="leaderboard" hidden>
       <div id="leaderboard-loading" class="banner" role="status" aria-live="polite" hidden><p data-i18n="leaderboard.loading">正在连接排行榜…</p></div>

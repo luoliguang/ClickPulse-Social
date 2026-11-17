@@ -1,5 +1,29 @@
 use super::*;
 
+#[test]
+fn newly_installed_binary_recovers_chinese_notes_omitted_by_an_old_updater() {
+    let bundled = bundled_notes_zh_cn(crate::version::PUBLIC);
+    assert!(!bundled.is_empty() && bundled.len() <= 12);
+    assert!(bundled.iter().all(|note| !note.starts_with('-')));
+    let mut old_notice: Notice = serde_json::from_value(serde_json::json!({
+        "success": true,
+        "version": crate::version::PUBLIC,
+        "notes": ["English only from the old updater"]
+    }))
+    .unwrap();
+    recover_notice_notes(&mut old_notice);
+    assert_eq!(old_notice.notes_zh_cn, bundled);
+    let fixture = format!(
+        "# 更新日志\n\n## {} · today\n\n### 改进\n\n- 中文一\n- 中文二\n\n## 0.0.0\n\n- 旧说明",
+        crate::version::PUBLIC
+    );
+    assert_eq!(
+        changelog_notes(&fixture, crate::version::PUBLIC),
+        ["中文一", "中文二"]
+    );
+    assert!(bundled_notes_zh_cn("9.9.9").is_empty());
+}
+
 #[cfg(windows)]
 #[test]
 fn winget_registration_blocks_the_installer_even_with_a_custom_root() {

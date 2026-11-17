@@ -17,6 +17,7 @@ mod edit_menu;
 mod ipc;
 mod leaderboard;
 mod refresh;
+mod share;
 mod updates;
 mod webview;
 mod window;
@@ -263,13 +264,14 @@ pub fn run(
         .replace(
             "/*__SCRIPT__*/",
             &format!(
-                "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                 include_str!("../ui/i18n.js"),
                 include_str!("../ui/themes.js"),
                 include_str!("../ui/dropdown.js"),
                 include_str!("../ui/history.js"),
                 include_str!("../ui/keyboard.js"),
                 include_str!("../ui/sport.js"),
+                include_str!("../ui/share.js"),
                 include_str!("../ui/app.js"),
                 include_str!("../ui/presentation.js")
             ),
@@ -680,6 +682,38 @@ pub fn run(
                             view_changed = true;
                             refresh = true;
                         }
+                        Request::SharePreferences { settings } => {
+                            preferences.share_card = settings.normalize();
+                            view_changed = true;
+                        }
+                        Request::SaveShare {
+                            filename,
+                            png_base64,
+                        } => {
+                            let status = match share::save_png(&png_base64, &filename) {
+                                Ok(true) => "saved",
+                                Ok(false) => "cancelled",
+                                Err(error) => {
+                                    eprintln!("Could not save share card: {error:#}");
+                                    "error"
+                                }
+                            };
+                            let _ = webview.evaluate_script(&format!(
+                                "window.receiveShareExport?.({{status:'{status}'}});"
+                            ));
+                        }
+                        Request::CopyShare { png_base64 } => {
+                            let status = match share::copy_png(&png_base64) {
+                                Ok(()) => "copied",
+                                Err(error) => {
+                                    eprintln!("Could not copy share card: {error:#}");
+                                    "error"
+                                }
+                            };
+                            let _ = webview.evaluate_script(&format!(
+                                "window.receiveShareExport?.({{status:'{status}'}});"
+                            ));
+                        }
                         Request::CheckUpdates {} => {
                             let now = chrono::Utc::now().timestamp();
                             // Demo, read-only and independent sessions share the
@@ -727,7 +761,9 @@ pub fn run(
                         }
                         Request::Ready {} => {
                             ready = true;
-                            updates.publish(&webview);
+                            // Publish after receiveView below, so the persisted
+                            // locale reaches the UI before a one-time update
+                            // notice is consumed and rendered.
                             view_changed = true;
                             refresh = true;
                         }
@@ -1299,7 +1335,7 @@ pub fn run(
             mini.set_text(locale.text("action.mini"));
             hide.set_text(locale.text("native.hide"));
             quit.set_text(locale.text("native.quit"));
-            let view = serde_json::json!({"compact":preferences.compact,"pinned":preferences.pinned,"visible":visible,"locale":locale.code(),"language_preference":preferences.language,"timezone":preferences.timezone,"timezones":clickpulse::timezone::TimeZonePreference::choices(),"theme":preferences.theme,"maximized":window.is_maximized(),"close_action":preferences.close_action,"sport_enabled":preferences.sport_enabled,"sport_visible":preferences.sport_visible,"auto_check_updates":preferences.auto_check_updates,"last_update_check":preferences.last_update_check,"update_snoozed_version":&preferences.update_snoozed_version,"update_snoozed_until":preferences.update_snoozed_until});
+            let view = serde_json::json!({"compact":preferences.compact,"pinned":preferences.pinned,"visible":visible,"locale":locale.code(),"language_preference":preferences.language,"timezone":preferences.timezone,"timezones":clickpulse::timezone::TimeZonePreference::choices(),"theme":preferences.theme,"maximized":window.is_maximized(),"close_action":preferences.close_action,"sport_enabled":preferences.sport_enabled,"sport_visible":preferences.sport_visible,"auto_check_updates":preferences.auto_check_updates,"last_update_check":preferences.last_update_check,"update_snoozed_version":&preferences.update_snoozed_version,"update_snoozed_until":preferences.update_snoozed_until,"share_card":&preferences.share_card});
             if ready {
                 let _ = webview.evaluate_script(&format!(
                     "window.receiveView({view});window.receiveDataBusy?.({});",

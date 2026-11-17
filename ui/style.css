@@ -177,8 +177,20 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .keyboard-row.function-row .key-label {font-size:9px}.keyboard-row.function-row .key-count {font-size:9px}
 .keyboard-bottom {display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:9px;color:#6f85a4}
 .keyboard-scale {display:flex;align-items:center;gap:4px}.keyboard-scale i {width:11px;height:7px;border-radius:1px}
+.share-workspace {display:grid;grid-template-columns:minmax(0,1fr) 270px;align-items:start;gap:18px}
+.share-preview-card {min-width:0}.share-preview-heading {align-items:center}.share-preview-heading select {max-width:190px}
+.share-preview-frame {display:grid;place-items:center;min-height:520px;padding:20px;border-radius:10px;background:var(--bg);overflow:hidden}
+.share-preview {display:flex;max-width:100%;max-height:560px;filter:drop-shadow(0 16px 28px #1737631c)}
+.share-preview svg {display:block;width:auto;max-width:100%;max-height:560px;border-radius:8px}
+.share-preview-frame[data-ratio="portrait"] .share-preview {aspect-ratio:4/5}.share-preview-frame[data-ratio="square"] .share-preview {aspect-ratio:1}.share-preview-frame[data-ratio="story"] .share-preview {aspect-ratio:9/16}
+.share-controls {display:flex;flex-direction:column;gap:12px;position:sticky;top:18px}.share-control-card {padding:17px}.share-control-card h2 {font-size:var(--ui-section-size);margin:0 0 14px}
+.share-field {display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--control-text);font-size:var(--ui-label-size)}.share-field + .share-field {margin-top:13px}.share-field select {min-width:128px}
+.share-ratios {flex:none}.share-ratios button {padding:7px 9px}
+.share-toggle {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;color:var(--control-text);font-size:var(--ui-label-size);cursor:pointer}.share-toggle + .share-toggle {border-top:1px solid var(--line)}.share-toggle small {display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.45}.share-toggle .preference-switch {flex:none}
+.share-actions {display:grid;grid-template-columns:1fr 1fr;gap:8px}.share-actions .button {justify-content:center}.share-local-note {margin:0;padding:0 4px;color:var(--muted);font-size:9px;line-height:1.6;text-align:center}
 @media(max-width:1000px) {
   .keyboard-layout {flex-wrap:wrap}
+  .share-workspace {grid-template-columns:minmax(0,1fr)}.share-controls {position:static;display:grid;grid-template-columns:1fr 1fr}.share-actions,.share-local-note {grid-column:1/-1}
   .sidebar {width:210px;padding:26px 12px}
   nav button.selected:before {left:-12px}.content {padding:25px 22px}header {padding:0 22px}
   .metric {padding:18px 16px 14px}.metric-number {font-size:30px}.metric-details {font-size:8px}

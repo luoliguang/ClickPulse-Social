@@ -576,6 +576,43 @@ fn replace_windows(
     let _ = fs::remove_dir_all(prepared);
     Ok(backup)
 }
+fn changelog_notes(changelog: &str, version: &str) -> Vec<String> {
+    if version != crate::version::PUBLIC {
+        return Vec::new();
+    }
+    let heading = format!("## {version}");
+    let heading_prefix = format!("{heading} ");
+    let mut section = false;
+    let mut notes = Vec::new();
+    for line in changelog.lines() {
+        if !section {
+            section = line == heading || line.starts_with(&heading_prefix);
+            continue;
+        }
+        if line.starts_with("## ") {
+            break;
+        }
+        if let Some(note) = line.strip_prefix("- ").map(str::trim)
+            && !note.is_empty()
+        {
+            notes.push(note.to_owned());
+        }
+    }
+    if notes.is_empty()
+        || notes.len() > 12
+        || notes
+            .iter()
+            .any(|note| note.chars().count() > 240 || note.chars().any(char::is_control))
+    {
+        Vec::new()
+    } else {
+        notes
+    }
+}
+fn bundled_notes_zh_cn(version: &str) -> Vec<String> {
+    changelog_notes(include_str!("../../CHANGELOG.zh-CN.md"), version)
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Notice {
     pub success: bool,
@@ -584,6 +621,14 @@ pub struct Notice {
     pub notes: Vec<String>,
     #[serde(default)]
     pub notes_zh_cn: Vec<String>,
+}
+fn recover_notice_notes(notice: &mut Notice) {
+    if notice.success && notice.notes_zh_cn.is_empty() {
+        // The updater that performs an installation is the previous version.
+        // Older helpers cannot preserve a newly introduced localized field, so
+        // recover this release's notes from the newly installed binary.
+        notice.notes_zh_cn = bundled_notes_zh_cn(&notice.version);
+    }
 }
 fn write_notice(
     success: bool,
@@ -606,9 +651,10 @@ fn write_notice(
 }
 pub fn take_notice() -> Option<Notice> {
     let path = cache_dir().ok()?.join("last-update.json");
-    let bytes = read_limited(File::open(&path).ok()?, 4096).ok()?;
-    let notice: Notice = serde_json::from_slice(&bytes).ok()?;
+    let bytes = read_limited(File::open(&path).ok()?, 32 * 1024).ok()?;
+    let mut notice: Notice = serde_json::from_slice(&bytes).ok()?;
     stable_version(&notice.version).ok()?;
+    recover_notice_notes(&mut notice);
     fs::remove_file(path).ok()?;
     Some(notice)
 }

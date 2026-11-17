@@ -1,7 +1,10 @@
 //! Explicit payloads reject unknown actions and incomplete or invalid options.
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use clickpulse::presentation::CloseAction;
-use clickpulse::{localization::LanguagePreference, presentation::Theme};
+use clickpulse::{
+    localization::LanguagePreference,
+    presentation::{ShareCardPreferences, Theme},
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -15,6 +18,16 @@ pub(super) enum Request {
     },
     Theme {
         theme: Theme,
+    },
+    SharePreferences {
+        settings: ShareCardPreferences,
+    },
+    SaveShare {
+        filename: String,
+        png_base64: String,
+    },
+    CopyShare {
+        png_base64: String,
     },
     CheckUpdates {},
     AutomaticUpdates {
@@ -114,6 +127,9 @@ mod tests {
             r#"{"action":"export"}"#,
             r#"{"action":"theme"}"#,
             r#"{"action":"theme","theme":"unknown"}"#,
+            r#"{"action":"share_preferences","settings":{"ratio":"wide"}}"#,
+            r#"{"action":"save_share","filename":"card.png"}"#,
+            r#"{"action":"copy_share","png_base64":7}"#,
             r#"{"action":"language","language":null}"#,
             r#"{"action":"language","language":"it"}"#,
             r#"{"action":"quit","theme":"blue"}"#,
@@ -133,6 +149,27 @@ mod tests {
         assert!(matches!(
             serde_json::from_str::<Request>(r#"{"action":"theme","theme":"teal"}"#).unwrap(),
             Request::Theme { theme: Theme::Teal }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"share_preferences","settings":{"version":1,"template":"fingerprint","theme":"pink","ratio":"square","show_keyboard":true,"show_mouse":false,"show_peak":true,"show_qr":false,"show_brand":true,"privacy":true}}"#
+            )
+            .unwrap(),
+            Request::SharePreferences { settings }
+                if settings.theme == Theme::Pink && settings.privacy && !settings.show_qr
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"save_share","filename":"ClickPulse.png","png_base64":"AAAA"}"#
+            )
+            .unwrap(),
+            Request::SaveShare { filename, png_base64 }
+                if filename == "ClickPulse.png" && png_base64 == "AAAA"
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(r#"{"action":"copy_share","png_base64":"AAAA"}"#)
+                .unwrap(),
+            Request::CopyShare { png_base64 } if png_base64 == "AAAA"
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(r#"{"action":"language","language":"zh-CN"}"#).unwrap(),

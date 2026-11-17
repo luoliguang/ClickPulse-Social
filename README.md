@@ -7,7 +7,7 @@
 <p align="center">ClickPulse is an offline desktop app that turns your keyboard and mouse activity into daily statistics, history and heatmaps.</p>
 
 <p align="center">
-  <a href="#install"><img src="assets/badges/preview.svg" height="24" alt="release: v0.4.4"></a>
+  <a href="#install"><img src="assets/badges/preview.svg" height="24" alt="release: v0.4.5"></a>
   <a href="docs/development.md"><img src="assets/badges/rust.svg" height="24" alt="Core: Rust"></a>
   <a href="LICENSE"><img src="assets/badges/license.svg" height="24" alt="license: GPL-3.0-or-later"></a>
   <br>
@@ -34,8 +34,9 @@
 - **Discover daily patterns** with activity trends and a calendar.
 - **Find your most-used keys** with a heatmap and treemap.
 - **Revisit any day's activity** in your complete history.
+- **Share a daily input fingerprint** as a private, locally generated image.
 - **Move your data anywhere**, or merge history from another computer.
-- **Make it yours** with four themes, eight languages and your preferred time zone.
+- **Make it yours** with five themes, eight languages and your preferred time zone.
 
 ## Install
 

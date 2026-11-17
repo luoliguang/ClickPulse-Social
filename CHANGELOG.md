@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.5 · 2026-11-17
+
+### New
+
+- Create a local daily card with a distinctive input fingerprint for today or any recorded date.
+- Customize cards with five themes, three aspect ratios, content controls, website QR code, branding, and privacy mode.
+- Save a high-resolution PNG or copy the finished card directly to the system clipboard.
+
+### Improved
+
+- Recover Simplified Chinese update notes from the installed changelog when an older updater could not preserve the localized field.
+- Wait for the saved interface language before showing an update-complete notice, and relocalize an open notice when the language changes.
+- Keep card statistics local and validate image format, dimensions, payload size, and filename before native export.
+
 ## 0.4.4 · 2026-11-17
 
 ### New

@@ -1,6 +1,6 @@
 [package]
 name = "clickpulse"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2024"
 description = "Local keyboard and mouse activity statistics"
 license = "GPL-3.0-or-later"
@@ -29,6 +29,7 @@ tao = "0.35"
 tray-icon = "0.24"
 wry = { version = "0.55", features = ["transparent"] }
 rfd = "0.17"
+arboard = "3.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"

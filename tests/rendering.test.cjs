@@ -9,6 +9,7 @@ const messages=require('../ui/locales.json');
 const Themes=require('../ui/themes.js');
 const Dropdowns=require('../ui/dropdown.js');
 const Sport=require('../ui/sport.js');
+const Share=require('../ui/share.js');
 
 // Small DOM adapter to exercise the actual App event handlers and render flow.
 class Element {
@@ -35,7 +36,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
     if(!nodes.has(id))nodes.set(id,new Element(id));
     const node=nodes.get(id);node.ownerDocument=document;return node;
   };
-  const nav=['overview','history','keys','leaderboard','settings'].map(id=>{const button=new Element();button.dataset.page=id;return button;});
+  const nav=['overview','history','keys','share','leaderboard','settings'].map(id=>{const button=new Element();button.dataset.page=id;return button;});
   const pages=nav.map(button=>get(button.dataset.page));
   const leaderboardPeriods=['today','week'].map(period=>{const button=new Element();button.dataset.leaderboardPeriod=period;return button;});
   const settingsLinks=['personalization-settings','handoff-settings','capture-settings','storage-settings','app-settings'].map(id=>{const b=new Element();b.dataset.settingsSection=id;return b;});
@@ -51,12 +52,12 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
     createElement(){const node=new Element();node.ownerDocument=document;return node;},createElementNS(){const node=new Element();node.ownerDocument=document;return node;}};
   const window={ipc:{postMessage(){}},presentationView:{compact:false},clickpulsePlatform:platform,clickpulseMessages:messages,clickpulseLocale:'en'};
   Object.assign(window,{matchMedia:()=>({matches:reducedMotion,addEventListener(){}}),performance:{now:()=>now},setInterval(handler,ms){const id=++timerId;intervals.set(id,{handler,ms});return id;},clearInterval(id){intervals.delete(id);}});
-  const context=vm.createContext({document,window,setTimeout,clearTimeout,...(legacyWebKit?{}:{ClickPulseSport:Sport,ClickPulseThemes:Themes,ClickPulseDropdowns:Dropdowns,ClickPulseI18n:createI18n(messages,'en',platform),ClickPulseHistory:H,ClickPulseKeyboard:K.create(platform)})});
+  const context=vm.createContext({document,window,setTimeout,clearTimeout,...(legacyWebKit?{}:{ClickPulseSport:Sport,ClickPulseShare:Share,ClickPulseThemes:Themes,ClickPulseDropdowns:Dropdowns,ClickPulseI18n:createI18n(messages,'en',platform),ClickPulseHistory:H,ClickPulseKeyboard:K.create(platform)})});
   if(legacyWebKit){
     // Load the real modules in this realm: injected Node functions would keep
     // Node's newer built-ins and conceal a minimum-WebKit startup failure.
     vm.runInContext('Object.hasOwn=undefined;Array.prototype.at=undefined;',context);
-    for(const module of ['themes','i18n','history','keyboard','dropdown','sport'])vm.runInContext(readFileSync('ui/'+module+'.js','utf8'),context);
+    for(const module of ['themes','i18n','history','keyboard','dropdown','sport','share'])vm.runInContext(readFileSync('ui/'+module+'.js','utf8'),context);
   }
   vm.runInContext(readFileSync('ui/app.js','utf8'),context);
   vm.runInContext(readFileSync('ui/presentation.js','utf8'),context);
@@ -78,6 +79,19 @@ test('Mini-only startup accepts counts without history and preserves the full sn
   assert.equal(a.get('today').textContent,today);
   a.window.receiveMini({...mini,today:{keyboard:999,mouse:2}});
   assert.equal(a.get('today').textContent,today);
+});
+
+test('daily card page renders local data and restores versioned preferences',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.window.receive(snapshot());
+  a.window.receiveView({share_card:{version:1,template:'fingerprint',theme:'pink',ratio:'square',show_keyboard:true,show_mouse:false,show_peak:true,show_qr:false,show_brand:true,privacy:false}});
+  a.navigate('share');
+  assert.equal(a.get('page-title').textContent,messages.en['page.share']);
+  assert.equal(a.get('share-theme').value,'pink');
+  assert.equal(a.get('share-mouse').checked,false);
+  assert.match(a.get('share-preview').innerHTML,/width="1080" height="1080"/);
+  assert.match(a.get('share-preview').innerHTML,/120/);
+  assert.equal(a.get('share-date').children.length,1);
 });
 
 test('Mini ignores stale timezone results and needs no full snapshot to show errors',()=>{
@@ -381,7 +395,14 @@ test('update notice picks localized Chinese notes by locale',()=>{
   a.get('update-complete-done').fire();
   a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
   a.window.receiveUpdateNotice({success:true,version:'0.3.2',notes:['English only']});
-  assert.deepEqual(items(),['English only'],'falls back to English when Chinese notes are absent');
+  assert.deepEqual(items(),[messages['zh-CN']['update.notes_unavailable']],'keeps a Chinese dialog Chinese when an old updater omitted localized notes');
+  a.get('update-complete-done').fire();
+  a.window.receiveView({locale:'en',language_preference:'en'});
+  a.window.receiveUpdateNotice({success:true,version:'0.3.3',notes:['English first'],notes_zh_cn:['同步后的中文']});
+  assert.deepEqual(items(),['English first']);
+  a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
+  assert.deepEqual(items(),['同步后的中文'],'rerenders an open notice after the persisted locale arrives');
+  assert.equal(a.get('update-complete-description').textContent,createI18n(messages,'zh-CN').t('update.completed_description',{version:'0.3.3'}));
 });
 
 test('settings distinguish storage modes and only offer login startup for the default database',()=>{

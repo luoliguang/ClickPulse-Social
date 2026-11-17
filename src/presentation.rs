@@ -48,6 +48,59 @@ pub enum CloseAction {
     Quit,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ShareCardTemplate {
+    #[default]
+    Fingerprint,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ShareCardRatio {
+    #[default]
+    Portrait,
+    Square,
+    Story,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ShareCardPreferences {
+    pub version: u8,
+    pub template: ShareCardTemplate,
+    pub theme: Theme,
+    pub ratio: ShareCardRatio,
+    pub show_keyboard: bool,
+    pub show_mouse: bool,
+    pub show_peak: bool,
+    pub show_qr: bool,
+    pub show_brand: bool,
+    pub privacy: bool,
+}
+impl Default for ShareCardPreferences {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            template: Default::default(),
+            theme: Default::default(),
+            ratio: Default::default(),
+            show_keyboard: true,
+            show_mouse: true,
+            show_peak: true,
+            show_qr: true,
+            show_brand: true,
+            privacy: false,
+        }
+    }
+}
+impl ShareCardPreferences {
+    pub fn normalize(mut self) -> Self {
+        self.version = 1;
+        self
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Preferences {
@@ -65,6 +118,7 @@ pub struct Preferences {
     pub sport_enabled: bool,
     pub sport_visible: bool,
     pub sport_skin: SportSkin,
+    pub share_card: ShareCardPreferences,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -83,6 +137,7 @@ impl Default for Preferences {
             sport_enabled: false,
             sport_visible: false,
             sport_skin: Default::default(),
+            share_card: Default::default(),
         }
     }
 }
@@ -294,6 +349,22 @@ mod tests {
             prefs.language,
             crate::localization::LanguagePreference::Chinese
         );
+    }
+
+    #[test]
+    fn share_card_preferences_migrate_and_round_trip_independently() {
+        let old: Preferences = serde_json::from_str(r#"{"theme":"violet"}"#).unwrap();
+        assert_eq!(old.share_card, ShareCardPreferences::default());
+        let prefs: Preferences = serde_json::from_str(
+            r#"{"share_card":{"version":0,"theme":"pink","ratio":"story","show_qr":false,"privacy":true}}"#,
+        )
+        .unwrap();
+        let normalized = prefs.share_card.normalize();
+        assert_eq!(normalized.version, 1);
+        assert_eq!(normalized.theme, Theme::Pink);
+        assert_eq!(normalized.ratio, ShareCardRatio::Story);
+        assert!(!normalized.show_qr);
+        assert!(normalized.privacy);
     }
 
     #[test]

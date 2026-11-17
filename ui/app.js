@@ -22,7 +22,7 @@ const t=(key,values={})=>I.t(key,values);
 const n=value=>I.number(value);
 I.apply(document);
 $('theme-select').value=currentTheme;
-for(const option of $('theme-select').options)option.dataset.swatch=T.get(option.value).accent;
+for(const select of [$('theme-select'),$('share-theme')])for(const option of select.options)option.dataset.swatch=T.get(option.value).accent;
 const Dropdowns=ClickPulseDropdowns.create(document,window);
 const total=c=>(c?.keyboard||0)+(c?.mouse||0);
 const send=(action,values={})=>window.ipc?.postMessage(JSON.stringify({action,...values}));
@@ -89,19 +89,21 @@ window.receiveUpdateState=state=>{Object.assign(updateState,state);renderDataOpe
 window.receiveUpdateAvailable=version=>window.toast(t(updateState.update_command?'update.found_managed':'update.found',{version,command:updateState.update_command}),8000);
 const updateCompleteOverlay=$('update-complete-overlay');
 const updateCompleteSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
-let updateCompletePreviousFocus=null;
+let updateCompletePreviousFocus=null,updateCompleteNotice=null;
 function closeUpdateComplete(){
   if(!updateCompleteOverlay||updateCompleteOverlay.hidden)return;
-  updateCompleteOverlay.hidden=true;for(const surface of updateCompleteSurfaces)surface.inert=false;updateCompletePreviousFocus?.focus();
+  updateCompleteOverlay.hidden=true;updateCompleteNotice=null;for(const surface of updateCompleteSurfaces)surface.inert=false;updateCompletePreviousFocus?.focus();
+}
+function renderUpdateComplete(notice){
+  $('update-complete-description').textContent=t('update.completed_description',{version:notice.version});
+  const chinese=String(I.locale||'').toLowerCase().startsWith('zh');
+  const localized=chinese?notice.notes_zh_cn:notice.notes;
+  const notes=Array.isArray(localized)&&localized.length?localized:[t('update.notes_unavailable')];
+  $('update-complete-list').replaceChildren(...notes.map(note=>{const item=document.createElement('li');item.textContent=String(note);return item;}));
 }
 function openUpdateComplete(notice){
   if(!updateCompleteOverlay)return;
-  Dropdowns.closeAll();updateCompletePreviousFocus=document.activeElement;
-  $('update-complete-description').textContent=t('update.completed_description',{version:notice.version});
-  const chinese=String(I.locale||'').toLowerCase().startsWith('zh');
-  const localized=chinese&&Array.isArray(notice.notes_zh_cn)&&notice.notes_zh_cn.length?notice.notes_zh_cn:notice.notes;
-  const notes=Array.isArray(localized)&&localized.length?localized:[t('update.notes_unavailable')];
-  $('update-complete-list').replaceChildren(...notes.map(note=>{const item=document.createElement('li');item.textContent=String(note);return item;}));
+  Dropdowns.closeAll();updateCompletePreviousFocus=document.activeElement;updateCompleteNotice=notice;renderUpdateComplete(notice);
   updateCompleteOverlay.hidden=false;for(const surface of updateCompleteSurfaces)surface.inert=true;$('update-complete-done').focus();
 }
 $('update-complete-close')?.addEventListener('click',closeUpdateComplete);
@@ -318,7 +320,7 @@ window.receiveDataBusy=busy=>{
 let calendarRange='all',historyRange='all',historyPage=0,calendarLayout='',historySignature='';
 let calendarCells=new Map();
 const H=ClickPulseHistory;
-const titles={overview:'page.overview',history:'page.history',keys:'page.keys',leaderboard:'page.leaderboard',settings:'page.settings'};
+const titles={overview:'page.overview',history:'page.history',keys:'page.keys',share:'page.share',leaderboard:'page.leaderboard',settings:'page.settings'};
 const sportView=typeof ClickPulseSport==='undefined'?null:ClickPulseSport.createView({document,window,translate:t,formatSpeed:value=>I.decimal(value,1),send});
 window.receiveSport=sample=>sportView?.receive(recordingPaused===null?sample:{...sample,paused:recordingPaused});
 window.receivePaused=paused=>{
@@ -344,10 +346,11 @@ window.setInterfaceLanguage=(locale,preference)=>{
   Dropdowns.sync('language-select');
   if(I.locale===locale)return;
   I.setLocale(locale);I.apply(document);updateHeading();renderDataOperation();
+  if(updateCompleteNotice&&!updateCompleteOverlay.hidden)renderUpdateComplete(updateCompleteNotice);
   buildRoleOptions($('leaderboard-role'),$('leaderboard-role').value);buildRoleOptions($('leaderboard-role-edit'),leaderboardState.profile?.role||$('leaderboard-role-edit').value);renderLeaderboard();
   renderTimeZoneOptions();Dropdowns.syncAll();
-  calendarLayout='';historySignature='';
-  sportView?.render();
+  calendarLayout='';historySignature='';shareDatesSignature='';
+  sportView?.render();renderShareCard();
   for(const id of ['calendar-range-select','history-range-select'])delete $(id).dataset.options;
 };
 let timezoneNames=[],timezoneChoicesSignature='';
@@ -366,10 +369,54 @@ window.setTimeZoneChoices=names=>{
 };
 window.setInterfaceTimeZone=value=>{
   try{
-    if(I.setTimeZone(value)){renderSignatures.clear();calendarLayout='';historySignature='';}
-    $('timezone-select').value=value;Dropdowns.sync('timezone-select');return true;
+    if(I.setTimeZone(value)){renderSignatures.clear();calendarLayout='';historySignature='';shareDatesSignature='';}
+    $('timezone-select').value=value;Dropdowns.sync('timezone-select');renderShareCard();return true;
   }catch{window.toast(t('settings.timezone_unavailable'));return false;}
 };
+let shareSettings=ClickPulseShare.normalizeSettings(),shareDay='',shareDatesSignature='',shareExportBusy=false;
+const shareControlIds={show_keyboard:'share-keyboard',show_mouse:'share-mouse',show_peak:'share-peak',show_qr:'share-qr',show_brand:'share-brand',privacy:'share-privacy'};
+function shareCopy(){
+  const time=value=>I.date(value,{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  return {number:n,date:value=>I.date(value+'T12:00:00',{year:'numeric',month:'long',day:'numeric'}),keyboard:t('common.keyboard'),mouse:t('common.mouse'),peak:(start,end)=>t('share.peak_value',{start:time(start),end:time(end)}),streak:t('share.streak'),days:count=>t('share.days',{count}),scan:t('share.scan'),local_only:t('share.local_only'),total_label:t('share.total_label'),private_total:t('share.private_total'),private_hint:t('share.private_hint'),live_signature:t('share.live_signature'),daily_signature:t('share.daily_signature'),aria:t('share.card_aria',{date:shareDay})};
+}
+function updateShareDates(){
+  if(!data)return;
+  const today=data.now.slice(0,10),days=[today,...(data.history_days||[]).map(row=>row.day).filter(day=>day!==today)].slice(0,366),signature=JSON.stringify([I.locale,days]);
+  if(!shareDay||!days.includes(shareDay))shareDay=today;
+  if(signature===shareDatesSignature)return;
+  shareDatesSignature=signature;const select=$('share-date');select.replaceChildren(...days.map(day=>{const option=document.createElement('option');option.value=day;option.textContent=I.date(day+'T12:00:00',{year:'numeric',month:'short',day:'numeric'});return option;}));select.value=shareDay;Dropdowns.sync('share-date');
+}
+function syncShareControls(){
+  $('share-theme').value=shareSettings.theme;Dropdowns.sync('share-theme');
+  for(const [key,id] of Object.entries(shareControlIds))$(id).checked=shareSettings[key];
+  for(const button of document.querySelectorAll('[data-share-ratio]'))button.classList.toggle('selected',button.dataset.shareRatio===shareSettings.ratio);
+  $('share-preview-frame').dataset.ratio=shareSettings.ratio;
+}
+function renderShareCard(){
+  if(!data)return;updateShareDates();syncShareControls();
+  const model=ClickPulseShare.build(data,shareDay),svg=ClickPulseShare.render(model,shareSettings,shareCopy());
+  $('share-preview-description').textContent=t(model.total?'share.preview_description':'share.no_data');
+  $('share-preview').innerHTML=svg;$('share-preview').setAttribute('aria-label',t('share.card_aria',{date:shareDay}));
+}
+function saveShareSettings(){
+  shareSettings=ClickPulseShare.normalizeSettings(shareSettings);syncShareControls();renderShareCard();send('share_preferences',{settings:shareSettings});
+}
+window.receiveSharePreferences=settings=>{shareSettings=ClickPulseShare.normalizeSettings(settings);renderShareCard();};
+window.receiveShareExport=result=>{
+  shareExportBusy=false;$('share-copy').disabled=false;$('share-save').disabled=false;
+  if(result.status==='saved')window.toast(t('share.saved'));else if(result.status==='copied')window.toast(t('share.copied'));else if(result.status==='error')window.toast(t('share.export_failed'));
+};
+async function exportShare(action){
+  if(shareExportBusy||!data)return;shareExportBusy=true;$('share-copy').disabled=true;$('share-save').disabled=true;
+  try{const model=ClickPulseShare.build(data,shareDay),svg=ClickPulseShare.render(model,shareSettings,shareCopy()),png_base64=await ClickPulseShare.toPng(svg,shareSettings.ratio);send(action,{png_base64,...(action==='save_share'?{filename:`ClickPulse-${shareDay}.png`}:{})});}
+  catch{window.receiveShareExport({status:'error'});}
+}
+$('share-date').addEventListener('change',event=>{shareDay=event.target.value;renderShareCard();});
+$('share-theme').addEventListener('change',event=>{shareSettings.theme=event.target.value;saveShareSettings();});
+for(const button of document.querySelectorAll('[data-share-ratio]'))button.addEventListener('click',()=>{shareSettings.ratio=button.dataset.shareRatio;saveShareSettings();});
+for(const [key,id] of Object.entries(shareControlIds))$(id).addEventListener('change',event=>{shareSettings[key]=event.target.checked;saveShareSettings();});
+$('share-copy').addEventListener('click',()=>exportShare('copy_share'));
+$('share-save').addEventListener('click',()=>exportShare('save_share'));
 $('timezone-select').addEventListener('change',event=>send('timezone',{timezone:event.target.value}));
 $('language-select').addEventListener('change',event=>send('language',{language:event.target.value}));
 $('theme-select').addEventListener('change',event=>send('theme',{theme:event.target.value}));
@@ -503,6 +550,8 @@ window.receive=snapshot=>{
     renderHistory();
   }else if(page==='keys'){
     renderChanged('keyboard',data.keyboard_stats||data.top_keys,renderKeyboard);
+  }else if(page==='share'){
+    renderShareCard();
   }
 };
 function renderPermission(){
