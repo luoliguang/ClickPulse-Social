@@ -232,6 +232,7 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-role-field select:focus {border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
 .leaderboard-name-form .button {min-height:34px;padding:6px 10px}
 .leaderboard-avatar {width:44px;height:44px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:white;font:700 17px/1 var(--sans);background-size:cover;background-position:center}
+.leaderboard-avatar.has-image {color:transparent;font-size:0;text-indent:-9999px;overflow:hidden}
 .leaderboard-board .table-wrap {transition:opacity .16s ease,transform .2s cubic-bezier(.23,1,.32,1)}
 .leaderboard-board.is-refreshing .table-wrap {opacity:.48;transform:translateY(2px);pointer-events:none}
 #leaderboard-loading {position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

@@ -1,5 +1,5 @@
 (() => {
-  const view={timezone:'system',compact:false,pinned:true,visible:true,theme:window.clickpulseTheme||'blue',sport_enabled:false,sport_visible:false,auto_check_updates:true,last_update_check:null};
+  const view={timezone:'system',compact:false,pinned:true,visible:true,theme:window.clickpulseTheme||'blue',sport_enabled:false,sport_visible:false,auto_check_updates:true,last_update_check:null,update_snoozed_version:null,update_snoozed_until:null};
   window.presentationView=view;
   const put=(id,value)=>window.setSelectableText($(id),value);
   const onWindows=window.clickpulsePlatform==='windows',onLinux=window.clickpulsePlatform==='linux';

@@ -21,6 +21,9 @@ pub(super) enum Request {
         enabled: bool,
     },
     InstallUpdate {},
+    DeferUpdate {
+        version: String,
+    },
     UpdateRelease {},
     Ready {},
     Compact {},
@@ -100,6 +103,8 @@ mod tests {
             r#"{"action":"automatic_updates","enabled":"true"}"#,
             r#"{"action":"automatic_updates","enabled":true,"interval":1}"#,
             r#"{"action":"install_update","path":"/tmp/other"}"#,
+            r#"{"action":"defer_update"}"#,
+            r#"{"action":"defer_update","version":"0.4.3","days":7}"#,
             r#"{"action":"update_release","url":"https://example.com"}"#,
             r#"{"action":"timezone","timezone":"not/a-zone"}"#,
             r#"{"action":"timezone"}"#,
@@ -146,6 +151,13 @@ mod tests {
             Request::LeaderboardSync {
                 period: clickpulse::leaderboard::Period::Week
             }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"defer_update","version":"0.4.3"}"#
+            )
+            .unwrap(),
+            Request::DeferUpdate { version } if version == "0.4.3"
         ));
     }
 

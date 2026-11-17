@@ -712,6 +712,14 @@ pub fn run(
                             }
                             updates.publish(&webview);
                         }
+                        Request::DeferUpdate { version } => {
+                            if updates.automatic_allowed()
+                                && updates.available_version() == Some(version.as_str())
+                            {
+                                preferences.snooze_update(version, chrono::Utc::now().timestamp());
+                                view_changed = true;
+                            }
+                        }
                         Request::UpdateRelease {} => {
                             if let Err(error) = updates.open_release() {
                                 report_error(&webview, locale, "update.failed", &error);
@@ -1271,6 +1279,7 @@ pub fn run(
             && !quit_after_data
             && !matches!(*flow, ControlFlow::ExitWithCode(_))
             && let Some(version) = preferences.update_notifications.pending()
+            && !preferences.update_snoozed(Some(version), chrono::Utc::now().timestamp())
             && let Ok(version) = serde_json::to_string(version)
             && webview
                 .evaluate_script(&format!("window.receiveUpdateAvailable?.({version});"))
@@ -1292,7 +1301,7 @@ pub fn run(
             mini.set_text(locale.text("action.mini"));
             hide.set_text(locale.text("native.hide"));
             quit.set_text(locale.text("native.quit"));
-            let view = serde_json::json!({"compact":preferences.compact,"pinned":preferences.pinned,"visible":visible,"locale":locale.code(),"language_preference":preferences.language,"timezone":preferences.timezone,"timezones":clickpulse::timezone::TimeZonePreference::choices(),"theme":preferences.theme,"maximized":window.is_maximized(),"close_action":preferences.close_action,"sport_enabled":preferences.sport_enabled,"sport_visible":preferences.sport_visible,"auto_check_updates":preferences.auto_check_updates,"last_update_check":preferences.last_update_check});
+            let view = serde_json::json!({"compact":preferences.compact,"pinned":preferences.pinned,"visible":visible,"locale":locale.code(),"language_preference":preferences.language,"timezone":preferences.timezone,"timezones":clickpulse::timezone::TimeZonePreference::choices(),"theme":preferences.theme,"maximized":window.is_maximized(),"close_action":preferences.close_action,"sport_enabled":preferences.sport_enabled,"sport_visible":preferences.sport_visible,"auto_check_updates":preferences.auto_check_updates,"last_update_check":preferences.last_update_check,"update_snoozed_version":&preferences.update_snoozed_version,"update_snoozed_until":preferences.update_snoozed_until});
             if ready {
                 let _ = webview.evaluate_script(&format!(
                     "window.receiveView({view});window.receiveDataBusy?.({});",

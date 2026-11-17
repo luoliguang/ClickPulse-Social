@@ -31,8 +31,29 @@ let data=null,page='overview',range=14,toastTimer;
 let recordingPaused=null;
 let dataOperationBusy=false;
 let updateState={status:'idle',current:'',version:null,can_install:false,update_command:null,automatic:true,received:0,total:0};
+let updateSnoozeTimer=null;
 const updateBusy=()=>['downloading','verifying','preparing','installing'].includes(updateState.status);
 const updateInstalling=()=>['preparing','installing'].includes(updateState.status);
+function closeMiniUpdate(){
+  const panel=$('mini-update-panel'),trigger=$('mini-update');
+  if(!panel||!trigger)return;
+  panel.hidden=true;trigger.setAttribute('aria-expanded','false');
+}
+function renderMiniUpdate(){
+  const trigger=$('mini-update'),panel=$('mini-update-panel');
+  if(!trigger||!panel)return;
+  if(updateSnoozeTimer!==null){clearTimeout(updateSnoozeTimer);updateSnoozeTimer=null;}
+  const version=updateState.version,view=window.presentationView||{};
+  const until=Number(view.update_snoozed_until),sameVersion=view.update_snoozed_version===version;
+  const snoozed=sameVersion&&Number.isFinite(until)&&Date.now()/1000<until;
+  const offered=['available','ready'].includes(updateState.status)&&!!version&&updateState.automatic!==false&&!snoozed;
+  trigger.hidden=!offered;
+  if(!offered){closeMiniUpdate();if(snoozed){const delay=Math.min(2147483647,Math.max(0,until*1000-Date.now()));updateSnoozeTimer=setTimeout(()=>{updateSnoozeTimer=null;renderMiniUpdate();},delay);}return;}
+  $('mini-update-title').textContent=t('update.mini_title',{version});
+  const install=$('mini-update-install'),manual=!!updateState.update_command||!updateState.can_install;
+  install.textContent=t(manual?'update.details':'update.install');
+  install.dataset.action=manual?'details':'install';
+}
 function renderUpdateState(){
   const button=$('check-updates'),status=$('update-status'),details=$('update-details');
   if(!button||!status||!details)return;
@@ -61,6 +82,7 @@ function renderUpdateState(){
   button.disabled=dataOperationBusy||state.status==='checking'||updateBusy();
   button.setAttribute('aria-busy',String(state.status==='checking'||updateBusy()));
   details.hidden=!available&&state.status!=='error';
+  renderMiniUpdate();
 }
 window.renderUpdatePreferences=renderUpdateState;
 window.receiveUpdateState=state=>{Object.assign(updateState,state);renderDataOperation();};
@@ -106,6 +128,22 @@ $('automatic-updates')?.addEventListener('change',event=>{
   if(updateInstalling()||updateState.automatic===false)return;
   send('automatic_updates',{enabled:event.target.checked});
 });
+$('mini-update')?.addEventListener('click',()=>{
+  const panel=$('mini-update-panel'),opening=panel.hidden;
+  panel.hidden=!opening;$('mini-update').setAttribute('aria-expanded',String(opening));
+  if(opening)$('mini-update-install').focus();
+});
+$('mini-update-close')?.addEventListener('click',()=>{closeMiniUpdate();$('mini-update').focus();});
+$('mini-update-panel')?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeMiniUpdate();$('mini-update').focus();}});
+$('mini-update-install')?.addEventListener('click',()=>{
+  closeMiniUpdate();send($('mini-update-install').dataset.action==='details'?'update_release':'install_update');
+});
+$('mini-update-defer')?.addEventListener('click',()=>{
+  if(!updateState.version)return;
+  const now=Math.floor(Date.now()/1000),version=updateState.version;
+  Object.assign(window.presentationView,{update_snoozed_version:version,update_snoozed_until:now+3*24*60*60});
+  closeMiniUpdate();renderMiniUpdate();send('defer_update',{version});
+});
 
 // Feedback dialog: scan the WeChat QR to join the feedback group.
 const feedbackOverlay=$('feedback-overlay');
@@ -134,10 +172,14 @@ const LEADERBOARD_ROLES=['developer','designer','product_manager','operations','
 function leaderboardRoleLabel(role){return t('leaderboard.role.'+(role||'other'));}
 function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';}
 function leaderboardAvatar(node,avatar,nickname){
-  const url=avatar?.url;
-  node.textContent=url?'':(avatar?.initial||[...String(nickname||'?')][0]?.toUpperCase()||'?');
-  node.style.backgroundColor=url?'transparent':(avatar?.color||'var(--blue)');
-  node.style.backgroundImage=url?`url("${String(url).replace(/["\\]/g,'')}")`:'';
+  const url=typeof avatar?.url==='string'?avatar.url.trim():'';
+  const hasImage=!!url;
+  node.replaceChildren();node.textContent='';
+  node.classList.toggle('has-image',hasImage);
+  node.dataset.avatar=hasImage?'image':'default';
+  if(!hasImage)node.textContent=avatar?.initial||[...String(nickname||'?')][0]?.toUpperCase()||'?';
+  node.style.backgroundColor=hasImage?'transparent':(avatar?.color||'var(--blue)');
+  node.style.backgroundImage=hasImage?`url("${url.replace(/["\\]/g,'')}")`:'';
 }
 function setLeaderboardBusy(busy){
   leaderboardBusy=busy;$('leaderboard-loading').hidden=!busy;

@@ -510,6 +510,11 @@ impl Controller {
     pub fn automatic_allowed(&self) -> bool {
         self.automatic_allowed
     }
+    pub fn available_version(&self) -> Option<&str> {
+        matches!(self.view.status, "available" | "ready")
+            .then_some(self.view.version.as_deref())
+            .flatten()
+    }
     pub fn sync_notifications(&mut self, notices: &mut updater::UpdateNotifications) -> bool {
         let Some(version) = self.checked_version.take() else {
             return false;

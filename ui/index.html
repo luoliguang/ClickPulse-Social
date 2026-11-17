@@ -116,12 +116,20 @@
   <div class="mini-top">
     <div class="mini-brand" id="mini-drag" title="拖动面板" data-i18n-title="mini.drag"><img src="__BRAND_MARK__" alt=""><strong>ClickPulse</strong><span class="mini-grip" aria-hidden="true">⠿</span></div>
     <div class="mini-actions">
+      <button id="mini-update" class="mini-update-trigger" type="button" aria-expanded="false" aria-controls="mini-update-panel" data-i18n-aria="update.mini_open" data-i18n-title="update.mini_open" hidden><span aria-hidden="true"></span><b data-i18n="update.mini_badge">更新</b></button>
       <button id="mini-sport" class="mini-icon" aria-pressed="false" aria-label="开启 Sport 模式" data-i18n-aria="sport.enable" title="开启 Sport 模式" data-i18n-title="sport.enable"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2 5 11h5l-1 7 6-10h-5Z"/></svg></button>
       <button id="mini-pin" class="mini-icon" aria-label="取消小窗置顶" data-i18n-aria="mini.unpin" aria-pressed="true" title="取消小窗置顶" data-i18n-title="mini.unpin"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 3 6 0-1 5 3 3H5l3-3-1-5Zm3 8v6"/></svg></button>
       <button id="mini-hide" class="mini-icon" aria-label="收起到菜单栏继续后台记录" data-i18n-aria="mini.hide" title="收起到菜单栏" data-i18n-title="mini.hide_title"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10"/></svg></button>
       <button id="mini-expand" class="mini-icon" aria-label="展开完整统计" data-i18n-aria="mini.expand" title="展开统计" data-i18n-title="mini.expand_title"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 4h5v5M16 4l-6 6M9 16H4v-5M4 16l6-6"/></svg></button>
     </div>
   </div>
+  <section id="mini-update-panel" class="mini-update-panel" role="dialog" aria-labelledby="mini-update-title" hidden>
+    <button id="mini-update-close" class="mini-update-close" type="button" data-i18n-aria="action.cancel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button>
+    <span class="mini-update-kicker" data-i18n="update.mini_badge">更新</span>
+    <strong id="mini-update-title"></strong>
+    <p data-i18n="update.mini_description">新版本已准备好，你可以现在更新，也可以稍后再提醒。</p>
+    <div class="mini-update-actions"><button id="mini-update-install" class="mini-update-primary" type="button" data-i18n="update.install">更新并重启</button><button id="mini-update-defer" type="button" data-i18n="update.defer_3_days">3 天不再提示</button></div>
+  </section>
   <div class="mini-summary"><div><span class="mini-eyebrow"><span data-i18n="mini.today">今日</span></span><strong id="mini-today">—</strong></div><span class="mini-status" id="mini-status"><span data-i18n="common.connecting">连接中</span></span><div class="mini-sport-readout" id="mini-sport-readout" hidden><strong id="mini-sport-grade">C</strong><span><b id="mini-sport-cps">0.0</b> CPS</span></div></div>
   <div class="mini-devices">
     <div><span class="mini-device-label"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="5" width="16" height="10" rx="2"/><path d="M5 8h1m3 0h1m3 0h1M5 11h1m3 0h1m3 0h1M7 13h6"/></svg><span data-i18n="mini.keyboard">键盘</span></span><strong id="mini-keyboard">—</strong></div>

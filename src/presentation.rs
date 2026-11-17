@@ -58,6 +58,8 @@ pub struct Preferences {
     pub auto_check_updates: bool,
     pub last_update_check: Option<i64>,
     pub update_notifications: crate::updater::UpdateNotifications,
+    pub update_snoozed_version: Option<String>,
+    pub update_snoozed_until: Option<i64>,
     pub sport_enabled: bool,
     pub sport_visible: bool,
     pub sport_skin: SportSkin,
@@ -74,6 +76,8 @@ impl Default for Preferences {
             auto_check_updates: true,
             last_update_check: None,
             update_notifications: Default::default(),
+            update_snoozed_version: None,
+            update_snoozed_until: None,
             sport_enabled: false,
             sport_visible: false,
             sport_skin: Default::default(),
@@ -149,6 +153,17 @@ impl Preferences {
         self.save_to(&path()?)
     }
 
+    pub fn update_snoozed(&self, version: Option<&str>, now: i64) -> bool {
+        version.is_some()
+            && self.update_snoozed_version.as_deref() == version
+            && self.update_snoozed_until.is_some_and(|until| now < until)
+    }
+
+    pub fn snooze_update(&mut self, version: String, now: i64) {
+        self.update_snoozed_version = Some(version);
+        self.update_snoozed_until = Some(now.saturating_add(3 * 24 * 60 * 60));
+    }
+
     fn save_to(&self, path: &Path) -> Result<()> {
         use std::io::Write;
         std::fs::create_dir_all(path.parent().context("Invalid preferences directory")?)?;
@@ -195,6 +210,21 @@ mod tests {
             assert_eq!(loaded.last_update_check, prefs.last_update_check);
             assert_eq!(loaded.theme, Theme::Violet);
         }
+    }
+
+    #[test]
+    fn update_snooze_is_version_specific_and_expires_after_three_days() {
+        let mut prefs = Preferences::default();
+        let now = 1_794_310_000;
+        prefs.snooze_update("9.9.9".into(), now);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("presentation.json");
+        prefs.save_to(&path).unwrap();
+        let prefs = Preferences::load_from(&path).unwrap().preferences;
+        assert!(prefs.update_snoozed(Some("9.9.9"), now + 1));
+        assert!(!prefs.update_snoozed(Some("10.0.0"), now + 1));
+        assert!(!prefs.update_snoozed(Some("9.9.9"), now + 3 * 24 * 60 * 60));
+        assert!(!prefs.update_snoozed(None, now + 1));
     }
 
     #[test]

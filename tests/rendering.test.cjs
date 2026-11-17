@@ -785,6 +785,36 @@ test('manual checks remain available and an offered update never installs withou
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
 });
+test('Mini offers update and restart or a persisted three-day deferral',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=m=>sent.push(JSON.parse(m));
+  a.window.receiveView({compact:true});
+  a.window.receiveUpdateState({status:'ready',version:'0.4.3',can_install:true,automatic:true});
+  assert.equal(a.get('mini-update').hidden,false);
+  assert.equal(a.get('mini-update-title').textContent,'Version 0.4.3 is ready');
+  a.get('mini-update').fire();assert.equal(a.get('mini-update-panel').hidden,false);
+  a.get('mini-update-install').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
+
+  a.context.setTimeout=()=>1;a.context.clearTimeout=()=>{};
+  a.window.receiveUpdateState({status:'ready',version:'0.4.4',can_install:true});
+  a.get('mini-update').fire();a.get('mini-update-defer').fire();
+  assert.deepEqual(sent.pop(),{action:'defer_update',version:'0.4.4'});
+  assert.equal(a.get('mini-update').hidden,true);
+  a.window.receiveUpdateState({status:'ready',version:'0.4.5',can_install:true});
+  assert.equal(a.get('mini-update').hidden,false,'a newer version is not hidden by the old deferral');
+});
+test('uploaded leaderboard avatars never retain default initials',()=>{
+  const a=app();
+  a.window.receiveLeaderboard({profile:{joined:true,nickname:'Luo',member_id:'self'},board:{period:'today',entries:[
+    {rank:1,member_id:'self',nickname:'Luo',avatar:{url:null,initial:'L',color:'#123'},keyboard:1,mouse:2,total:3,is_self:true},
+    {rank:2,member_id:'photo',nickname:'Photo',avatar:{url:'https://example.com/avatar.png',initial:'P',color:'#456'},keyboard:1,mouse:1,total:2}
+  ],starts_on:'2026-11-16',ends_on:'2026-11-16',self_rank:1}});
+  const rows=a.get('leaderboard-rows').children;
+  const fallback=rows[0].children[1].children[0].children[0];
+  const uploaded=rows[1].children[1].children[0].children[0];
+  assert.equal(fallback.textContent,'L');assert.equal(fallback.dataset.avatar,'default');
+  assert.equal(uploaded.textContent,'');assert.equal(uploaded.dataset.avatar,'image');
+  assert.match(uploaded.style.backgroundImage,/avatar\.png/);
+});
 test('Scoop-managed updates keep checks and localized guidance without sending install requests',()=>{
   for(const locale of Object.keys(messages)){
     const a=app('windows'),sent=[];a.window.ipc.postMessage=m=>sent.push(JSON.parse(m));
