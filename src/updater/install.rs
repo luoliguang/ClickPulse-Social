@@ -92,7 +92,7 @@ impl Installation {
             );
             let info = fs::read_to_string(self.root.join("Contents/Info.plist"))?;
             ensure!(
-                plist_value(&info, "CFBundleIdentifier") == Some("app.clickpulse.desktop"),
+                is_app_identifier(plist_value(&info, "CFBundleIdentifier")),
                 "Wrong application identity"
             );
         } else if self.target.linux() {
@@ -162,6 +162,14 @@ pub fn installation() -> Result<Installation> {
     drop(probe);
     Ok(value)
 }
+/// Releases keep the shared identifier until every installed updater accepts
+/// the separate one, so a package with either identity can be installed.
+fn is_app_identifier(value: Option<&str>) -> bool {
+    matches!(
+        value,
+        Some("app.clickpulse.desktop" | "app.clickpulse.social")
+    )
+}
 fn plist_value<'a>(xml: &'a str, key: &str) -> Option<&'a str> {
     xml.split_once(&format!("<key>{key}</key>"))?
         .1
@@ -182,7 +190,7 @@ pub(super) fn validate_program(
         let bundle = payload.join("ClickPulse.app");
         let info = fs::read_to_string(bundle.join("Contents/Info.plist"))?;
         ensure!(
-            plist_value(&info, "CFBundleIdentifier") == Some("app.clickpulse.desktop")
+            is_app_identifier(plist_value(&info, "CFBundleIdentifier"))
                 && plist_value(&info, "CFBundleShortVersionString") == Some(version)
                 && plist_value(&info, "CFBundleVersion")
                     .is_some_and(|n| n.parse::<u64>().ok() == Some(build)),
@@ -796,7 +804,7 @@ fn apply_update_with_restart(
             .open(crate::platform::data_dir()?.join("profile.lock"))?;
         profile_lock
             .try_lock()
-            .context("ClickPulse reopened before the update could start")?;
+            .context("ClickPulse Social reopened before the update could start")?;
         ensure!(
             committed,
             "Update cancelled because the application did not finish saving"

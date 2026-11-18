@@ -55,7 +55,7 @@ def main():
             shutil.copy2(license_file,licenses/license_file.name)
         (bundle/'THIRD-PARTY-NOTICES.txt').write_text(rust_notices(metadata,root),encoding='utf-8')
         (bundle/'README.txt').write_text((root/'docs/install-linux.md').read_text(),encoding='utf-8')
-        (bundle/'clickpulse.desktop').write_text('[Desktop Entry]\nType=Application\nName=ClickPulse\nComment=Local keyboard and mouse activity statistics\nExec=clickpulse\nIcon=clickpulse\nTerminal=false\nCategories=Utility;\n',encoding='utf-8')
+        (bundle/'clickpulse.desktop').write_text('[Desktop Entry]\nType=Application\nName=ClickPulse Social\nComment=Local keyboard and mouse activity statistics\nExec=clickpulse\nIcon=clickpulse\nTerminal=false\nCategories=Utility;\n',encoding='utf-8')
         files = {f.relative_to(bundle).as_posix():hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(bundle.rglob('*')) if f.is_file()}
         manifest = {'version':version,'internal_build':internal_build,'target':target,'source_revision':revision,'code_license':'GPL-3.0-or-later','files':files,'native_linux_tested':False}
         (bundle/'build-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')

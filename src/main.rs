@@ -109,7 +109,7 @@ fn main() {
     #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     let desktop_mode = cli.command.is_none() && cli.apply_update.is_none();
     if let Err(error) = run(cli) {
-        eprintln!("ClickPulse: {error:#}");
+        eprintln!("ClickPulse Social: {error:#}");
         #[cfg(target_os = "windows")]
         if desktop_mode {
             clickpulse::platform::windows::show_startup_error(&error);
@@ -117,7 +117,7 @@ fn main() {
         #[cfg(any(target_os = "macos", target_os = "linux"))]
         if desktop_mode {
             rfd::MessageDialog::new()
-                .set_title("ClickPulse")
+                .set_title(clickpulse::identity::APP_NAME)
                 .set_description(format!("{error:#}"))
                 .set_level(rfd::MessageLevel::Error)
                 .show();
@@ -156,6 +156,21 @@ fn run(cli: Cli) -> Result<()> {
     let source_mode = cli.source_db.is_some();
     let owned = cli.db.is_none() && !source_mode;
     let setup_pending = false;
+    if owned && !cli.demo {
+        // The data folder used to be shared with upstream ClickPulse.
+        match clickpulse::legacy_data::import_if_needed() {
+            Ok(_) => {}
+            Err(error) => eprintln!("ClickPulse Social: previous data was not copied: {error:#}"),
+        }
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
+        if let Err(error) = clickpulse::platform::adopt_legacy_auto_start() {
+            eprintln!("ClickPulse Social: startup entry was not moved: {error:#}");
+        }
+        #[cfg(target_os = "macos")]
+        if let Err(error) = clickpulse::handoff::adopt_legacy_auto_start() {
+            eprintln!("ClickPulse Social: startup entry was not moved: {error:#}");
+        }
+    }
     let path = match cli.db.or(cli.source_db) {
         Some(path) => path,
         None if cli.demo => PathBuf::new(),

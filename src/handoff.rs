@@ -8,11 +8,15 @@ use std::{
 };
 
 const OLD_LABEL: &str = "com.zhangwuhan.clickpulse";
-const APP_LABEL: &str = "app.clickpulse.desktop.login";
+const APP_LABEL: &str = crate::identity::MAC_LOGIN_LABEL;
+const SHARED_APP_LABEL: &str = crate::identity::LEGACY_MAC_LOGIN_LABEL;
 fn home() -> Result<PathBuf> {
     Ok(PathBuf::from(
         std::env::var_os("HOME").context("Cannot determine the user home directory")?,
     ))
+}
+fn support_dir() -> Result<PathBuf> {
+    crate::platform::data_dir()
 }
 fn agent(label: &str) -> Result<PathBuf> {
     Ok(home()?.join(format!("Library/LaunchAgents/{label}.plist")))
@@ -46,7 +50,7 @@ fn app_path() -> Result<PathBuf> {
 }
 
 fn handoff_lock() -> Result<std::fs::File> {
-    let path = home()?.join("Library/Application Support/ClickPulse/handoff.lock");
+    let path = support_dir()?.join("handoff.lock");
     std::fs::create_dir_all(path.parent().unwrap())?;
     let file = std::fs::OpenOptions::new()
         .create(true)
@@ -59,7 +63,7 @@ fn handoff_lock() -> Result<std::fs::File> {
     Ok(file)
 }
 fn pending_path() -> Result<PathBuf> {
-    Ok(home()?.join("Library/Application Support/ClickPulse/pending-handoff.json"))
+    Ok(support_dir()?.join("pending-handoff.json"))
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Pending {
@@ -152,7 +156,7 @@ pub fn recover_pending() -> Result<()> {
         set_auto_start(true)?;
         let old = agent(OLD_LABEL)?;
         if old.exists() {
-            let retired = home()?.join("Library/Application Support/ClickPulse/retired");
+            let retired = support_dir()?.join("retired");
             std::fs::create_dir_all(&retired)?;
             std::fs::rename(&old, retired.join(format!("{OLD_LABEL}.plist")))?;
         }
@@ -167,6 +171,24 @@ fn xml(s: &str) -> String {
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
 }
+/// Replace this app's login agent that used the label shared with upstream.
+/// An agent that opens another copy of the app is left alone.
+pub fn adopt_legacy_auto_start() -> Result<bool> {
+    let shared = agent(SHARED_APP_LABEL)?;
+    if !shared.is_file() || agent(APP_LABEL)?.exists() {
+        return Ok(false);
+    }
+    let app = app_path()?;
+    let contents = std::fs::read_to_string(&shared)?;
+    if !contents.contains(&xml(&app.to_string_lossy())) {
+        return Ok(false);
+    }
+    set_auto_start(true)?;
+    let _ = launchctl(&["bootout", &format!("{}/{}", domain()?, SHARED_APP_LABEL)]);
+    std::fs::remove_file(shared)?;
+    Ok(true)
+}
+
 pub fn auto_start_enabled() -> bool {
     agent(APP_LABEL).is_ok_and(|p| p.is_file())
 }
@@ -213,7 +235,7 @@ pub fn set_auto_start(enabled: bool) -> Result<()> {
         })?;
     } else if path.exists() {
         let _ = launchctl(&["bootout", &service]);
-        let retired = home()?.join("Library/Application Support/ClickPulse/retired");
+        let retired = support_dir()?.join("retired");
         std::fs::create_dir_all(&retired)?;
         std::fs::rename(
             path,
@@ -333,7 +355,7 @@ pub fn take_over(source: &Path) -> Result<PathBuf> {
         parked.restore()?;
         let baseline = CollectorDb::migrate(source, &output)?;
         set_auto_start(true)?;
-        let retired = home()?.join("Library/Application Support/ClickPulse/retired");
+        let retired = support_dir()?.join("retired");
         std::fs::create_dir_all(&retired)?;
         // A manifest gives future sessions the exact baseline and original paths.
         let manifest = serde_json::json!({"source":source,"destination":output,"baseline":baseline.lifetime,"days":baseline.history_days.len(),"completed_at":chrono::Local::now().to_rfc3339(),"original_agent":old});
@@ -353,7 +375,7 @@ pub fn take_over(source: &Path) -> Result<PathBuf> {
 }
 
 pub fn rollback(output: &Path) -> Result<()> {
-    let retired = home()?.join("Library/Application Support/ClickPulse/retired");
+    let retired = support_dir()?.join("retired");
     std::fs::create_dir_all(&retired)?;
     if output.exists() {
         std::fs::rename(

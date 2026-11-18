@@ -25,7 +25,7 @@ fn wide(value: impl AsRef<OsStr>) -> Vec<u16> {
     value.as_ref().encode_wide().chain(Some(0)).collect()
 }
 const RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-const RUN_VALUE: &str = "ClickPulse";
+use crate::identity::{LEGACY_WINDOWS_RUN_VALUE, WINDOWS_RUN_VALUE as RUN_VALUE};
 struct Key(HKEY);
 impl Drop for Key {
     fn drop(&mut self) {
@@ -35,9 +35,9 @@ impl Drop for Key {
     }
 }
 fn read_run() -> Result<Option<Vec<u16>>> {
-    read_run_at(RUN_KEY)
+    read_run_at(RUN_KEY, RUN_VALUE)
 }
-fn read_run_at(path: &str) -> Result<Option<Vec<u16>>> {
+fn read_run_at(path: &str, value_name: &str) -> Result<Option<Vec<u16>>> {
     let mut key = null_mut();
     let result = unsafe {
         RegOpenKeyExW(
@@ -56,7 +56,7 @@ fn read_run_at(path: &str) -> Result<Option<Vec<u16>>> {
         "Read startup settings: Windows error {result}"
     );
     let key = Key(key);
-    let name = wide(RUN_VALUE);
+    let name = wide(value_name);
     let mut kind = 0;
     let mut bytes = 0;
     let result = unsafe {
@@ -74,7 +74,7 @@ fn read_run_at(path: &str) -> Result<Option<Vec<u16>>> {
     }
     ensure!(
         result == ERROR_SUCCESS && kind == REG_SZ && bytes <= 32768,
-        "Invalid ClickPulse startup value"
+        "Invalid startup value"
     );
     let mut value = vec![0u16; (bytes as usize).div_ceil(2)];
     let result = unsafe {
@@ -116,7 +116,7 @@ pub fn set_auto_start(enabled: bool) -> Result<()> {
     } else {
         None
     };
-    write_run_at(RUN_KEY, command.as_deref())
+    write_run_at(RUN_KEY, RUN_VALUE, command.as_deref())
 }
 fn startup_target(executable: &Path) -> Result<PathBuf> {
     Ok(
@@ -166,12 +166,37 @@ pub fn repair_auto_start() -> Result<bool> {
     let executable = std::env::current_exe()?;
     let target = startup_target(&executable)?;
     if let Some(command) = repaired_run(value.as_deref(), &executable, &target) {
-        write_run_at(RUN_KEY, Some(&command))?;
+        write_run_at(RUN_KEY, RUN_VALUE, Some(&command))?;
         return Ok(true);
     }
     Ok(false)
 }
-fn write_run_at(path: &str, command: Option<&[u16]>) -> Result<()> {
+/// Move this program's own startup entry from the name shared with upstream
+/// ClickPulse. An entry that launches another copy is left untouched.
+pub fn adopt_legacy_auto_start() -> Result<bool> {
+    let Some(legacy) = read_run_at(RUN_KEY, LEGACY_WINDOWS_RUN_VALUE)? else {
+        return Ok(false);
+    };
+    let executable = std::env::current_exe()?;
+    let Some(previous) = startup_executable(&legacy) else {
+        return Ok(false);
+    };
+    if legacy != run_command(&previous)
+        || !crate::windows_installation::same_program(&previous, &executable)
+    {
+        return Ok(false);
+    }
+    if read_run()?.is_none() {
+        write_run_at(
+            RUN_KEY,
+            RUN_VALUE,
+            Some(&run_command(&startup_target(&executable)?)),
+        )?;
+    }
+    write_run_at(RUN_KEY, LEGACY_WINDOWS_RUN_VALUE, None)?;
+    Ok(true)
+}
+fn write_run_at(path: &str, value_name: &str, command: Option<&[u16]>) -> Result<()> {
     let mut key = null_mut();
     let result = unsafe {
         RegCreateKeyExW(
@@ -191,7 +216,7 @@ fn write_run_at(path: &str, command: Option<&[u16]>) -> Result<()> {
         "Update startup settings: Windows error {result}"
     );
     let key = Key(key);
-    let name = wide(RUN_VALUE);
+    let name = wide(value_name);
     let result = if let Some(command) = command {
         unsafe {
             RegSetValueExW(
@@ -260,7 +285,7 @@ pub fn show_startup_error(error: &anyhow::Error) {
         MessageBoxW(
             null_mut(),
             wide(message).as_ptr(),
-            wide("ClickPulse").as_ptr(),
+            wide(crate::identity::APP_NAME).as_ptr(),
             MB_OK | MB_ICONERROR,
         );
     }
@@ -302,7 +327,10 @@ impl SingleInstance {
             .join(path.file_name().context("Invalid data path")?);
         let mut hash = std::collections::hash_map::DefaultHasher::new();
         identity.to_string_lossy().to_lowercase().hash(&mut hash);
-        let name = wide(format!("Local\\ClickPulse.Open.{:016x}", hash.finish()));
+        let name = wide(format!(
+            "Local\\ClickPulse.Social.Open.{:016x}",
+            hash.finish()
+        ));
         let handle = unsafe { CreateEventW(null(), 0, 0, name.as_ptr()) };
         ensure!(
             !handle.is_null(),
@@ -317,7 +345,7 @@ impl SingleInstance {
             return Ok(None);
         }
         let running_marker =
-            unsafe { CreateMutexW(null(), 0, wide("Local\\ClickPulse.Running").as_ptr()) };
+            unsafe { CreateMutexW(null(), 0, wide("Local\\ClickPulse.Social.Running").as_ptr()) };
         if running_marker.is_null() {
             unsafe {
                 CloseHandle(handle);
@@ -423,19 +451,22 @@ mod startup_tests {
             "Software\\ClickPulse\\Tests\\Startup-{}-{unique}",
             std::process::id()
         ));
-        assert!(read_run_at(&key.0).unwrap().is_none());
+        assert!(read_run_at(&key.0, RUN_VALUE).unwrap().is_none());
         let temp = tempfile::tempdir().unwrap();
         let old = temp.path().join("0.3.0/ClickPulse.exe");
         let exe = temp.path().join("0.3.1/ClickPulse.exe");
         fs::create_dir_all(exe.parent().unwrap()).unwrap();
         fs::write(&exe, b"app").unwrap();
-        write_run_at(&key.0, Some(&run_command(&old))).unwrap();
-        let stored = read_run_at(&key.0).unwrap();
+        write_run_at(&key.0, RUN_VALUE, Some(&run_command(&old))).unwrap();
+        let stored = read_run_at(&key.0, RUN_VALUE).unwrap();
         let repaired = repaired_run(stored.as_deref(), &exe, &exe).unwrap();
-        write_run_at(&key.0, Some(&repaired)).unwrap();
-        assert_eq!(read_run_at(&key.0).unwrap(), Some(run_command(&exe)));
-        write_run_at(&key.0, None).unwrap();
-        assert!(read_run_at(&key.0).unwrap().is_none());
+        write_run_at(&key.0, RUN_VALUE, Some(&repaired)).unwrap();
+        assert_eq!(
+            read_run_at(&key.0, RUN_VALUE).unwrap(),
+            Some(run_command(&exe))
+        );
+        write_run_at(&key.0, RUN_VALUE, None).unwrap();
+        assert!(read_run_at(&key.0, RUN_VALUE).unwrap().is_none());
         assert!(repaired_run(None, &exe, &exe).is_none());
     }
 }

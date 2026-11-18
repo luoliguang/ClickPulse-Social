@@ -15,20 +15,30 @@ pub fn name() -> &'static str {
 }
 
 pub fn data_dir() -> Result<PathBuf> {
+    data_dir_named(crate::identity::DATA_DIR)
+}
+
+/// Folder used before this fork separated its data from upstream ClickPulse.
+pub fn legacy_data_dir() -> Result<PathBuf> {
+    data_dir_named(crate::identity::LEGACY_DATA_DIR)
+}
+
+fn data_dir_named(name: &str) -> Result<PathBuf> {
     #[cfg(target_os = "windows")]
-    return windows_data_dir(std::env::var_os("LOCALAPPDATA"));
+    return windows_data_dir(std::env::var_os("LOCALAPPDATA"), name);
     #[cfg(target_os = "macos")]
     return Ok(PathBuf::from(
         std::env::var_os("HOME").context("Cannot determine the user home directory")?,
     )
-    .join("Library/Application Support/ClickPulse"));
+    .join("Library/Application Support")
+    .join(name));
     #[cfg(target_os = "linux")]
     return Ok(linux::xdg_dir(
         std::env::var_os("XDG_DATA_HOME"),
         std::env::var_os("HOME"),
         ".local/share",
     )?
-    .join("ClickPulse"));
+    .join(name));
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         let base = std::env::var_os("XDG_DATA_HOME")
@@ -37,15 +47,15 @@ pub fn data_dir() -> Result<PathBuf> {
                 std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
             })
             .context("User data directory is unavailable")?;
-        Ok(base.join("ClickPulse"))
+        Ok(base.join(name))
     }
 }
 
 #[cfg(any(target_os = "windows", test))]
-fn windows_data_dir(local_app_data: Option<std::ffi::OsString>) -> Result<PathBuf> {
+fn windows_data_dir(local_app_data: Option<std::ffi::OsString>, name: &str) -> Result<PathBuf> {
     let base = PathBuf::from(local_app_data.context("LOCALAPPDATA is unavailable")?);
     anyhow::ensure!(base.is_absolute(), "LOCALAPPDATA must be an absolute path");
-    Ok(base.join("ClickPulse"))
+    Ok(base.join(name))
 }
 
 pub fn log_path() -> Result<PathBuf> {
@@ -53,7 +63,7 @@ pub fn log_path() -> Result<PathBuf> {
     return Ok(PathBuf::from(
         std::env::var_os("HOME").context("Cannot determine the log directory")?,
     )
-    .join("Library/Logs/clickpulse.log"));
+    .join("Library/Logs/clickpulse-social.log"));
     #[cfg(not(target_os = "macos"))]
     Ok(data_dir()?.join("logs/clickpulse.log"))
 }
@@ -67,6 +77,15 @@ pub fn auto_start_enabled() -> bool {
     return linux::auto_start_enabled();
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     false
+}
+
+/// Move this program's startup entry away from the name shared with upstream.
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub fn adopt_legacy_auto_start() -> Result<bool> {
+    #[cfg(target_os = "windows")]
+    return windows::adopt_legacy_auto_start();
+    #[cfg(target_os = "linux")]
+    return linux::adopt_legacy_auto_start();
 }
 
 pub fn set_auto_start(enabled: bool) -> Result<()> {
@@ -116,22 +135,26 @@ mod tests {
 
     #[test]
     fn windows_data_directory_never_resolves_relative_to_the_working_directory() {
-        assert!(windows_data_dir(None).is_err());
+        assert!(windows_data_dir(None, "X").is_err());
         for value in ["", ".", "profile/AppData/Local"] {
-            assert!(windows_data_dir(Some(value.into())).is_err());
+            assert!(windows_data_dir(Some(value.into()), "X").is_err());
         }
         #[cfg(target_os = "windows")]
         for value in [
             r"C:Users\tester\AppData\Local",
             r"\Users\tester\AppData\Local",
         ] {
-            assert!(windows_data_dir(Some(value.into())).is_err());
+            assert!(windows_data_dir(Some(value.into()), "X").is_err());
         }
         let profile = tempfile::tempdir().unwrap();
         let base = profile.path().join("AppData").join("Local");
         assert_eq!(
-            windows_data_dir(Some(base.clone().into_os_string())).unwrap(),
-            base.join("ClickPulse")
+            windows_data_dir(
+                Some(base.clone().into_os_string()),
+                crate::identity::DATA_DIR
+            )
+            .unwrap(),
+            base.join("ClickPulse Social")
         );
         assert!(!base.exists(), "resolving a path must not create user data");
     }

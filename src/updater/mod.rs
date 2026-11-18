@@ -631,7 +631,9 @@ pub fn cache_dir() -> Result<PathBuf> {
     {
         Ok(
             PathBuf::from(std::env::var_os("HOME").context("Home directory unavailable")?)
-                .join("Library/Caches/ClickPulse/updates"),
+                .join("Library/Caches")
+                .join(crate::identity::DATA_DIR)
+                .join("updates"),
         )
     }
     #[cfg(target_os = "windows")]
@@ -645,7 +647,8 @@ pub fn cache_dir() -> Result<PathBuf> {
             std::env::var_os("HOME"),
             ".cache",
         )?
-        .join("ClickPulse/updates"))
+        .join(crate::identity::DATA_DIR)
+        .join("updates"))
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {

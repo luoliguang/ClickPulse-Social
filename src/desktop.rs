@@ -139,7 +139,7 @@ pub fn run(
             .open(profile.join("profile.lock"))?;
         lock.try_lock().map_err(|_| {
             anyhow::anyhow!(
-                "ClickPulse is already running. Open its existing menu-bar or tray window."
+                "ClickPulse Social is already running. Open its existing menu-bar or tray window."
             )
         })?;
         Some(lock)
@@ -163,7 +163,7 @@ pub fn run(
     #[cfg(target_os = "linux")]
     if profile_lock.is_some() {
         use tao::platform::unix::EventLoopBuilderExtUnix;
-        event_builder.with_app_id("app.clickpulse.desktop");
+        event_builder.with_app_id(clickpulse::identity::LINUX_APP_ID);
     }
     #[allow(unused_mut)]
     let mut event_loop = event_builder.build();
@@ -990,7 +990,7 @@ pub fn run(
                             #[cfg(target_os = "linux")]
                             if !demo && !source_mode {
                                 rfd::MessageDialog::new()
-                                    .set_title("ClickPulse")
+                                    .set_title(clickpulse::identity::APP_NAME)
                                     .set_description(locale.text("settings.permission_description"))
                                     .set_level(rfd::MessageLevel::Info)
                                     .show();
@@ -1444,7 +1444,7 @@ fn update_status(
     } else {
         "status.permission"
     };
-    tray.set_tooltip(Some(format!("ClickPulse · {}", locale.text(status))))
+    tray.set_tooltip(Some(format!("ClickPulse Social · {}", locale.text(status))))
         .ok();
 }
 

@@ -14,10 +14,12 @@ button:disabled,select:disabled {opacity:.45;cursor:default}
 [hidden] {display:none!important}
 .sidebar {width:220px;flex:none;background:var(--navy);padding:28px 15px 20px;display:flex;flex-direction:column;color:#c8d7ee}
 html[data-platform="macos"] .sidebar {padding-top:46px}
-.brand {display:flex;align-items:center;gap:10px;font-family:var(--sans);font-size:18px;line-height:1.25;font-weight:700;letter-spacing:-.5px;padding:0 5px;color:#f8fbff}
-.brand-icon {display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:#f5f8ff;border-radius:9px;overflow:hidden}
-.brand-icon img {display:block;width:36px;height:36px;object-fit:contain}
-.brand small {display:block;font:400 11px/1.4 var(--sans);letter-spacing:0;white-space:nowrap;color:#a4b8d3;margin-top:5px}
+.brand {display:flex;align-items:center;gap:9px;padding:0 5px;color:#f8fbff}
+.brand-icon {display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;background:#f5f8ff;border-radius:8px;overflow:hidden}
+.brand-icon img {display:block;width:32px;height:32px;object-fit:contain}
+.brand-copy {min-width:0;line-height:1.15}
+.brand-copy strong {display:block;font:600 15px/1.2 var(--sans);letter-spacing:-.25px}
+.brand-copy small {display:block;margin-top:2px;font:400 10px/1.35 var(--sans);letter-spacing:0;white-space:nowrap;color:#a4b8d3}
 nav {display:flex;flex-direction:column;gap:6px;margin-top:28px}
 nav button {position:relative;display:flex;align-items:center;text-align:left;border:0;background:transparent;color:#a9bbd5;min-height:44px;padding:11px 10px;border-radius:6px;gap:10px;font:500 var(--ui-label-size)/1.5 var(--sans)}
 nav button:hover {background:#193456;color:#f5f9ff}
@@ -28,7 +30,6 @@ nav button.selected:before {position:absolute;content:'';left:-15px;top:10px;bot
 nav button.selected .nav-icon {color:#7dd3fc}
 .sidebar-bottom {margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:9px;font:500 11px/1.4 var(--sans);padding:16px 5px 0;color:#a0b6d2;border-top:1px solid #284060}
 .sidebar-version {font-weight:600;font-variant-numeric:tabular-nums}
-.sidebar-bottom-right {display:flex;align-items:center;gap:9px}
 .feedback-nav {border:1px solid #2e4a72;background:transparent;color:#a9bbd5;padding:4px 9px;border-radius:5px;font:500 11px/1.4 var(--sans);cursor:pointer;white-space:nowrap;transition:background .16s,color .16s}
 .feedback-nav:hover {background:#193456;color:#f5f9ff}
 .feedback-nav:focus-visible {outline:2px solid #60a5fa;outline-offset:2px}

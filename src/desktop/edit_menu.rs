@@ -17,7 +17,7 @@ pub(super) struct EditMenu {
 impl EditMenu {
     pub(super) fn new(locale: Locale, quit: &MenuItem) -> Result<Self> {
         let menu = Menu::new();
-        let app = Submenu::new("ClickPulse", true);
+        let app = Submenu::new(clickpulse::identity::APP_NAME, true);
         // Use the same event-driven Quit as the tray so Cmd+Q drains the writer.
         app.append(quit)?;
         let edit = Submenu::new(locale.text("native.edit"), true);

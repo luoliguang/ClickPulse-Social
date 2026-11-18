@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="__LOCALE__" data-platform="__PLATFORM__"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https://clickpulse.fangdutex.cn; font-src data: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>ClickPulse</title><style>/*__STYLE__*/</style></head>
+<html lang="__LOCALE__" data-platform="__PLATFORM__"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https://clickpulse.fangdutex.cn; font-src data: 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>ClickPulse Social</title><style>/*__STYLE__*/</style></head>
 <body>
 <aside class="sidebar">
-  <div class="brand"><span class="brand-icon"><img src="__BRAND_MARK__" alt="" aria-hidden="true"></span><div>ClickPulse<small data-i18n="brand.description">键鼠统计</small></div></div>
+  <div class="brand"><span class="brand-icon"><img src="__BRAND_MARK__" alt="" aria-hidden="true"></span><div class="brand-copy"><strong>ClickPulse</strong><small><span>Social</span><span aria-hidden="true"> · </span><span data-i18n="brand.description">键鼠统计</span></small></div></div>
   <nav aria-label="主导航" data-i18n-aria="nav.main">
     <button data-page="overview" class="selected"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></span><span data-i18n="page.overview">总览</span></button>
     <button data-page="history"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span><span data-i18n="page.history">历史记录</span></button>
@@ -19,7 +19,7 @@
       <button data-settings-section="about-settings" data-i18n="settings.about">关于与反馈</button>
     </div>
   </nav>
-  <div class="sidebar-bottom"><span>ClickPulse</span><span class="sidebar-bottom-right"><button id="feedback-nav" class="feedback-nav" data-i18n="feedback.short">反馈</button><span class="sidebar-version">__VERSION__</span></span></div>
+  <div class="sidebar-bottom"><button id="feedback-nav" class="feedback-nav" data-i18n="feedback.short">反馈</button><span class="sidebar-version">__VERSION__</span></div>
 </aside>
 <main>
   <header><div class="header-actions"><span id="demo-badge" hidden><span data-i18n="common.demo">演示数据</span></span><button class="button primary" id="compact"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 3 13"/></svg><span data-i18n="action.mini">小屏模式</span></button><div class="window-controls" aria-label="窗口控制" data-i18n-aria="window.controls">
@@ -29,7 +29,7 @@
 </div></div></header>
   <div class="content">
     <div class="page-heading"><div><h1 id="page-title"><span data-i18n="page.overview">总览</span></h1><p id="page-description"><span data-i18n="page.overview.description">键盘输入与鼠标点击统计</span></p></div><div class="heading-right"><span id="date"><span data-i18n="common.loading">读取中…</span></span><div class="status" id="status"><i></i><span><span data-i18n="common.connecting">连接中</span></span></div></div></div>
-    <div class="banner" id="permission-banner" hidden><div><strong><span id="permission-title" data-i18n="permission.title">需要输入监控权限</span><span id="permission-updated-title" data-i18n="permission.updated_title" hidden>更新后需要重新允许输入监控</span></strong><p><span data-i18n="permission.description">授权后开始记录按键和点击次数，不记录输入内容。</span></p><p id="permission-reset" data-i18n="permission.reset_hint">如果开关已经打开：先退出 ClickPulse，在列表中选中它并点“−”移除，再点“+”重新添加，然后重新打开 ClickPulse。</p></div><button class="button primary" id="permission"><span data-i18n="action.authorize">授权</span></button></div>
+    <div class="banner" id="permission-banner" hidden><div><strong><span id="permission-title" data-i18n="permission.title">需要输入监控权限</span><span id="permission-updated-title" data-i18n="permission.updated_title" hidden>更新后需要重新允许输入监控</span></strong><p><span data-i18n="permission.description">授权后开始记录按键和点击次数，不记录输入内容。</span></p><p id="permission-reset" data-i18n="permission.reset_hint">如果开关已经打开：先退出 ClickPulse Social，在列表中选中它并点“−”移除，再点“+”重新添加，然后重新打开 ClickPulse。</p></div><button class="button primary" id="permission"><span data-i18n="action.authorize">授权</span></button></div>
     <div class="banner error" id="error-banner" hidden></div>
     <div class="banner" id="data-operation-status" role="status" aria-live="polite" hidden><p id="data-operation-message" data-i18n="storage.processing">正在处理历史数据…可继续浏览，统计将在完成后更新。</p></div>
     <section class="page" id="overview">
@@ -75,7 +75,7 @@
             <label class="share-toggle"><span data-i18n="common.mouse">鼠标</span><span class="preference-switch"><input id="share-mouse" type="checkbox" checked><span aria-hidden="true"></span></span></label>
             <label class="share-toggle"><span data-i18n="share.peak">活跃时段</span><span class="preference-switch"><input id="share-peak" type="checkbox" checked><span aria-hidden="true"></span></span></label>
             <label class="share-toggle"><span data-i18n="share.qr">官网二维码</span><span class="preference-switch"><input id="share-qr" type="checkbox" checked><span aria-hidden="true"></span></span></label>
-            <label class="share-toggle"><span data-i18n="share.brand">ClickPulse 标记</span><span class="preference-switch"><input id="share-brand" type="checkbox" checked><span aria-hidden="true"></span></span></label>
+            <label class="share-toggle"><span data-i18n="share.brand">ClickPulse Social 标记</span><span class="preference-switch"><input id="share-brand" type="checkbox" checked><span aria-hidden="true"></span></span></label>
             <label class="share-toggle"><span><span data-i18n="share.privacy">隐私模式</span><small data-i18n="share.privacy_hint">隐藏具体次数和精确时段</small></span><span class="preference-switch"><input id="share-privacy" type="checkbox"><span aria-hidden="true"></span></span></label>
           </article>
           <div class="share-actions"><button class="button" id="share-copy" data-i18n="share.copy">复制图片</button><button class="button primary" id="share-save" data-i18n="share.save">保存 PNG</button></div>
@@ -105,7 +105,7 @@
       <article class="card settings-card personalization-card" id="personalization-settings" tabindex="-1"><h2 data-i18n="settings.personalization">个性化</h2><div class="setting-row"><div><strong data-i18n="settings.theme">主题</strong></div><select id="theme-select" aria-label="主题" data-i18n-aria="settings.theme"><option value="blue" data-i18n="theme.blue">蓝色</option><option value="teal" data-i18n="theme.teal">青绿</option><option value="violet" data-i18n="theme.violet">紫色</option><option value="graphite" data-i18n="theme.graphite">石墨灰</option><option value="pink" data-i18n="theme.pink">粉色</option></select></div>
         <div class="setting-row"><div><span class="setting-label"><strong data-i18n="sport.setting_title">Sport 模式</strong><span class="info-tip"><button type="button" class="info-tip-trigger" aria-label="Sport 模式说明" data-i18n-aria="sport.setting_hint"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.4 6.2a2 2 0 1 1 2.5 1.9c-.8.4-1.1.9-1.1 1.6v.4"/><path d="M7.8 12.6h.01"/></svg></button><span class="info-tip-bubble" role="tooltip" aria-hidden="true"><span data-i18n="sport.setting_hint">在 Mini 小窗中根据打字和点击速度显示动态特效，并给出 C 到 SS 的评级。</span></span></span></span></div><label class="preference-switch"><input id="sport-visible" type="checkbox" aria-label="显示 Sport 开关" data-i18n-aria="sport.show_control"><span aria-hidden="true"></span></label></div>
       </article>
-      <article class="card settings-card" id="handoff-settings" tabindex="-1" hidden><h2><span data-i18n="settings.migration">记录迁移</span></h2><div class="setting-row"><div><strong><span data-i18n="settings.takeover">迁移并接管记录</span></strong><p id="handoff-description"><span data-i18n="settings.takeover_wait">授权后可迁移历史并接管记录。</span></p></div><button class="button primary" id="takeover" disabled><span data-i18n="action.takeover">迁移并接管</span></button></div></article><article class="card settings-card" id="capture-settings" tabindex="-1" hidden><h2><span data-i18n="settings.recording">记录与权限</span></h2><div class="setting-row" id="permission-row"><div><strong><span data-i18n="settings.permission">输入监控权限</span></strong><p id="permission-description"><span data-i18n="common.loading">读取中…</span></p><p id="permission-reset-settings" data-i18n="permission.reset_hint" hidden>如果开关已经打开：先退出 ClickPulse，在列表中选中它并点“−”移除，再点“+”重新添加，然后重新打开 ClickPulse。</p></div><button class="button" id="settings-permission"><span data-i18n="action.permissions">管理权限</span></button></div></article>
+      <article class="card settings-card" id="handoff-settings" tabindex="-1" hidden><h2><span data-i18n="settings.migration">记录迁移</span></h2><div class="setting-row"><div><strong><span data-i18n="settings.takeover">迁移并接管记录</span></strong><p id="handoff-description"><span data-i18n="settings.takeover_wait">授权后可迁移历史并接管记录。</span></p></div><button class="button primary" id="takeover" disabled><span data-i18n="action.takeover">迁移并接管</span></button></div></article><article class="card settings-card" id="capture-settings" tabindex="-1" hidden><h2><span data-i18n="settings.recording">记录与权限</span></h2><div class="setting-row" id="permission-row"><div><strong><span data-i18n="settings.permission">输入监控权限</span></strong><p id="permission-description"><span data-i18n="common.loading">读取中…</span></p><p id="permission-reset-settings" data-i18n="permission.reset_hint" hidden>如果开关已经打开：先退出 ClickPulse Social，在列表中选中它并点“−”移除，再点“+”重新添加，然后重新打开 ClickPulse。</p></div><button class="button" id="settings-permission"><span data-i18n="action.permissions">管理权限</span></button></div></article>
       <article class="card settings-card" id="storage-settings" tabindex="-1"><h2 data-i18n="storage.title">数据管理</h2>
         <div class="setting-row"><div><strong data-i18n="settings.location">数据位置</strong><p id="db-description"></p><p id="db-path" class="path"></p></div><div class="setting-actions"><button class="button" id="storage-directory" data-i18n="action.choose_directory">更改目录</button><button class="button" id="reveal" data-i18n="action.reveal">打开位置</button></div></div>
         <div class="setting-row" id="import-history-row"><div><strong data-i18n="storage.import_title">导入历史数据</strong><p data-i18n="storage.import_description">合并 ClickPulse 的 SQLite 历史数据库。导入前会备份当前记录。</p></div><button class="button" id="import-history" data-i18n="action.import_database">导入数据库</button></div>
@@ -133,10 +133,10 @@
     <div class="close-dialog-actions"><button class="button primary" id="update-complete-done" data-i18n="feedback.done">知道了</button></div>
   </section>
 </div>
-<section id="mini-widget" class="mini-widget" hidden aria-label="ClickPulse 小屏模式" data-i18n-aria="mini.label">
+<section id="mini-widget" class="mini-widget" hidden aria-label="ClickPulse Social 小屏模式" data-i18n-aria="mini.label">
   <canvas id="sport-canvas" class="mini-sport-canvas" aria-hidden="true" hidden></canvas><div id="mini-sport-layer" class="mini-sport-layer" aria-hidden="true" hidden></div>
   <div class="mini-top">
-    <div class="mini-brand" id="mini-drag" title="拖动面板" data-i18n-title="mini.drag"><img src="__BRAND_MARK__" alt=""><strong>ClickPulse</strong><span class="mini-grip" aria-hidden="true">⠿</span></div>
+    <div class="mini-brand" id="mini-drag" title="拖动面板" data-i18n-title="mini.drag"><img src="__BRAND_MARK__" alt=""><strong>ClickPulse Social</strong><span class="mini-grip" aria-hidden="true">⠿</span></div>
     <div class="mini-actions">
       <button id="mini-update" class="mini-update-trigger" type="button" aria-expanded="false" aria-controls="mini-update-panel" data-i18n-aria="update.mini_open" data-i18n-title="update.mini_open" hidden><span aria-hidden="true"></span><b data-i18n="update.mini_badge">更新</b></button>
       <button id="mini-sport" class="mini-icon" aria-pressed="false" aria-label="开启 Sport 模式" data-i18n-aria="sport.enable" title="开启 Sport 模式" data-i18n-title="sport.enable"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 2 5 11h5l-1 7 6-10h-5Z"/></svg></button>
@@ -161,7 +161,7 @@
 </section>
 <div id="close-overlay" class="close-overlay" hidden>
 <section class="close-dialog" role="dialog" aria-modal="true" aria-labelledby="close-title" aria-describedby="close-description">
-<div class="close-dialog-heading"><h2 id="close-title" data-i18n="close.title">关闭 ClickPulse</h2><button id="close-cancel" class="window-control" aria-label="取消" data-i18n-aria="close.cancel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></div>
+<div class="close-dialog-heading"><h2 id="close-title" data-i18n="close.title">关闭 ClickPulse Social</h2><button id="close-cancel" class="window-control" aria-label="取消" data-i18n-aria="close.cancel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg></button></div>
 <p id="close-description" data-i18n="close.description">收起后继续记录；退出将保存数据并停止记录。</p>
 <label class="close-remember"><input type="checkbox" id="close-remember"><span data-i18n="close.remember">记住我的选择</span></label>
 <div class="close-dialog-actions"><button class="button" id="close-hide" data-i18n="close.hide">收起到托盘</button><button class="button primary" id="close-quit" data-i18n="close.quit">保存并退出</button></div>

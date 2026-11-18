@@ -66,7 +66,7 @@ pub fn database_path() -> Result<PathBuf> {
     resolve(&crate::platform::data_dir()?)
 }
 
-fn resolve(profile: &Path) -> Result<PathBuf> {
+pub(crate) fn resolve(profile: &Path) -> Result<PathBuf> {
     let path = profile.join("storage.json");
     match std::fs::read(&path) {
         Ok(bytes) => {

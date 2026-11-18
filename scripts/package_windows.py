@@ -57,14 +57,14 @@ with tempfile.TemporaryDirectory(prefix='.windows-package-', dir=dist) as tempor
     licenses.mkdir()
     for file in [*(root/'assets/fonts').glob('*-OFL.txt'), *(root/'assets/windows').glob('*LICENSE*.txt'), *(root/'assets/windows').glob('*NOTICE*.txt')]:
         shutil.copy2(file, licenses/file.name)
-    notices = ['ClickPulse third-party notices', '', 'Fonts: Inter, Noto Sans SC and Noto Sans Mono. Full SIL OFL licenses are in Licenses/.', 'WebView2Loader.dll: Microsoft WebView2 SDK 1.0.3650.58. SDK license/notice and webview2-rs MIT license are in Licenses/.', '', rust_notices(metadata, root)]
+    notices = ['ClickPulse Social third-party notices', '', 'Fonts: Inter, Noto Sans SC and Noto Sans Mono. Full SIL OFL licenses are in Licenses/.', 'WebView2Loader.dll: Microsoft WebView2 SDK 1.0.3650.58. SDK license/notice and webview2-rs MIT license are in Licenses/.', '', rust_notices(metadata, root)]
     (bundle/'THIRD-PARTY-NOTICES.txt').write_text('\n'.join(notices), encoding='utf-8')
-    (bundle/'README.txt').write_text(f'''ClickPulse {version} — Windows x64
+    (bundle/'README.txt').write_text(f'''ClickPulse Social {version} — Windows x64
 
 Code license: GNU GPL version 3 or later (GPL-3.0-or-later).
 Full license: LICENSE.txt. Third-party assets retain their licenses.
 
-Extract the entire folder to a fixed location such as %LOCALAPPDATA%\\Programs\\ClickPulse.
+Extract the entire folder to a fixed location such as %LOCALAPPDATA%\\Programs\\ClickPulse Social.
 Keep WebView2Loader.dll beside the EXE and open ClickPulse.exe. No Setup installer is required.
 The program is unsigned. Windows 11 Smart App Control may block it; ZIP packaging does not bypass this policy.
 Windows 10/11 x64 requires Microsoft Edge WebView2 Runtime:
@@ -82,7 +82,7 @@ Enable launch at login in Settings, then keep the application folder in a fixed 
 
 Held keys count once until released. Mouse counts track button presses.
 No typed text or pointer coordinates are stored.
-Statistics and preferences: %LOCALAPPDATA%\\ClickPulse; logs are in its logs folder.
+Statistics and preferences: %LOCALAPPDATA%\\ClickPulse Social; logs are in its logs folder.
 Font licenses and third-party notices: Licenses/ and THIRD-PARTY-NOTICES.txt.
 Full installation guide: docs/install-windows.md in the source repository.
 

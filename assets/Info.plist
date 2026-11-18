@@ -7,7 +7,7 @@
 	<key>CFBundleLocalizations</key>
 	<array><string>en</string><string>zh-Hans</string><string>zh-Hant</string><string>ja</string><string>ko</string><string>fr</string><string>de</string><string>es</string></array>
 	<key>CFBundleDisplayName</key>
-	<string>ClickPulse</string>
+	<string>ClickPulse Social</string>
 	<key>CFBundleExecutable</key>
 	<string>clickpulse</string>
 	<key>CFBundleIconFile</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleIdentifier</key>
 	<string>app.clickpulse.desktop</string>
 	<key>CFBundleName</key>
-	<string>ClickPulse</string>
+	<string>ClickPulse Social</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,6 +27,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSInputMonitoringUsageDescription</key>
-	<string>ClickPulse counts keystrokes and mouse clicks. It does not record typed content or pointer positions.</string>
+	<string>ClickPulse Social counts keystrokes and mouse clicks. It does not record typed content or pointer positions.</string>
 </dict>
 </plist>

@@ -23,9 +23,14 @@ fn startup_path() -> Result<PathBuf> {
         std::env::var_os("HOME"),
         ".config",
     )?
-    .join("autostart/app.clickpulse.desktop.desktop"))
+    .join("autostart")
+    .join(crate::identity::LINUX_STARTUP_FILE))
+}
+fn legacy_startup_path() -> Result<PathBuf> {
+    Ok(startup_path()?.with_file_name(crate::identity::LEGACY_LINUX_STARTUP_FILE))
 }
 const MARKER: &str = "X-ClickPulse-Managed=true";
+const SOCIAL_MARKER: &str = "X-ClickPulse-Social-Managed=true";
 fn desktop_entry(executable: &Path) -> Result<String> {
     let executable = executable
         .to_str()
@@ -48,7 +53,7 @@ fn desktop_entry(executable: &Path) -> Result<String> {
     }
     let escaped = quoted.replace('\\', "\\\\");
     Ok(format!(
-        "[Desktop Entry]\nType=Application\nName=ClickPulse\nExec=\"{escaped}\" --background\nTerminal=false\n{MARKER}\n"
+        "[Desktop Entry]\nType=Application\nName=ClickPulse Social\nExec=\"{escaped}\" --background\nTerminal=false\n{MARKER}\n{SOCIAL_MARKER}\n"
     ))
 }
 pub fn auto_start_enabled() -> bool {
@@ -59,6 +64,29 @@ pub fn auto_start_enabled() -> bool {
             v.lines().any(|line| line == MARKER) && !v.lines().any(|line| line == "Hidden=true")
         })
 }
+/// Move this program's own startup entry away from the file name shared with
+/// upstream ClickPulse. An entry that launches another copy is left untouched.
+pub fn adopt_legacy_auto_start() -> Result<bool> {
+    let legacy = legacy_startup_path()?;
+    if !legacy.is_file() || legacy.is_symlink() {
+        return Ok(false);
+    }
+    let current = desktop_entry(&std::env::current_exe()?)?;
+    let exec = |text: &str| {
+        text.lines()
+            .find(|line| line.starts_with("Exec="))
+            .map(str::to_owned)
+    };
+    let old = std::fs::read_to_string(&legacy)?;
+    if !old.lines().any(|line| line == MARKER) || exec(&old) != exec(&current) {
+        return Ok(false);
+    }
+    if !startup_path()?.exists() && !old.lines().any(|line| line == "Hidden=true") {
+        set_auto_start(true)?;
+    }
+    std::fs::remove_file(legacy)?;
+    Ok(true)
+}
 pub fn set_auto_start(enabled: bool) -> Result<()> {
     let path = startup_path()?;
     if path.exists() {
@@ -67,7 +95,7 @@ pub fn set_auto_start(enabled: bool) -> Result<()> {
             std::fs::read_to_string(&path)?
                 .lines()
                 .any(|line| line == MARKER),
-            "Existing startup entry is not managed by ClickPulse"
+            "Existing startup entry is not managed by ClickPulse Social"
         );
     }
     if enabled {

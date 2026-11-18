@@ -362,17 +362,17 @@ fn helper_process_waits_for_saved_parent_and_preserves_profile_files() {
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
     #[cfg(target_os = "macos")]
-    let profile = home.join("Library/Application Support/ClickPulse");
+    let profile = home.join("Library/Application Support/ClickPulse Social");
     #[cfg(target_os = "windows")]
-    let profile = home.join("AppData/Local/ClickPulse");
+    let profile = home.join("AppData/Local/ClickPulse Social");
     #[cfg(target_os = "linux")]
-    let profile = home.join(".local/share/ClickPulse");
+    let profile = home.join(".local/share/ClickPulse Social");
     #[cfg(target_os = "macos")]
-    let cache = home.join("Library/Caches/ClickPulse/updates");
+    let cache = home.join("Library/Caches/ClickPulse Social/updates");
     #[cfg(target_os = "windows")]
     let cache = profile.join("updates");
     #[cfg(target_os = "linux")]
-    let cache = home.join(".cache/ClickPulse/updates");
+    let cache = home.join(".cache/ClickPulse Social/updates");
     fs::create_dir_all(&profile).unwrap();
     fs::create_dir_all(&cache).unwrap();
     File::create(profile.join("profile.lock")).unwrap();

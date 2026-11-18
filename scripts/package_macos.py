@@ -89,25 +89,25 @@ def main():
         shutil.copy2(ROOT/'LICENSE', resources/'LICENSE.txt')
         for file in sorted((ROOT/'assets/fonts').glob('*-OFL.txt')):
             shutil.copy2(file, licenses/file.name)
-        (resources/'THIRD-PARTY-NOTICES.txt').write_text('ClickPulse third-party notices\n\nFonts: Inter, Noto Sans SC and Noto Sans Mono. Full SIL OFL licenses are in Licenses/.\n\n'+rust_notices(metadata, ROOT), encoding='utf-8')
+        (resources/'THIRD-PARTY-NOTICES.txt').write_text('ClickPulse Social third-party notices\n\nFonts: Inter, Noto Sans SC and Noto Sans Mono. Full SIL OFL licenses are in Licenses/.\n\n'+rust_notices(metadata, ROOT), encoding='utf-8')
         shutil.copytree(ROOT/'assets/localizations', resources, dirs_exist_ok=True)
         run([sys.executable, 'scripts/make_icon.py', str(resources/'ClickPulseLogo.icns')])
         run(['codesign', '--force', '--sign', '-', '--identifier', 'app.clickpulse.desktop', str(app)])
         run(['codesign', '--verify', '--deep', '--strict', str(app)])
-        (stage/'Install Guide.txt').write_text(f'''ClickPulse {version} / macOS 12+ / {chip} ({arch})
+        (stage/'Install Guide.txt').write_text(f'''ClickPulse Social {version} / macOS 12+ / {chip} ({arch})
 
 Code license: GNU GPL version 3 or later (GPL-3.0-or-later).
 Full license: Contents/Resources/LICENSE.txt inside the App. Third-party assets retain their licenses.
 
 Drag the complete ClickPulse.app to Applications, or your own ~/Applications folder.
 Open the installed App; if blocked, add the per-App Open Anyway exception in macOS settings.
-Enable ClickPulse under Privacy & Security > Input Monitoring, then Quit & Reopen.
+Enable ClickPulse Social under Privacy & Security > Input Monitoring, then Quit & Reopen.
 Confirm Recording and increasing counts.
 
 Quit the old App before replacing it in the same location for an update.
 This is an ad-hoc preview without Apple notarization; updated builds may need a new permission grant.
 Do not delete statistics to fix permissions.
-History and preferences remain in ~/Library/Application Support/ClickPulse when the App is replaced or removed.
+History and preferences remain in ~/Library/Application Support/ClickPulse Social when the App is replaced or removed.
 
 Full installation guide: docs/install-macos.md in the source repository.
 ''', encoding='utf-8')
@@ -119,7 +119,7 @@ Full installation guide: docs/install-macos.md in the source repository.
         (stage/'build-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
         create_zip(stage, temp/(name+'.zip'))
         (stage/'Applications').symlink_to('/Applications', target_is_directory=True)
-        run(['hdiutil', 'create', '-quiet', '-volname', 'ClickPulse', '-srcfolder', str(stage),
+        run(['hdiutil', 'create', '-quiet', '-volname', 'ClickPulse Social', '-srcfolder', str(stage),
              '-format', 'UDZO', str(temp/(name+'.dmg'))])
         # Retain any earlier generated App rather than modifying an installed copy.
         destination = dist/('ClickPulse.app' if arch == 'arm64' else 'ClickPulse-macos-x64.app')
