@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.6 · 2026-11-17
+
+### Improved
+
+- Present the independently maintained app as ClickPulse Social throughout the interface and platform metadata.
+- Use a compact two-line brand lockup in the sidebar and remove the repeated footer name.
+- Keep a visible update action in the full window after an automatic check finds a new version.
+
+### Fixed
+
+- Store statistics, preferences, caches, process locks, and login startup entries separately from upstream ClickPulse.
+- Copy existing ClickPulse Social history and preferences once into the new private data folder without changing the original files.
+- Migrate only startup entries that launch this installation, leaving an upstream ClickPulse installation untouched.
+
 ## 0.4.5 · 2026-11-17
 
 ### New
