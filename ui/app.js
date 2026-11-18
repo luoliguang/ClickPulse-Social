@@ -46,9 +46,12 @@ function renderMiniUpdate(){
   const version=updateState.version,view=window.presentationView||{};
   const until=Number(view.update_snoozed_until),sameVersion=view.update_snoozed_version===version;
   const snoozed=sameVersion&&Number.isFinite(until)&&Date.now()/1000<until;
-  const offered=['available','ready'].includes(updateState.status)&&!!version&&updateState.automatic!==false&&!snoozed;
-  trigger.hidden=!offered;
-  if(!offered){closeMiniUpdate();if(snoozed){const delay=Math.min(2147483647,Math.max(0,until*1000-Date.now()));updateSnoozeTimer=setTimeout(()=>{updateSnoozeTimer=null;renderMiniUpdate();},delay);}return;}
+  const offered=['available','ready'].includes(updateState.status)&&!!version&&!snoozed;
+  const header=$('header-update');
+  if(header){header.hidden=!offered;header.title=offered?t('update.mini_title',{version}):'';}
+  const miniOffered=offered&&updateState.automatic!==false;
+  trigger.hidden=!miniOffered;
+  if(!miniOffered){closeMiniUpdate();if(snoozed){const delay=Math.min(2147483647,Math.max(0,until*1000-Date.now()));updateSnoozeTimer=setTimeout(()=>{updateSnoozeTimer=null;renderMiniUpdate();},delay);}return;}
   $('mini-update-title').textContent=t('update.mini_title',{version});
   const install=$('mini-update-install'),manual=!!updateState.update_command||!updateState.can_install;
   install.textContent=t(manual?'update.details':'update.install');
@@ -128,6 +131,7 @@ $('check-updates')?.addEventListener('click',()=>{
   send(['available','ready'].includes(updateState.status)&&!updateState.update_command?'install_update':'check_updates');
 });
 $('update-details')?.addEventListener('click',event=>{event.preventDefault();send('update_release');});
+$('header-update')?.addEventListener('click',()=>send(updateState.update_command||!updateState.can_install?'update_release':'install_update'));
 $('automatic-updates')?.addEventListener('change',event=>{
   if(updateInstalling()||updateState.automatic===false)return;
   send('automatic_updates',{enabled:event.target.checked});

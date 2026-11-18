@@ -36,6 +36,9 @@ nav button.selected .nav-icon {color:#7dd3fc}
 main {min-width:0;flex:1;overflow:auto}
 header {position:sticky;top:0;z-index:30;height:58px;display:flex;justify-content:flex-end;align-items:center;padding:0 30px;background:#fff;border-bottom:1px solid var(--line)}
 .header-actions {display:flex;align-items:center;gap:12px}
+.update-header {color:var(--blue);border-color:color-mix(in srgb,var(--blue) 38%,var(--line));background:color-mix(in srgb,var(--blue) 7%,var(--surface))}
+.update-header:hover {border-color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,var(--surface))}
+.update-header-dot {width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 14%,transparent)}
 .content {padding:29px 30px 20px;max-width:1400px;margin:0 auto}
 .page-heading {display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 .eyebrow {font:500 9px var(--sans);letter-spacing:0;color:#3b74bd;margin-bottom:8px}

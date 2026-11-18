@@ -827,7 +827,12 @@ test('manual checks remain available and an offered update never installs withou
     a.window.receiveUpdateState({status:'available',version:'0.2.1',can_install:true});assert.equal(sent.length,0);
     assert.equal(a.get('check-updates').textContent,messages.en['update.install']);
     assert.equal(a.get('update-details').hidden,false);
-    a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
+    assert.equal(a.get('header-update').hidden,false);
+    assert.match(a.get('header-update').title,/0\.2\.1/);
+    a.get('header-update').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
+    a.window.receiveUpdateState({status:'current',version:null});
+    assert.equal(a.get('header-update').hidden,true);
+    a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'check_updates'});
   }
 });
 test('Mini offers update and restart or a persisted three-day deferral',()=>{
