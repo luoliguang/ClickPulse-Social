@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.7 · 2026-11-21
+
+### New
+
+- Paginated leaderboard with load-more button and accurate rank display.
+- Member activity history: view any member's 30-day keyboard and mouse activity through an interactive chart.
+- Privacy control: opt-in to share your activity history with other community members (default off).
+- Self entry remains visible and pinned regardless of your actual rank position.
+
+### Improved
+
+- Leaderboard gracefully degrades when the server has not been updated yet, hiding unavailable features.
+- Leaderboard cache now stores the complete ranked list with deterministic tie-breaking.
+
 ## 0.4.6 · 2026-11-17
 
 ### Improved
