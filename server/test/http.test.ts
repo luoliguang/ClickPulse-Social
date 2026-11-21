@@ -34,6 +34,111 @@ test('strict request schemas reject unexpected activity fields before database a
   await app.close();
 });
 
+test('leaderboard paginates 20 per page and pins the self entry when ranked beyond the first page', async () => {
+  const originalQuery = pool.query.bind(pool);
+  const rows = Array.from({ length: 24 }, (_, index) => ({ id: `member-${index + 1}`, nickname: `Member ${index + 1}`, avatar_file: null, role: 'other', keyboard: String(1000 - index), mouse: '0' }))
+    .concat([{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'developer', keyboard: '1', mouse: '0' }]);
+  try {
+    (pool as any).query = async (sql: string) => {
+      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'developer', activity_visible: false }] };
+      if (sql.includes('FROM leaderboard_members m JOIN leaderboard_daily_stats')) return { rows };
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp();
+    const headers = { authorization: 'Bearer membership-token' };
+    const page1 = await app.inject({ method: 'GET', url: '/api/v1/leaderboard?period=week', headers });
+    assert.equal(page1.statusCode, 200);
+    const first = page1.json();
+    assert.equal(first.page, 1);
+    assert.equal(first.page_size, 20);
+    assert.equal(first.total_entries, 25);
+    assert.equal(first.total_pages, 2);
+    assert.equal(first.entries.length, 20);
+    assert.equal(first.self_rank, 25);
+    assert.equal(first.self_entry.member_id, 'self-id');
+    assert.equal(first.self_entry.rank, 25);
+    assert.equal(first.self_entry.is_self, true);
+    assert.equal(first.entries.some((entry: any) => entry.member_id === 'self-id'), false);
+    const page2 = await app.inject({ method: 'GET', url: '/api/v1/leaderboard?period=week&page=2', headers });
+    const second = page2.json();
+    assert.equal(second.page, 2);
+    assert.equal(second.entries.length, 5);
+    assert.equal(second.entries[4].member_id, 'self-id');
+    assert.equal(second.entries[4].is_self, true);
+    const clamped = await app.inject({ method: 'GET', url: '/api/v1/leaderboard?period=week&page=99', headers });
+    assert.equal(clamped.json().page, 2);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
+test('member activity requires auth and respects the public visibility toggle', async () => {
+  const originalQuery = pool.query.bind(pool);
+  const viewerId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const missingId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const privateId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  const publicId = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+  try {
+    (pool as any).query = async (sql: string, values?: unknown[]) => {
+      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: viewerId, nickname: 'Viewer', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.includes('FROM leaderboard_members WHERE id=$1')) {
+        const id = values?.[0];
+        if (id === missingId) return { rows: [] };
+        if (id === privateId) return { rows: [{ id: privateId, nickname: 'Private', avatar_file: null, role: 'other', activity_visible: false }] };
+        if (id === publicId) return { rows: [{ id: publicId, nickname: 'Public', avatar_file: null, role: 'other', activity_visible: true }] };
+        return { rows: [{ id, nickname: 'Self', avatar_file: null, role: 'other', activity_visible: false }] };
+      }
+      if (sql.includes('FROM leaderboard_daily_stats WHERE member_id')) return { rows: [{ day: '2026-11-21', keyboard: '10', mouse: '5' }] };
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp();
+    const headers = { authorization: 'Bearer membership-token' };
+    const missing = await app.inject({ method: 'GET', url: `/api/v1/members/${missingId}/activity`, headers });
+    assert.equal(missing.statusCode, 404);
+    const hidden = await app.inject({ method: 'GET', url: `/api/v1/members/${privateId}/activity`, headers });
+    assert.equal(hidden.statusCode, 403);
+    assert.equal(hidden.json().error.code, 'activity_private');
+    const visible = await app.inject({ method: 'GET', url: `/api/v1/members/${publicId}/activity?days=7`, headers });
+    assert.equal(visible.statusCode, 200);
+    const body = visible.json();
+    assert.equal(body.member.id, publicId);
+    assert.equal(body.days.length, 1);
+    assert.equal(body.days[0].keyboard, 10);
+    assert.equal(body.days[0].total, 15);
+    const self = await app.inject({ method: 'GET', url: `/api/v1/members/${viewerId}/activity`, headers });
+    assert.equal(self.statusCode, 200);
+    const anonymous = await app.inject({ method: 'GET', url: `/api/v1/members/${publicId}/activity` });
+    assert.equal(anonymous.statusCode, 401);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
+test('PATCH /me updates the activity visibility flag and returns it', async () => {
+  const originalQuery = pool.query.bind(pool);
+  try {
+    (pool as any).query = async (sql: string, values?: unknown[]) => {
+      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.startsWith('UPDATE leaderboard_members SET')) {
+        assert.match(sql, /activity_visible/);
+        assert.ok((values as unknown[]).includes(true));
+        return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'other', activity_visible: true }] };
+      }
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp();
+    const updated = await app.inject({ method: 'PATCH', url: '/api/v1/me', headers: { authorization: 'Bearer membership-token' }, payload: { activity_visible: true } });
+    assert.equal(updated.statusCode, 200);
+    assert.equal(updated.json().activity_visible, true);
+    const invalid = await app.inject({ method: 'PATCH', url: '/api/v1/me', headers: { authorization: 'Bearer membership-token' }, payload: { activity_visible: 'yes' } });
+    assert.equal(invalid.statusCode, 400);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
 test('joining records the invitation slot and leaving releases it atomically', async () => {
   const originalQuery = pool.query.bind(pool), originalConnect = pool.connect.bind(pool);
   const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];

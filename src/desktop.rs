@@ -61,6 +61,8 @@ enum UiEvent {
     },
     Leaderboard(std::result::Result<serde_json::Value, String>),
     LeaderboardBackground(std::result::Result<serde_json::Value, String>),
+    LeaderboardActivity(std::result::Result<serde_json::Value, String>),
+    LeaderboardVisibility(std::result::Result<serde_json::Value, String>),
     #[cfg(target_os = "windows")]
     Activate,
 }
@@ -525,6 +527,30 @@ pub fn run(
                     ));
                 }
             }
+            Event::UserEvent(UiEvent::LeaderboardActivity(result)) => {
+                let script = match result {
+                    Ok(value) => format!("window.receiveLeaderboardActivity?.({value});"),
+                    Err(error) => serde_json::to_string(&error)
+                        .map(|error| format!("window.receiveLeaderboardActivityError?.({error});"))
+                        .unwrap_or_default(),
+                };
+                if ready {
+                    let _ = webview.evaluate_script(&script);
+                }
+            }
+            Event::UserEvent(UiEvent::LeaderboardVisibility(result)) => {
+                let script = match result {
+                    Ok(value) => format!("window.receiveLeaderboardVisibility?.({value});"),
+                    Err(error) => serde_json::to_string(&error)
+                        .map(|error| {
+                            format!("window.receiveLeaderboardVisibilityError?.({error});")
+                        })
+                        .unwrap_or_default(),
+                };
+                if ready {
+                    let _ = webview.evaluate_script(&script);
+                }
+            }
             Event::UserEvent(UiEvent::SportSample { id, result })
                 if sport_samples.complete(id).is_some()
                     && ready
@@ -851,7 +877,7 @@ pub fn run(
                             }
                             view_changed = true;
                         }
-                        Request::Leaderboard { period } => {
+                        Request::Leaderboard { period, page } => {
                             leaderboard_period = period;
                             if demo {
                                 let _ = snapshot_proxy.send_event(UiEvent::Leaderboard(Ok(
@@ -859,7 +885,7 @@ pub fn run(
                                 )));
                             } else {
                                 leaderboard_syncing = true;
-                                leaderboard::load(snapshot_proxy.clone(), period);
+                                leaderboard::load(snapshot_proxy.clone(), period, page);
                             }
                         }
                         Request::LeaderboardJoin {
@@ -941,6 +967,28 @@ pub fn run(
                         Request::LeaderboardLeave {} => {
                             leaderboard_syncing = true;
                             leaderboard::leave(snapshot_proxy.clone());
+                        }
+                        Request::LeaderboardActivity { member_id, days } => {
+                            if demo {
+                                let _ = webview.evaluate_script(
+                                    "window.receiveLeaderboardActivityError?.('Activity is unavailable in demo mode.');",
+                                );
+                            } else {
+                                leaderboard::activity(
+                                    snapshot_proxy.clone(),
+                                    member_id,
+                                    days.unwrap_or(30),
+                                );
+                            }
+                        }
+                        Request::LeaderboardVisibility { visible } => {
+                            if demo {
+                                let _ = webview.evaluate_script(
+                                    "window.receiveLeaderboardVisibility?.({activity_visible:false});",
+                                );
+                            } else {
+                                leaderboard::set_visibility(snapshot_proxy.clone(), visible);
+                            }
                         }
                         Request::SportSample {} => {
                             if ready
@@ -1208,7 +1256,7 @@ pub fn run(
                 {
                     leaderboard_background_refreshing = true;
                     next_leaderboard_refresh = Instant::now() + Duration::from_secs(30);
-                    leaderboard::load_background(snapshot_proxy.clone(), leaderboard_period);
+                    leaderboard::load_background(snapshot_proxy.clone(), leaderboard_period, 1);
                 }
                 if ready
                     && data_job.is_none()

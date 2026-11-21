@@ -863,7 +863,7 @@ test('demo leaderboard role stays selectable and local across refreshes and lang
   select.value='designer';select.fire('change');
   assert.equal(sent.length,0,'demo changes never call the profile API');
   assert.equal(a.get('leaderboard-rows').children[0].children[1].children[0].children[2].textContent,'Designer');
-  a.leaderboardPeriods[1].fire();assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week'});
+  a.leaderboardPeriods[1].fire();assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1});
   a.window.receiveLeaderboard(demo('week'));
   assert.equal(select.value,'designer','a demo refresh keeps the current session choice');
   a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
@@ -882,6 +882,26 @@ test('uploaded leaderboard avatars never retain default initials',()=>{
   assert.equal(fallback.textContent,'L');assert.equal(fallback.dataset.avatar,'default');
   assert.equal(uploaded.textContent,'');assert.equal(uploaded.dataset.avatar,'image');
   assert.match(uploaded.style.backgroundImage,/avatar\.png/);
+});
+test('legacy leaderboard totals and activity controls remain compatible during API rollout',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  const board={period:'today',entries:[
+    {rank:1,member_id:'self',nickname:'Luo',avatar:{url:null,initial:'L',color:'#123'},keyboard:4,mouse:2,total:6,is_self:true},
+    {rank:2,member_id:'other',nickname:'Mika',avatar:{url:null,initial:'M',color:'#456'},keyboard:2,mouse:1,total:3}
+  ],starts_on:'2026-11-16',ends_on:'2026-11-16',self_rank:1};
+  const legacy={profile:{joined:true,nickname:'Luo',member_id:'self'},board};
+  a.window.receiveLeaderboard(legacy);a.window.receiveLeaderboard(legacy);sent.length=0;
+  assert.equal(a.get('leaderboard-count').textContent,'2 / 2 shown');
+  assert.equal(a.get('leaderboard-visibility-row').hidden,true);
+  a.get('leaderboard-rows').children[1].fire();
+  assert.equal(sent.length,0,'legacy rows do not open an endpoint the old API does not have');
+
+  a.window.receiveLeaderboard({profile:{...legacy.profile,activity_supported:true,activity_visible:false},board:{...board,page:1,page_size:20,total_entries:2,total_pages:1}});
+  assert.equal(a.get('leaderboard-visibility-row').hidden,false);
+  a.get('leaderboard-rows').children[1].fire();
+  assert.deepEqual(sent.pop(),{action:'leaderboard_activity',member_id:'other',days:30});
+  a.get('leaderboard-visibility').checked=true;a.get('leaderboard-visibility').fire('change');
+  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:true});
 });
 test('Scoop-managed updates keep checks and localized guidance without sending install requests',()=>{
   for(const locale of Object.keys(messages)){
@@ -926,7 +946,7 @@ test('leaderboard period changes preserve old rows while loading and nickname ed
   a.window.receiveLeaderboard(today);sent.length=0;
   assert.equal(a.get('leaderboard-rows').children.length,1);
   a.leaderboardPeriods[1].fire();
-  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week'});
+  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1});
   assert.equal(a.get('leaderboard-rows').children.length,1,'the previous board remains visible until the response arrives');
   assert.equal(a.get('leaderboard-period-segments').dataset.period,'week');
   a.window.receiveLeaderboard({...today,board:{...today.board,period:'week',starts_on:'2026-11-10'}});

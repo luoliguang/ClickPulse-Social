@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS leaderboard_members (
 
 ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'other';
 
+ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS activity_visible BOOLEAN NOT NULL DEFAULT FALSE;
+
 DO $$
 BEGIN
   IF NOT EXISTS (

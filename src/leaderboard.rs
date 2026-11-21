@@ -1,5 +1,5 @@
 //! Opt-in leaderboard client. Local activity remains private until a member joins.
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     io::Read,
@@ -92,6 +92,21 @@ pub struct Board {
     pub ends_on: String,
     pub entries: Vec<Entry>,
     pub self_rank: Option<u64>,
+    #[serde(default)]
+    pub page: u64,
+    #[serde(default)]
+    pub page_size: u64,
+    #[serde(default)]
+    pub total_entries: u64,
+    #[serde(default)]
+    pub total_pages: u64,
+    #[serde(default)]
+    pub self_entry: Option<Entry>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct Me {
+    activity_visible: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -272,19 +287,87 @@ pub fn sync(profile: &Profile, days: &[DailyCount<'_>]) -> Result<()> {
     Ok(())
 }
 
-pub fn board(profile: Option<&Profile>, period: Period) -> Result<Board> {
+fn board_url(period: Period, page: u64) -> String {
     let period = match period {
         Period::Today => "today",
         Period::Week => "week",
     };
+    if page <= 1 {
+        // Older deployed APIs reject unknown query parameters. Omitting page=1 keeps
+        // the first page usable while the server and desktop app roll out separately.
+        format!("{API_BASE}/leaderboard?period={period}")
+    } else {
+        format!("{API_BASE}/leaderboard?period={period}&page={page}")
+    }
+}
+
+pub fn board(profile: Option<&Profile>, period: Period, page: u64) -> Result<Board> {
     let client = agent();
     let mut request = client
-        .get(format!("{API_BASE}/leaderboard?period={period}"))
+        .get(board_url(period, page))
         .header("Accept", "application/json");
     if let Some(profile) = profile {
         request = request.header("Authorization", &format!("Bearer {}", profile.token));
     }
     read_json(request.call()?)
+}
+
+pub fn me(profile: &Profile) -> Result<Option<bool>> {
+    let client = agent();
+    let response = client
+        .get(format!("{API_BASE}/me"))
+        .header("Accept", "application/json")
+        .header("Authorization", &format!("Bearer {}", profile.token))
+        .call()?;
+    let member: Me = read_json(response)?;
+    Ok(member.activity_visible)
+}
+
+pub fn activity(profile: &Profile, member_id: &str, days: u64) -> Result<serde_json::Value> {
+    let client = agent();
+    let response = client
+        .get(format!(
+            "{API_BASE}/members/{member_id}/activity?days={days}"
+        ))
+        .header("Accept", "application/json")
+        .header("Authorization", &format!("Bearer {}", profile.token))
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()?;
+    let status = response.status().as_u16();
+    let value: serde_json::Value = read_json(response)?;
+    if status >= 400 {
+        let code = value
+            .pointer("/error/code")
+            .and_then(|code| code.as_str())
+            .unwrap_or("unknown");
+        let message = value
+            .pointer("/error/message")
+            .and_then(|message| message.as_str())
+            .unwrap_or("Unable to load activity");
+        if code == "activity_private" || code == "not_found" {
+            bail!("{code}");
+        }
+        bail!("{message}");
+    }
+    Ok(value)
+}
+
+pub fn set_activity_visible(profile: &Profile, visible: bool) -> Result<()> {
+    #[derive(Serialize)]
+    struct Visibility {
+        activity_visible: bool,
+    }
+    let _: serde_json::Value = json_request(
+        "PATCH",
+        "/me",
+        &Visibility {
+            activity_visible: visible,
+        },
+        Some(profile),
+    )?;
+    Ok(())
 }
 
 pub fn rename(profile: &mut Profile, nickname: &str) -> Result<()> {
@@ -417,5 +500,40 @@ mod tests {
         assert!(output.len() <= MAX_AVATAR);
         assert_eq!(&output[..4], b"RIFF");
         assert_eq!(&output[8..12], b"WEBP");
+    }
+    #[test]
+    fn first_page_url_remains_compatible_with_the_legacy_server() {
+        assert_eq!(
+            board_url(Period::Today, 1),
+            format!("{API_BASE}/leaderboard?period=today")
+        );
+        assert_eq!(
+            board_url(Period::Week, 2),
+            format!("{API_BASE}/leaderboard?period=week&page=2")
+        );
+    }
+    #[test]
+    fn board_tolerates_legacy_payloads_and_reads_pagination_metadata() {
+        let legacy: Board = serde_json::from_str(
+            r#"{"period":"week","starts_on":"2026-11-16","ends_on":"2026-11-22","entries":[],"self_rank":null}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.page, 0);
+        assert_eq!(legacy.total_pages, 0);
+        assert!(legacy.self_entry.is_none());
+        let paged: Board = serde_json::from_str(
+            r##"{"period":"today","starts_on":"2026-11-22","ends_on":"2026-11-22","entries":[],"self_rank":3,"page":1,"page_size":20,"total_entries":57,"total_pages":3,"self_entry":{"rank":3,"member_id":"m1","nickname":"Luo","role":"developer","avatar":{"url":null,"initial":"L","color":"#2563eb"},"keyboard":10,"mouse":2,"total":12,"is_self":true}}"##,
+        )
+        .unwrap();
+        assert_eq!(paged.page_size, 20);
+        assert_eq!(paged.total_entries, 57);
+        assert_eq!(paged.self_entry.unwrap().rank, 3);
+    }
+    #[test]
+    fn legacy_member_payload_does_not_claim_activity_support() {
+        let legacy: Me = serde_json::from_str(r#"{"id":"m1"}"#).unwrap();
+        let current: Me = serde_json::from_str(r#"{"activity_visible":false}"#).unwrap();
+        assert_eq!(legacy.activity_visible, None);
+        assert_eq!(current.activity_visible, Some(false));
     }
 }

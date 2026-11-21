@@ -7,6 +7,10 @@ use clickpulse::{
 };
 use serde::Deserialize;
 
+fn default_page() -> u64 {
+    1
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum Request {
@@ -54,6 +58,8 @@ pub(super) enum Request {
     },
     Leaderboard {
         period: clickpulse::leaderboard::Period,
+        #[serde(default = "default_page")]
+        page: u64,
     },
     LeaderboardJoin {
         invite_code: String,
@@ -78,6 +84,13 @@ pub(super) enum Request {
         period: clickpulse::leaderboard::Period,
     },
     LeaderboardLeave {},
+    LeaderboardActivity {
+        member_id: String,
+        days: Option<u64>,
+    },
+    LeaderboardVisibility {
+        visible: bool,
+    },
     Pause {},
     Permission {},
     Autostart {
@@ -139,6 +152,10 @@ mod tests {
             r#"{"action":"sport_skin","skin":"warp"}"#,
             r#"{"action":"sport_sample","mouse":99999}"#,
             r#"{"action":"leaderboard","period":"lifetime"}"#,
+            r#"{"action":"leaderboard","period":"today","page":-1}"#,
+            r#"{"action":"leaderboard_activity","member_id":7}"#,
+            r#"{"action":"leaderboard_visibility"}"#,
+            r#"{"action":"leaderboard_visibility","visible":"true"}"#,
             r#"{"action":"leaderboard_join","invite_code":"x"}"#,
             r#"{"action":"leaderboard_sync","period":"today","keyboard":1}"#,
             r#"{"action":"leaderboard_leave","keep_data":true}"#,
@@ -191,6 +208,37 @@ mod tests {
             Request::LeaderboardSync {
                 period: clickpulse::leaderboard::Period::Week
             }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"today"}"#)
+                .unwrap(),
+            Request::Leaderboard {
+                period: clickpulse::leaderboard::Period::Today,
+                page: 1
+            }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"week","page":3}"#)
+                .unwrap(),
+            Request::Leaderboard {
+                period: clickpulse::leaderboard::Period::Week,
+                page: 3
+            }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_activity","member_id":"m1","days":30}"#
+            )
+            .unwrap(),
+            Request::LeaderboardActivity { member_id, days }
+                if member_id == "m1" && days == Some(30)
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_visibility","visible":true}"#
+            )
+            .unwrap(),
+            Request::LeaderboardVisibility { visible: true }
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(

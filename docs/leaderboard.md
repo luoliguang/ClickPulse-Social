@@ -17,6 +17,12 @@ The first release offers a Shanghai-calendar today ranking and Monday-through-Su
 
 Membership credentials are generated randomly. The server stores only their SHA-256 hashes. Invitation codes are also stored only as hashes and can expire, have limited active-member capacity, or be revoked. Joining occupies one slot; leaving releases that slot so a still-valid invitation can be used again. The maintainer creates and manages them through the password-protected `/admin` page; plaintext codes are returned only once at creation. A member can remove their avatar or leave the leaderboard; leaving deletes the member, daily totals, and avatar from the service.
 
+## Member activity
+
+Joined members can open another member's activity detail: a 30-day view of the same absolute daily keyboard and mouse totals that already feed the ranking, plus a short summary (total events, active days, and peak day). This is a detail view of already-public aggregate numbers, not a new data source — the client still never uploads per-key, per-app, or per-minute information.
+
+This detail is **off by default** for every member. A member must explicitly enable it in their leaderboard profile; the server enforces the flag on every request and returns an error for members who have not opted in. A member can always view their own detail regardless of the flag.
+
 ## Service boundary
 
 The API runs independently at `clickpulse.fangdutex.cn` with a dedicated PostgreSQL database, process, port, deployment directory, and private avatar directory. It does not share the pinyin application's database or files. See [`server/README.md`](../server/README.md) for deployment details.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allowedUploadDates, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from '../src/domain';
+import { activityRange, allowedUploadDates, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from '../src/domain';
 
 test('nicknames are normalized and unsafe or oversized names are rejected', () => {
   assert.deepEqual(normalizeNickname('  Luo   Yang  '), { nickname: 'Luo Yang', key: 'luo yang' });
@@ -27,6 +27,13 @@ test('week is Monday through Sunday in Asia Shanghai', () => {
   const bounds = periodBounds('week', new Date('2026-06-17T04:00:00Z'));
   assert.deepEqual(bounds, { start: '2026-06-15', end: '2026-06-21' });
   assert.deepEqual(periodBounds('today', new Date('2026-06-17T20:00:00Z')), { start: '2026-06-18', end: '2026-06-18' });
+});
+
+test('activity range spans the requested trailing days and clamps to safe bounds', () => {
+  assert.deepEqual(activityRange(7, new Date('2026-06-17T04:00:00Z')), { start: '2026-06-11', end: '2026-06-17' });
+  assert.deepEqual(activityRange(1, new Date('2026-06-17T04:00:00Z')), { start: '2026-06-17', end: '2026-06-17' });
+  assert.deepEqual(activityRange(365, new Date('2026-06-17T04:00:00Z')), { start: '2026-03-20', end: '2026-06-17' });
+  assert.deepEqual(activityRange(0, new Date('2026-06-17T04:00:00Z')), { start: '2026-06-17', end: '2026-06-17' });
 });
 
 test('avatar validation checks bounded WebP signatures and defaults are stable', () => {

@@ -17,6 +17,18 @@ fn finish_background(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
     ));
 }
 
+fn finish_activity(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardActivity(
+        result.map_err(|error| format!("{error:#}")),
+    ));
+}
+
+fn finish_visibility(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardVisibility(
+        result.map_err(|error| format!("{error:#}")),
+    ));
+}
+
 fn spawn(proxy: EventLoopProxy<UiEvent>, task: impl FnOnce() -> Result<Value> + Send + 'static) {
     thread::Builder::new()
         .name("clickpulse-leaderboard".into())
@@ -24,10 +36,27 @@ fn spawn(proxy: EventLoopProxy<UiEvent>, task: impl FnOnce() -> Result<Value> + 
         .ok();
 }
 
-fn state(period: Period) -> Result<Value> {
+fn state(period: Period, page: u64) -> Result<Value> {
     let profile = leaderboard::load_profile()?;
     let board = match &profile {
-        Some(profile) => Some(leaderboard::board(Some(profile), period)?),
+        Some(profile) => Some(leaderboard::board(Some(profile), period, page)?),
+        None => None,
+    };
+    let mut summary = leaderboard::profile_summary(profile.as_ref());
+    if let Some(profile) = &profile {
+        summary["activity_supported"] = Value::Bool(false);
+        if let Ok(Some(visible)) = leaderboard::me(profile) {
+            summary["activity_supported"] = Value::Bool(true);
+            summary["activity_visible"] = Value::Bool(visible);
+        }
+    }
+    Ok(json!({"profile":summary,"board":board}))
+}
+
+fn state_background(period: Period, page: u64) -> Result<Value> {
+    let profile = leaderboard::load_profile()?;
+    let board = match &profile {
+        Some(profile) => Some(leaderboard::board(Some(profile), period, page)?),
         None => None,
     };
     Ok(json!({"profile":leaderboard::profile_summary(profile.as_ref()),"board":board}))
@@ -49,20 +78,53 @@ pub(super) fn demo(period: Period) -> Value {
         "avatar":{"url":null,"initial":nickname.chars().next().unwrap_or('?').to_string(),"color":color},
         "keyboard":keyboard,"mouse":mouse,"total":keyboard + mouse,"is_self":id == "demo"
     })).collect::<Vec<_>>();
+    let self_entry = entries
+        .iter()
+        .find(|entry| entry["member_id"] == "demo")
+        .cloned();
     json!({
-        "profile":{"joined":true,"member_id":"demo","nickname":"罗洋洋","role":"developer","demo":true},
-        "board":{"period":period_name,"starts_on":"2026-11-10","ends_on":"2026-11-16","entries":entries,"self_rank":2}
+        "profile":{"joined":true,"member_id":"demo","nickname":"罗洋洋","role":"developer","activity_supported":false,"activity_visible":false,"demo":true},
+        "board":{"period":period_name,"starts_on":"2026-11-10","ends_on":"2026-11-16","entries":entries,"self_rank":2,"page":1,"page_size":20,"total_entries":5,"total_pages":1,"self_entry":self_entry}
     })
 }
 
-pub(super) fn load(proxy: EventLoopProxy<UiEvent>, period: Period) {
-    spawn(proxy, move || state(period));
+pub(super) fn load(proxy: EventLoopProxy<UiEvent>, period: Period, page: u64) {
+    spawn(proxy, move || state(period, page));
 }
 
-pub(super) fn load_background(proxy: EventLoopProxy<UiEvent>, period: Period) {
+pub(super) fn load_background(proxy: EventLoopProxy<UiEvent>, period: Period, page: u64) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-refresh".into())
-        .spawn(move || finish_background(proxy, state(period)))
+        .spawn(move || finish_background(proxy, state_background(period, page)))
+        .ok();
+}
+
+pub(super) fn activity(proxy: EventLoopProxy<UiEvent>, member_id: String, days: u64) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-activity".into())
+        .spawn(move || {
+            let result = (|| -> Result<Value> {
+                let profile = leaderboard::load_profile()?
+                    .context("Join the leaderboard to view activity")?;
+                leaderboard::activity(&profile, &member_id, days)
+            })();
+            finish_activity(proxy, result);
+        })
+        .ok();
+}
+
+pub(super) fn set_visibility(proxy: EventLoopProxy<UiEvent>, visible: bool) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-visibility".into())
+        .spawn(move || {
+            let result = (|| -> Result<Value> {
+                let profile =
+                    leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+                leaderboard::set_activity_visible(&profile, visible)?;
+                Ok(json!({"activity_visible":visible}))
+            })();
+            finish_visibility(proxy, result);
+        })
         .ok();
 }
 
@@ -78,7 +140,7 @@ pub(super) fn join(
             "This installation has already joined the leaderboard"
         );
         leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
-        state(Period::Today)
+        state(Period::Today, 1)
     });
 }
 
@@ -123,7 +185,7 @@ pub(super) fn sync_snapshot(proxy: EventLoopProxy<UiEvent>, snapshot: String, pe
             })
             .collect::<Vec<_>>();
         leaderboard::sync(&profile, &days)?;
-        state(period)
+        state(period, 1)
     });
 }
 
@@ -132,7 +194,7 @@ pub(super) fn rename(proxy: EventLoopProxy<UiEvent>, nickname: String, period: P
         let mut profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::rename(&mut profile, nickname.trim())?;
-        state(period)
+        state(period, 1)
     });
 }
 
@@ -141,7 +203,7 @@ pub(super) fn set_role(proxy: EventLoopProxy<UiEvent>, role: String, period: Per
         let mut profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::set_role(&mut profile, role.trim())?;
-        state(period)
+        state(period, 1)
     });
 }
 
@@ -158,7 +220,7 @@ pub(super) fn upload_avatar(proxy: EventLoopProxy<UiEvent>, path: PathBuf, perio
         let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         let bytes = leaderboard::prepare_avatar(&path)?;
         leaderboard::upload_avatar(&profile, &bytes)?;
-        state(period)
+        state(period, 1)
     });
 }
 
@@ -166,6 +228,6 @@ pub(super) fn delete_avatar(proxy: EventLoopProxy<UiEvent>, period: Period) {
     spawn(proxy, move || {
         let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::delete_avatar(&profile)?;
-        state(period)
+        state(period, 1)
     });
 }

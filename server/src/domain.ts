@@ -71,6 +71,11 @@ export function periodBounds(period: 'today' | 'week', now = new Date()): { star
   return { start: shanghaiDate(mondayOffset, now), end: shanghaiDate(mondayOffset + 6, now) };
 }
 
+export function activityRange(days: number, now = new Date()): { start: string; end: string } {
+  const count = Math.max(1, Math.min(90, Math.trunc(days)));
+  return { start: shanghaiDate(-(count - 1), now), end: shanghaiDate(0, now) };
+}
+
 const COLORS = ['#2563eb', '#0f766e', '#7c3aed', '#c2410c', '#be123c', '#0369a1'];
 export function defaultAvatar(memberId: string, nickname: string) {
   const digest = createHash('sha256').update(memberId).digest();
