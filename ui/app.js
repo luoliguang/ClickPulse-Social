@@ -176,7 +176,8 @@ feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOver
 feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});
 
 const LEADERBOARD_MAX_PAGES=10;
-let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',demoLeaderboardRole=null,leaderboardState={profile:{joined:false},board:null},leaderboardPage=0;
+const LEADERBOARD_REQUEST_TIMEOUT=30000;
+let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',demoLeaderboardRole=null,leaderboardState={profile:{joined:false},board:null},leaderboardPage=0,leaderboardRequestTimer=null;
 const LEADERBOARD_ROLES=['developer','designer','product_manager','operations','marketing','data','engineer','researcher','teacher','writer','student','office','finance','sales','hr','customer_support','legal','medical','freelancer','other'];
 function leaderboardRoleLabel(role){return t('leaderboard.role.'+(role||'other'));}
 function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';Dropdowns.sync(select);}
@@ -211,9 +212,12 @@ function setLeaderboardEditing(editing){
   $('leaderboard-name-display').hidden=editing;$('leaderboard-name-form').hidden=!editing;
   if(editing){const input=$('leaderboard-name-input');input.value=leaderboardState.profile?.nickname||'';input.focus();input.select?.();}
 }
+function clearLeaderboardRequestTimer(){if(leaderboardRequestTimer){clearTimeout(leaderboardRequestTimer);leaderboardRequestTimer=null;}}
+function armLeaderboardRequestTimeout(){clearLeaderboardRequestTimer();leaderboardRequestTimer=setTimeout(()=>{leaderboardRequestTimer=null;leaderboardBusy=false;setLeaderboardBusy(false);$('leaderboard-error').textContent=t('leaderboard.request_timeout');$('leaderboard-error').hidden=false;},LEADERBOARD_REQUEST_TIMEOUT);}
 function requestLeaderboard(sync=false,page=1){
   if(page>LEADERBOARD_MAX_PAGES){window.toast(t('leaderboard.page_limit'));return;}
-  setLeaderboardBusy(true);$('leaderboard-error').hidden=true;
+  if(leaderboardBusy)return;
+  setLeaderboardBusy(true);armLeaderboardRequestTimeout();$('leaderboard-error').hidden=true;
   const refresh=sync&&leaderboardState.profile?.joined&&!leaderboardState.profile?.demo;
   send(refresh?'leaderboard_sync':'leaderboard',refresh?{period:leaderboardPeriod}:{period:leaderboardPeriod,page});
 }
@@ -254,6 +258,7 @@ function renderLeaderboard(){
   if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25},{opacity:1}],{duration:160,easing:'ease-out'});
 }
 window.receiveLeaderboard=state=>{
+  clearLeaderboardRequestTimer();
   if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
   const renamed=leaderboardRenamePending&&state.profile?.nickname===leaderboardRenameValue;
   if(leaderboardRenamePending&&!renamed)return;
@@ -283,8 +288,8 @@ window.receiveLeaderboardBackground=state=>{
   }
   leaderboardState=incoming;renderLeaderboard();
 };
-window.receiveLeaderboardError=message=>{leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
-window.receiveLeaderboardCancelled=()=>setLeaderboardBusy(false);
+window.receiveLeaderboardError=message=>{clearLeaderboardRequestTimer();leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
+window.receiveLeaderboardCancelled=()=>{clearLeaderboardRequestTimer();setLeaderboardBusy(false);};
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
 const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
 let leaderboardConfirmAction=null,leaderboardConfirmPreviousFocus=null,leaderboardConfirmKind=null;
@@ -411,6 +416,7 @@ window.receiveLeaderboardVisibility=state=>{if(state?.activity_visible!==undefin
 window.receiveLeaderboardVisibilityError=message=>{window.toast(message);renderLeaderboard();};
 $('leaderboard-load-more')?.addEventListener('click',()=>{if(!leaderboardBusy&&leaderboardState.board&&leaderboardPage<Math.min(leaderboardState.board.total_pages,LEADERBOARD_MAX_PAGES))requestLeaderboard(false,leaderboardPage+1);});
 $('leaderboard-visibility')?.addEventListener('change',()=>{
+  if(leaderboardBusy){$('leaderboard-visibility').checked=!!leaderboardState.profile?.activity_visible;return;}
   const visible=$('leaderboard-visibility').checked;
   if(leaderboardState.profile?.demo){$('leaderboard-visibility').checked=!!leaderboardState.profile.activity_visible;return;}
   if(visible){
