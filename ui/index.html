@@ -98,7 +98,7 @@
       <article class="card leaderboard-board" id="leaderboard-board">
         <div class="card-heading"><div><h2 data-i18n="leaderboard.title">社区排行榜</h2><p id="leaderboard-range"></p></div><div class="leaderboard-toolbar"><div class="segments leaderboard-period-segments" id="leaderboard-period-segments" data-period="today"><button class="selected" data-leaderboard-period="today" data-i18n="leaderboard.today">今日榜</button><button data-leaderboard-period="week" data-i18n="leaderboard.week">本周榜</button></div><button class="button" id="leaderboard-sync" data-i18n="leaderboard.sync">同步并刷新</button></div></div>
         <div class="table-wrap"><table class="leaderboard-table"><thead><tr><th data-i18n="leaderboard.rank">名次</th><th data-i18n="leaderboard.member">成员</th><th data-i18n="common.keyboard">键盘</th><th data-i18n="common.mouse">鼠标</th><th data-i18n="history.total">总计</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
-        <div class="leaderboard-footer"><p id="leaderboard-count" class="leaderboard-count"></p><button class="button" id="leaderboard-load-more" data-i18n="leaderboard.load_more" hidden>加载更多</button></div>
+        <div class="leaderboard-footer"><p id="leaderboard-count" class="leaderboard-count" role="status" aria-live="polite" aria-atomic="true"></p><button class="button" id="leaderboard-load-more" data-i18n="leaderboard.load_more" hidden>加载更多</button></div>
         <p id="leaderboard-empty" class="leaderboard-empty" data-i18n="leaderboard.empty" hidden>还没有上榜成员。</p>
       </article>
     </section>
