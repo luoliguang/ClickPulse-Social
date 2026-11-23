@@ -200,7 +200,7 @@ function leaderboardAvatar(node,avatar,nickname){
   node.style.backgroundImage=hasImage?`url("${url.replace(/["\\]/g,'')}")`:'';
 }
 function setLeaderboardBusy(busy){
-  leaderboardBusy=busy;if(!busy)clearLeaderboardRequestTimer();$('leaderboard-loading').hidden=!busy;
+  leaderboardBusy=busy;if(busy)armLeaderboardRequestTimeout();else clearLeaderboardRequestTimer();$('leaderboard-loading').hidden=!busy;
   $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
   $('leaderboard-sync').classList.toggle('is-loading',busy);
   for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit','leaderboard-load-more','leaderboard-visibility'])$(id).disabled=busy;
@@ -217,7 +217,7 @@ function armLeaderboardRequestTimeout(){clearLeaderboardRequestTimer();leaderboa
 function requestLeaderboard(sync=false,page=1){
   if(page>LEADERBOARD_MAX_PAGES){window.toast(t('leaderboard.page_limit'));return;}
   if(leaderboardBusy)return;
-  setLeaderboardBusy(true);armLeaderboardRequestTimeout();$('leaderboard-error').hidden=true;
+  setLeaderboardBusy(true);$('leaderboard-error').hidden=true;
   const refresh=sync&&leaderboardState.profile?.joined&&!leaderboardState.profile?.demo;
   send(refresh?'leaderboard_sync':'leaderboard',refresh?{period:leaderboardPeriod}:{period:leaderboardPeriod,page});
 }
@@ -258,10 +258,10 @@ function renderLeaderboard(){
   if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25},{opacity:1}],{duration:160,easing:'ease-out'});
 }
 window.receiveLeaderboard=state=>{
-  clearLeaderboardRequestTimer();
   if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
   const renamed=leaderboardRenamePending&&state.profile?.nickname===leaderboardRenameValue;
   if(leaderboardRenamePending&&!renamed)return;
+  clearLeaderboardRequestTimer();
   const joinedBefore=!!leaderboardState.profile?.joined;leaderboardRenamePending=false;leaderboardRenameValue='';
   const incoming=applyDemoLeaderboardRole(state),page=incoming.board?.page||1;
   if(page>1&&leaderboardState.board?.period===incoming.board?.period&&leaderboardState.board?.entries?.length){
