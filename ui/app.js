@@ -200,7 +200,7 @@ function leaderboardAvatar(node,avatar,nickname){
   node.style.backgroundImage=hasImage?`url("${url.replace(/["\\]/g,'')}")`:'';
 }
 function setLeaderboardBusy(busy){
-  leaderboardBusy=busy;$('leaderboard-loading').hidden=!busy;
+  leaderboardBusy=busy;if(!busy)clearLeaderboardRequestTimer();$('leaderboard-loading').hidden=!busy;
   $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
   $('leaderboard-sync').classList.toggle('is-loading',busy);
   for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit','leaderboard-load-more','leaderboard-visibility'])$(id).disabled=busy;
@@ -312,7 +312,7 @@ function openLeaderboardConfirm(kind,action,values={}){
 }
 $('leaderboard-confirm-close')?.addEventListener('click',closeLeaderboardConfirm);
 $('leaderboard-confirm-cancel')?.addEventListener('click',closeLeaderboardConfirm);
-$('leaderboard-confirm-submit')?.addEventListener('click',()=>{const action=leaderboardConfirmAction;closeLeaderboardConfirm();action?.();});
+$('leaderboard-confirm-submit')?.addEventListener('click',()=>{const action=leaderboardConfirmAction;leaderboardConfirmKind=null;closeLeaderboardConfirm();action?.();});
 leaderboardConfirmOverlay?.addEventListener('click',event=>{if(event.target===leaderboardConfirmOverlay)closeLeaderboardConfirm();});
 leaderboardConfirmOverlay?.addEventListener('keydown',event=>{
   if(event.key==='Escape'){event.preventDefault();closeLeaderboardConfirm();}
@@ -429,7 +429,7 @@ $('leaderboard-activity-close')?.addEventListener('click',closeLeaderboardActivi
 $('leaderboard-activity-overlay')?.addEventListener('click',event=>{if(event.target===$('leaderboard-activity-overlay'))closeLeaderboardActivity();});
 $('leaderboard-activity-overlay')?.addEventListener('keydown',event=>{
   if(event.key==='Escape'){event.preventDefault();closeLeaderboardActivity();}
-  else if(event.key==='Tab'){const focusable=[$('leaderboard-activity-close')];event.preventDefault();focusable[0].focus();}
+  else if(event.key==='Tab'){const focusable=[$('leaderboard-activity-close')],index=focusable.indexOf(document.activeElement);event.preventDefault();focusable[(index+(event.shiftKey?-1:1)+focusable.length)%focusable.length].focus();}
 });
 
 function renderDataOperation(){
