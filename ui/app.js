@@ -565,6 +565,8 @@ function updateKeyboardView(){
 $('keyboard-view-toggle').addEventListener('click',()=>{
   keyboardView=keyboardView==='layout'?'treemap':'layout';updateKeyboardView();
   if(data)renderKeyboard();
+  const target=keyboardView==='treemap'?$('keyboard-treemap'):$('keyboard-layout');
+  target.classList.toggle('keyboard-view-enter',false);void target.offsetWidth;target.classList.toggle('keyboard-view-enter',true);
 });
 if(typeof ResizeObserver==='function')new ResizeObserver(()=>{
   if(page==='keys'&&keyboardView==='treemap'&&!window.presentationView?.compact&&keyboardDistribution)renderKeyboardTreemap(keyboardDistribution);
@@ -886,9 +888,11 @@ function renderHistory(){
   const keyboard=records.reduce((sum,d)=>sum+d.counts.keyboard,0),mouse=records.reduce((sum,d)=>sum+d.counts.mouse,0);
   $('history-summary').textContent=t('history.summary',{days:n(pagination.total),count:n(keyboard+mouse),keyboard:n(keyboard),mouse:n(mouse)});
   renderTrend($('history-chart'),trend);
-  $('history-table').replaceChildren(...pagination.rows.map(d=>{
-    const tr=document.createElement('tr');for(const value of [I.day(d.day),n(d.counts.keyboard),n(d.counts.mouse),n(total(d.counts))]){const td=document.createElement('td');td.textContent=value;tr.append(td)}return tr;
+  const historyTable=$('history-table');
+  historyTable.replaceChildren(...pagination.rows.map((d,i)=>{
+    const tr=document.createElement('tr');tr.style.setProperty('--row-i',i);for(const value of [I.day(d.day),n(d.counts.keyboard),n(d.counts.mouse),n(total(d.counts))]){const td=document.createElement('td');td.textContent=value;tr.append(td)}return tr;
   }));
+  historyTable.classList.toggle('history-table-enter',false);void historyTable.offsetWidth;historyTable.classList.toggle('history-table-enter',true);
   $('history-prev').disabled=historyPage===0;$('history-next').disabled=historyPage+1>=pagination.pages;
   $('history-page-info').textContent=pagination.total?t('history.pagination',{start:n(historyPage*30+1),end:n(Math.min((historyPage+1)*30,pagination.total)),count:n(pagination.total),page:n(historyPage+1),pages:n(pagination.pages)}):t('common.empty_history');
 }
