@@ -2,6 +2,7 @@
   --bg:#f3f6fc; --surface:#fff; --text:#172b4a; --muted:#63758e; --line:#e1e8f3;
   --blue:#2563eb; --cyan:#38bdf8; --navy:#102543; --sans:"ClickPulse UI","ClickPulse Sans",sans-serif; --mono:"ClickPulse Mono","ClickPulse Sans",monospace;
   --ui-label-size:14px; --ui-detail-size:12px; --ui-section-size:16px;
+  --motion-out:cubic-bezier(.23,1,.32,1); --motion-snap:cubic-bezier(.16,1,.3,1);
   font-family:var(--sans);
   color:var(--text);font-size:13px;
 }
@@ -21,10 +22,12 @@ html[data-platform="macos"] .sidebar {padding-top:46px}
 .brand-copy strong {display:block;font:600 15px/1.2 var(--sans);letter-spacing:-.25px}
 .brand-copy small {display:block;margin-top:2px;font:400 10px/1.35 var(--sans);letter-spacing:0;white-space:nowrap;color:#a4b8d3}
 nav {display:flex;flex-direction:column;gap:6px;margin-top:28px}
-nav button {position:relative;display:flex;align-items:center;text-align:left;border:0;background:transparent;color:#a9bbd5;min-height:44px;padding:11px 10px;border-radius:6px;gap:10px;font:500 var(--ui-label-size)/1.5 var(--sans)}
+nav button {position:relative;display:flex;align-items:center;text-align:left;border:0;background:transparent;color:#a9bbd5;min-height:44px;padding:11px 10px;border-radius:6px;gap:10px;font:500 var(--ui-label-size)/1.5 var(--sans);transition:color .16s,background-color .16s,transform .12s var(--motion-out)}
 nav button:hover {background:#193456;color:#f5f9ff}
 nav button.selected {background:#1c3c68;color:white;font-weight:600}
-nav button.selected:before {position:absolute;content:'';left:-15px;top:10px;bottom:10px;width:3px;background:#60a5fa;border-radius:0 2px 2px 0}
+nav button.selected:before {position:absolute;content:'';left:-15px;top:10px;bottom:10px;width:3px;background:#60a5fa;border-radius:0 2px 2px 0;animation:nav-pulse .28s var(--motion-snap)}
+nav button[data-page]:active {transform:scale(.97)}
+@keyframes nav-pulse {50%{transform:scaleY(.72);filter:brightness(1.35)}}
 .nav-icon {display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex:0 0 20px;color:#83a8db}
 .nav-icon svg {display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 nav button.selected .nav-icon {color:#7dd3fc}
@@ -50,7 +53,8 @@ h1 {font-size:26px;line-height:1.3;letter-spacing:-.6px;font-weight:700;margin:0
 .status.paused {background:#eef2f8;color:#62748e}.status.paused i {background:#8b9bb2}
 .status.error {background:#fff1f2;color:#b04761}.status.error i {background:#da5879}
 .button,select {min-height:32px;border:1px solid #cbdaf0;padding:8px 12px;border-radius:7px;color:#315582;background:white;white-space:nowrap;font:650 10px/1.4 var(--sans);box-shadow:0 1px 2px #17376308;transition:background-color .16s,border-color .16s,box-shadow .16s}
-.button {display:inline-flex;align-items:center;justify-content:center;gap:6px;vertical-align:middle}
+.button {display:inline-flex;align-items:center;justify-content:center;gap:6px;vertical-align:middle;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .12s var(--motion-out)}
+.button:active:not(:disabled),.segments button:active:not(:disabled) {transform:scale(.97)}
 .button svg {width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .button:hover,select:hover {background-color:#eef5ff;border-color:#9ab8e2;box-shadow:0 2px 5px #1737630c}
 .button:disabled:hover,select:disabled:hover {background-color:white;border-color:#cbdaf0;box-shadow:none}
@@ -61,6 +65,10 @@ h1 {font-size:26px;line-height:1.3;letter-spacing:-.6px;font-weight:700;margin:0
 .banner.error {background:#fff1f2;color:#a43b53;border-color:#f3c6d0;line-height:1.7}
 .metrics {display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:15px;margin-bottom:18px}
 .metric {background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:21px 21px 15px;min-width:0;position:relative;overflow:hidden}
+.metric.data-pulse {animation:metric-pulse .42s var(--motion-out)}
+.metric.data-pulse .metric-number {animation:number-pop .34s var(--motion-snap)}
+@keyframes metric-pulse {45%{border-color:#60a5fa;box-shadow:0 0 0 4px #3b82f617,0 6px 24px #2563eb1a}}
+@keyframes number-pop {45%{transform:scale(1.045);text-shadow:0 0 14px #7dd3fc80}}
 .metric.featured {background:linear-gradient(115deg,#153768,#2358a3);border-color:#224e89;color:white}
 .metric.featured:after {content:'';position:absolute;width:150px;height:150px;border:1px solid #ffffff13;border-radius:50%;right:-50px;top:-60px;box-shadow:0 0 0 25px #ffffff04,0 0 0 50px #ffffff03;pointer-events:none}
 .metric-label {font-size:10px;color:#607796}
@@ -91,6 +99,8 @@ h2 {font-size:13px;font-weight:650;margin:0;letter-spacing:.1px}
 .mouse-dot {background:var(--cyan);margin-left:12px}
 .chart {height:175px;position:relative}.chart.tall {height:220px}
 .chart svg {width:100%;height:100%;overflow:visible}
+.chart.chart-enter {animation:chart-enter .38s var(--motion-out) both}
+@keyframes chart-enter {from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
 .chart .empty-label {position:absolute;top:44%;left:0;right:0;text-align:center;font-size:10px;color:#7186a3}
 .chart text {font-family:var(--sans);font-variant-numeric:tabular-nums;fill:#8094b1;font-size:9px}
 /* Only the plot scales. HTML axis labels keep their normal glyph proportions. */
@@ -140,6 +150,10 @@ td:first-child,th:first-child {text-align:left}tbody tr:hover {background:#f6f9f
 .settings-card .button,.settings-card select {font:600 var(--ui-label-size)/1.4 var(--sans);text-align:center}
 #demo-badge {font-size:10px;color:#497bc1;border:1px solid #bcd2ef;border-radius:4px;padding:4px 7px}
 #toast {position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#173b6b;color:#fff;padding:12px 20px;border-radius:7px;font-size:12px;box-shadow:0 5px 24px #17376325;max-width:80%;z-index:10}
+#toast:not([hidden]) {animation:toast-enter .24s var(--motion-out) both}
+@keyframes toast-enter {from{opacity:0;transform:translate(-50%,10px) scale(.98)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.page.page-enter {animation:page-enter .2s var(--motion-out) both}
+@keyframes page-enter {from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 .keyboard-card {font-family:var(--sans)}
 .keyboard-heading {align-items:center;margin-bottom:16px;gap:16px}
 #keyboard-view-toggle {flex-shrink:0}
@@ -331,14 +345,20 @@ button,select,.preference-switch {user-select:none;-webkit-user-select:none}
 .hourly-total {font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
 .hourly-chart {height:192px}
 .hourly-plot {position:absolute;top:12px;left:var(--trend-gutter);right:8px;height:calc(100% - 46px);display:grid;gap:4px;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to top,transparent 0,transparent calc(var(--hourly-grid-step) - 1px),var(--line) calc(var(--hourly-grid-step) - 1px),var(--line) var(--hourly-grid-step))}
-.hourly-slot {display:flex;flex-direction:column-reverse;justify-content:flex-start;align-items:center;position:relative;min-width:0;border-radius:3px 3px 0 0;outline-offset:2px;cursor:default}
-.hourly-slot.active,.hourly-slot:hover {background:#2563eb12;background:color-mix(in srgb,var(--blue) 8%,transparent)}
+.hourly-slot {display:flex;flex-direction:column-reverse;justify-content:flex-start;align-items:center;position:relative;min-width:0;border-radius:3px 3px 0 0;outline-offset:2px;cursor:default;transition:background-color .16s,transform .14s var(--motion-out),box-shadow .14s}
+.hourly-slot.active,.hourly-slot:hover {background:#2563eb12;background:color-mix(in srgb,var(--blue) 8%,transparent);transform:translateY(-2px);box-shadow:0 4px 12px #2563eb16}
 .hourly-slot:focus-visible {outline:2px solid var(--blue)}
 .hourly-slot>span {display:block;width:70%;max-width:26px;flex-shrink:0}
 .hourly-keyboard {background:var(--blue)}.hourly-mouse {background:var(--cyan);border-radius:2px 2px 0 0}
 .hourly-slot.partial>span {opacity:.65}
 .hourly-detail {font-size:10px;color:var(--muted);margin:12px 0 0;line-height:1.6;min-height:16px;font-variant-numeric:tabular-nums}
 @media(max-width:900px){.hourly-plot {gap:2px}.hourly-detail {min-height:32px}}
+
+@media(prefers-reduced-motion:reduce){
+  nav button.selected:before,.metric.data-pulse,.metric.data-pulse .metric-number,.chart.chart-enter,#toast:not([hidden]),.page.page-enter {animation:none}
+  .button,nav button,.hourly-slot {transition:none}
+  .button:active:not(:disabled),.segments button:active:not(:disabled),nav button[data-page]:active,.hourly-slot.active,.hourly-slot:hover {transform:none}
+}
 
 /* Expand section shortcuts only while Settings is open. */
 .sidebar {overflow-y:auto}

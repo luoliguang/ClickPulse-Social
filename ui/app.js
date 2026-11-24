@@ -570,6 +570,23 @@ if(typeof ResizeObserver==='function')new ResizeObserver(()=>{
   if(page==='keys'&&keyboardView==='treemap'&&!window.presentationView?.compact&&keyboardDistribution)renderKeyboardTreemap(keyboardDistribution);
 }).observe($('keyboard-treemap'));
 const renderSignatures=new Map();
+const firstChartRender=new WeakSet();
+const metricValues=new Map();
+let lastMetricPulse=0;
+function animateChartOnce(container){
+  if(firstChartRender.has(container))return;
+  firstChartRender.add(container);container.classList.toggle('chart-enter',true);
+  container.addEventListener('animationend',()=>container.classList.toggle('chart-enter',false),{once:true});
+}
+function updateMetric(key,counts){
+  const value=total(counts),previous=metricValues.get(key),node=$(key);
+  setSelectableText(node,n(value));
+  const now=Date.now();
+  if(key==='today'&&previous!==undefined&&value>previous&&now-lastMetricPulse>6000){
+    const target=node.closest?.('.metric')||node;target.classList.toggle('data-pulse',false);void target.offsetWidth;target.classList.toggle('data-pulse',true);lastMetricPulse=now;
+  }
+  metricValues.set(key,value);
+}
 window.setInterfaceTheme=name=>{
   const next=T.get(name).name;$('theme-select').value=next;Dropdowns.sync('theme-select');
   if(next===currentTheme)return;
@@ -604,9 +621,10 @@ for(const link of settingsLinks)link.addEventListener('click',()=>{
 });
 document.querySelectorAll('nav button[data-page]').forEach(button=>button.addEventListener('click',()=>{
   Dropdowns.closeAll();
-  page=button.dataset.page;
+  const previousPage=page;page=button.dataset.page;
   document.querySelectorAll('nav button[data-page]').forEach(b=>b.classList.toggle('selected',b===button));
   document.querySelectorAll('.page').forEach(el=>el.hidden=el.id!==page);
+  if(page!==previousPage){const incoming=$(page);incoming.classList.toggle('page-enter',false);void incoming.offsetWidth;incoming.classList.toggle('page-enter',true);}
   updateHeading();syncSettingsNavigation();
   document.querySelector('main').scrollTop=0;
   window.updateSportActivity();
@@ -661,14 +679,14 @@ window.receive=snapshot=>{
   if(data.capture.error)$('error-banner').textContent=t(data.capture.error_code||'error.recording');
   if(page==='settings')renderSettings();
   if(page==='overview'){
-    for(const key of ['today','week','lifetime']){setSelectableText($(key),n(total(data[key])));setSelectableText($(key+'-detail'),`${t('common.keyboard')} ${n(data[key].keyboard)} / ${t('common.mouse')} ${n(data[key].mouse)}`);}
+    for(const key of ['today','week','lifetime']){updateMetric(key,data[key]);setSelectableText($(key+'-detail'),`${t('common.keyboard')} ${n(data[key].keyboard)} / ${t('common.mouse')} ${n(data[key].mouse)}`);}
     $('legacy-note').textContent=t(data.source_mode?'metric.readonly':data.legacy_imported?'metric.imported':'metric.all');
     renderChanged('windows',data.windows,()=>$('windows').replaceChildren(...data.windows.map(w=>{
       const node=document.createElement('div');node.className='window';const count=document.createElement('strong'),label=document.createElement('span');count.textContent=(w.approximate?'≈ ':'')+n(total(w.counts));label.textContent=t('window.'+w.seconds);node.append(count,label);return node;
     })));
-    renderChanged('hourly',data.hourly||[],()=>renderHourly(data.hourly||[]));
-    renderChanged('trend',[range,data.days.slice(-range)],()=>renderTrend($('trend-chart'),data.days.slice(-range)));
-    renderChanged('donut',data.lifetime,()=>renderDonut(data.lifetime));
+    renderChanged('hourly',data.hourly||[],()=>{renderHourly(data.hourly||[]);animateChartOnce($('hourly-chart'));});
+    renderChanged('trend',[range,data.days.slice(-range)],()=>{renderTrend($('trend-chart'),data.days.slice(-range));animateChartOnce($('trend-chart'));});
+    renderChanged('donut',data.lifetime,()=>{renderDonut(data.lifetime);animateChartOnce($('donut'));});
     updateRangeOptions($('calendar-range-select'),true);calendarRange=$('calendar-range-select').value;
     renderChanged('calendar',[data.now.split('T')[0],calendarRange,data.history_days],renderCalendar);
   }else if(page==='history'){
