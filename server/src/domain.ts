@@ -1,10 +1,21 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 export const MAX_DAILY_COUNT = 5_000_000;
 export const MAX_AVATAR_BYTES = 200 * 1024;
 
 export function hashSecret(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+export function generateRecoveryCodes(count = 8): string[] {
+  return Array.from({ length: count }, () => 'RC_' + randomBytes(16).toString('base64url'));
+}
+
+export function assertRecoveryCode(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('invalid_recovery_code');
+  const code = value.trim();
+  if (!/^RC_[A-Za-z0-9_-]{20,}$/.test(code)) throw new Error('invalid_recovery_code');
+  return code;
 }
 
 export const ROLES = ['developer', 'designer', 'product_manager', 'operations', 'marketing', 'data', 'engineer', 'researcher', 'teacher', 'writer', 'student', 'office', 'finance', 'sales', 'hr', 'customer_support', 'legal', 'medical', 'freelancer', 'other'] as const;

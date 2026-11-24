@@ -139,8 +139,29 @@ pub(super) fn join(
             leaderboard::load_profile()?.is_none(),
             "This installation has already joined the leaderboard"
         );
-        leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
-        state(Period::Today, 1)
+        let (profile, recovery_codes) = leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
+        let profile_json = leaderboard::profile_summary(Some(&profile));
+        let board = leaderboard::board(Some(&profile), Period::Today, 1)?;
+        Ok(json!({
+            "profile": profile_json,
+            "recovery_codes": recovery_codes,
+            "board": board
+        }))
+    });
+}
+
+pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String) {
+    spawn(proxy, move || {
+        ensure!(
+            leaderboard::load_profile()?.is_none(),
+            "Cannot recover: already joined"
+        );
+        let profile = leaderboard::recover(recovery_code.trim())?;
+        let board = leaderboard::board(Some(&profile), Period::Today, 1)?;
+        Ok(json!({
+            "profile": leaderboard::profile_summary(Some(&profile)),
+            "board": board
+        }))
     });
 }
 

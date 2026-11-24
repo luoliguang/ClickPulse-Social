@@ -66,6 +66,9 @@ pub(super) enum Request {
         nickname: String,
         role: String,
     },
+    LeaderboardRecover {
+        recovery_code: String,
+    },
     LeaderboardSync {
         period: clickpulse::leaderboard::Period,
     },
@@ -201,6 +204,14 @@ mod tests {
             .unwrap(),
             Request::LeaderboardJoin { invite_code, nickname, role }
                 if invite_code == "CP_123456" && nickname == "Luo" && role == "developer"
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_recover","recovery_code":"RC_abcd1234567890123456"}"#
+            )
+            .unwrap(),
+            Request::LeaderboardRecover { recovery_code }
+                if recovery_code == "RC_abcd1234567890123456"
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week"}"#)

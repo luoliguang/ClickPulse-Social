@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildApp } from '../src/app';
+import { hashSecret } from '../src/domain';
 import { pool } from '../src/db';
 
 test('health reports the running deployment revision after checking the database', async () => {
@@ -157,9 +158,14 @@ test('joining records the invitation slot and leaving releases it atomically', a
     const joined = await app.inject({ method: 'POST', url: '/api/v1/join', payload: { invite_code: 'CP_123456', nickname: 'Luo', role: 'designer' } });
     assert.equal(joined.statusCode, 201);
     assert.equal(joined.json().member.role, 'designer');
+    assert.ok(Array.isArray(joined.json().recovery_codes));
+    assert.equal(joined.json().recovery_codes.length, 8);
+    for (const code of joined.json().recovery_codes) assert.match(code, /^RC_[A-Za-z0-9_-]{20,}$/);
     const insert = clientQueries.find(entry => entry.sql.startsWith('INSERT INTO leaderboard_members'));
     assert.equal(insert?.values?.[4], 'invite-1');
     assert.equal(insert?.values?.[5], 'designer');
+    assert.ok(Array.isArray(insert?.values?.[6]));
+    assert.equal((insert?.values?.[6] as string[]).length, 8);
     clientQueries.length = 0;
     (pool as any).query = async (sql: string) => {
       assert.match(sql, /invitation_id/);
@@ -173,6 +179,50 @@ test('joining records the invitation slot and leaving releases it atomically', a
     await app.close();
   } finally {
     (pool as any).query = originalQuery;
+    (pool as any).connect = originalConnect;
+  }
+});
+
+test('POST /recover validates recovery codes, rotates token, and removes the used code', async () => {
+  const originalConnect = pool.connect.bind(pool);
+  const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];
+  const recoveryCode = 'RC_validcode1234567890123456';
+  const recoveryHash = hashSecret(recoveryCode);
+  const fakeClient = {
+    query: async (sql: string, values?: unknown[]) => {
+      clientQueries.push({ sql, values });
+      if (sql.includes('WHERE $1=ANY(recovery_codes_hash)')) {
+        if (values?.[0] === recoveryHash) return { rows: [{ id: 'member-recovered', nickname: 'Recovered', avatar_file: null, role: 'developer', activity_visible: false, recovery_codes_hash: [recoveryHash, 'other-hash'] }] };
+        return { rows: [] };
+      }
+      if (sql.startsWith('UPDATE leaderboard_members SET token_hash')) return { rows: [] };
+      return { rows: [], rowCount: 1 };
+    },
+    release: () => undefined,
+  };
+  try {
+    (pool as any).connect = async () => fakeClient;
+    const app = buildApp();
+    const recovered = await app.inject({ method: 'POST', url: '/api/v1/recover', payload: { recovery_code: recoveryCode } });
+    assert.equal(recovered.statusCode, 200);
+    const body = recovered.json();
+    assert.equal(body.member.id, 'member-recovered');
+    assert.equal(body.member.nickname, 'Recovered');
+    assert.ok(typeof body.token === 'string');
+    assert.equal(body.token.length > 20, true);
+    const update = clientQueries.find(entry => entry.sql.startsWith('UPDATE leaderboard_members SET token_hash'));
+    assert.ok(update);
+    assert.ok(Array.isArray(update?.values?.[1]));
+    assert.equal((update?.values?.[1] as string[]).includes(recoveryHash), false);
+    assert.equal(clientQueries.filter(entry => entry.sql === 'COMMIT').length, 1);
+    clientQueries.length = 0;
+    const invalid = await app.inject({ method: 'POST', url: '/api/v1/recover', payload: { recovery_code: 'RC_invalidcode12345678901234' } });
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(invalid.json().error.code, 'invalid_recovery_code');
+    const malformed = await app.inject({ method: 'POST', url: '/api/v1/recover', payload: { recovery_code: 'short' } });
+    assert.equal(malformed.statusCode, 400);
+    await app.close();
+  } finally {
     (pool as any).connect = originalConnect;
   }
 });

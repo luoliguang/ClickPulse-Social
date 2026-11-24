@@ -203,7 +203,7 @@ function setLeaderboardBusy(busy){
   leaderboardBusy=busy;if(busy)armLeaderboardRequestTimeout();else clearLeaderboardRequestTimer();$('leaderboard-loading').hidden=!busy;
   $('leaderboard-board').classList.toggle('is-refreshing',busy);$('leaderboard-board').setAttribute('aria-busy',String(busy));
   $('leaderboard-sync').classList.toggle('is-loading',busy);
-  for(const id of ['leaderboard-join-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit','leaderboard-load-more','leaderboard-visibility'])$(id).disabled=busy;
+  for(const id of ['leaderboard-join-button','leaderboard-recover-button','leaderboard-sync','leaderboard-name-edit','leaderboard-name-input','leaderboard-name-save','leaderboard-name-cancel','leaderboard-avatar-change','leaderboard-avatar-delete','leaderboard-leave','leaderboard-role','leaderboard-role-edit','leaderboard-load-more','leaderboard-visibility'])$(id).disabled=busy;
   Dropdowns.sync('leaderboard-role');Dropdowns.sync('leaderboard-role-edit');
   for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.disabled=busy;
 }
@@ -225,6 +225,7 @@ function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined,activitySupported=profile.activity_supported===true;
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
+  $('leaderboard-recovery-codes').hidden=true;
   $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=leaderboardBusy;
   $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
@@ -277,7 +278,7 @@ window.receiveLeaderboard=state=>{
   }else{
     leaderboardState=incoming;
   }
-  leaderboardPage=page;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
+  leaderboardPage=page;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(Array.isArray(state.recovery_codes)&&state.recovery_codes.length)showRecoveryCodes(state.recovery_codes);if(!joinedBefore&&state.profile?.joined)requestLeaderboard(true);
 };
 window.receiveLeaderboardBackground=state=>{
   if(leaderboardBusy||(state.board?.period&&state.board.period!==leaderboardPeriod))return;
@@ -326,6 +327,26 @@ $('leaderboard-join-button')?.addEventListener('click',()=>{
   if(!invite_code||!nickname){window.toast(t('leaderboard.required'));return;}
   openLeaderboardConfirm('join',()=>{setLeaderboardBusy(true);send('leaderboard_join',{invite_code,nickname,role});},{nickname});
 });
+function setLeaderboardJoinMode(mode){
+  const recover=mode==='recover';$('leaderboard-join-new-form').hidden=recover;$('leaderboard-join-recover-form').hidden=!recover;
+  for(const button of document.querySelectorAll('[data-join-mode]'))button.classList.toggle('selected',button.dataset.joinMode===mode);
+  (recover?$('leaderboard-recovery-code'):$('leaderboard-invite')).focus();
+}
+for(const button of document.querySelectorAll('[data-join-mode]'))button.addEventListener('click',()=>setLeaderboardJoinMode(button.dataset.joinMode));
+$('leaderboard-recover-button')?.addEventListener('click',()=>{
+  const recovery_code=$('leaderboard-recovery-code').value.trim();
+  if(!recovery_code){window.toast(t('leaderboard.recovery_required'));return;}
+  setLeaderboardBusy(true);$('leaderboard-error').hidden=true;send('leaderboard_recover',{recovery_code});
+});
+$('leaderboard-recovery-code')?.addEventListener('keydown',event=>{if(event.key==='Enter'){$('leaderboard-recover-button').click();}});
+function showRecoveryCodes(codes){
+  const card=$('leaderboard-recovery-codes'),list=$('leaderboard-recovery-list');list.replaceChildren(...codes.map(code=>{const item=document.createElement('code');item.textContent=code;return item;}));card.hidden=false;card.scrollIntoView?.({block:'nearest'});
+}
+$('leaderboard-recovery-copy')?.addEventListener('click',async()=>{
+  const value=[...$('leaderboard-recovery-list').querySelectorAll('code')].map(item=>item.textContent).join('\n');
+  try{await navigator.clipboard?.writeText(value);window.toast(t('leaderboard.recovery_copied'));}catch{window.toast(value);}
+});
+$('leaderboard-recovery-done')?.addEventListener('click',()=>{$('leaderboard-recovery-codes').hidden=true;});
 for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.addEventListener('click',()=>{
   if(leaderboardBusy||button.dataset.leaderboardPeriod===leaderboardPeriod)return;
   leaderboardPeriod=button.dataset.leaderboardPeriod;$('leaderboard-period-segments').dataset.period=leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));requestLeaderboard(false);

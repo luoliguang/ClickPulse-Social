@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activityRange, allowedUploadDates, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from '../src/domain';
+import { activityRange, allowedUploadDates, assertRecoveryCode, assertWebp, defaultAvatar, generateRecoveryCodes, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from '../src/domain';
 
 test('nicknames are normalized and unsafe or oversized names are rejected', () => {
   assert.deepEqual(normalizeNickname('  Luo   Yang  '), { nickname: 'Luo Yang', key: 'luo yang' });
@@ -47,4 +47,17 @@ test('secrets are one-way hashed', () => {
   assert.equal(hashSecret('same'), hashSecret('same'));
   assert.notEqual(hashSecret('same'), hashSecret('other'));
   assert.equal(hashSecret('same').length, 64);
+});
+
+test('recovery codes are unique, opaque, and strictly validated', () => {
+  const codes = generateRecoveryCodes(8);
+  assert.equal(codes.length, 8);
+  assert.equal(new Set(codes).size, 8);
+  for (const code of codes) {
+    assert.match(code, /^RC_[A-Za-z0-9_-]{20,}$/);
+    assert.equal(assertRecoveryCode(code), code);
+  }
+  assert.throws(() => assertRecoveryCode('invalid'), /invalid_recovery_code/);
+  assert.throws(() => assertRecoveryCode('RC_short'), /invalid_recovery_code/);
+  assert.throws(() => assertRecoveryCode(123), /invalid_recovery_code/);
 });

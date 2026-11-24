@@ -113,6 +113,8 @@ struct Me {
 struct JoinResponse {
     member: Member,
     token: String,
+    #[serde(default)]
+    recovery_codes: Vec<String>,
 }
 #[derive(Clone, Debug, Deserialize)]
 struct Member {
@@ -250,7 +252,7 @@ fn json_request<T: Serialize, R: DeserializeOwned>(
     read_json(response)
 }
 
-pub fn join(invite_code: &str, nickname: &str, role: &str) -> Result<Profile> {
+pub fn join(invite_code: &str, nickname: &str, role: &str) -> Result<(Profile, Vec<String>)> {
     #[derive(Serialize)]
     struct Join<'a> {
         invite_code: &'a str,
@@ -265,6 +267,29 @@ pub fn join(invite_code: &str, nickname: &str, role: &str) -> Result<Profile> {
             invite_code,
             nickname,
             role: &role,
+        },
+        None,
+    )?;
+    let profile = Profile {
+        member_id: response.member.id,
+        nickname: response.member.nickname,
+        role: response.member.role,
+        token: response.token,
+    };
+    save_profile(&profile)?;
+    Ok((profile, response.recovery_codes))
+}
+
+pub fn recover(recovery_code: &str) -> Result<Profile> {
+    #[derive(Serialize)]
+    struct Recover<'a> {
+        recovery_code: &'a str,
+    }
+    let response: JoinResponse = json_request(
+        "POST",
+        "/recover",
+        &Recover {
+            recovery_code: recovery_code.trim(),
         },
         None,
     )?;

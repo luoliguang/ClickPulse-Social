@@ -905,6 +905,14 @@ pub fn run(
                                 );
                             }
                         }
+                        Request::LeaderboardRecover { recovery_code } => {
+                            if demo || source_mode || runtime.is_none() {
+                                let _ = webview.evaluate_script("window.receiveLeaderboardError?.('Leaderboard recovery is only available for the normal local profile.');");
+                            } else {
+                                leaderboard_syncing = true;
+                                leaderboard::recover(snapshot_proxy.clone(), recovery_code);
+                            }
+                        }
                         Request::LeaderboardSync { period } => {
                             leaderboard_period = period;
                             if demo {

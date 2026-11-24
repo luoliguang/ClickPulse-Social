@@ -5,7 +5,7 @@ import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ADMIN_APP_JS, ADMIN_HTML, cookieValue, createAdminSession, generateInviteCode, verifyAdminSession, verifyPassword } from './admin';
 import { pool } from './db';
-import { activityRange, allowedUploadDates, assertInvite, assertWebp, defaultAvatar, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from './domain';
+import { activityRange, allowedUploadDates, assertInvite, assertRecoveryCode, assertWebp, defaultAvatar, generateRecoveryCodes, hashSecret, normalizeDays, normalizeNickname, normalizeRole, periodBounds } from './domain';
 
 const avatarRoot = process.env.AVATAR_ROOT || join(process.cwd(), 'avatars');
 const updateRoot = () => process.env.UPDATE_ROOT || join(process.cwd(), 'updates');
@@ -187,13 +187,14 @@ export function buildApp() {
       const { nickname, key } = normalizeNickname(body.nickname);
       const role = normalizeRole(body.role);
       const token = randomBytes(32).toString('base64url');
+      const recoveryCodes = generateRecoveryCodes();
       const id = randomUUID();
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
         if (!invitation.rows[0]) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_invite', 'Invitation code is invalid or exhausted'); }
-        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id,role) VALUES($1,$2,$3,$4,$5,$6)', [id, nickname, key, hashSecret(token), invitation.rows[0].id, role]);
+        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id,role,recovery_codes_hash) VALUES($1,$2,$3,$4,$5,$6,$7)', [id, nickname, key, hashSecret(token), invitation.rows[0].id, role, recoveryCodes.map(hashSecret)]);
         await client.query('UPDATE leaderboard_invitations SET uses=uses+1 WHERE id=$1', [invitation.rows[0].id]);
         await client.query('COMMIT');
       } catch (error: any) {
@@ -201,9 +202,37 @@ export function buildApp() {
         if (error?.code === '23505') return fail(reply, 409, 'nickname_taken', 'Nickname is already in use');
         throw error;
       } finally { client.release(); }
-      return reply.code(201).send({ member: memberJson({ id, nickname, avatar_file: null, role, activity_visible: false }), token });
+      return reply.code(201).send({ member: memberJson({ id, nickname, avatar_file: null, role, activity_visible: false }), token, recovery_codes: recoveryCodes });
     } catch (error: any) {
       if (['invalid_invite', 'invalid_nickname', 'invalid_role'].includes(error?.message)) return fail(reply, 400, error.message, 'Invalid invitation code, nickname, or role');
+      throw error;
+    }
+  });
+
+  app.post('/api/v1/recover', {
+    schema: { body: { type: 'object', additionalProperties: false, required: ['recovery_code'], properties: { recovery_code: { type: 'string', minLength: 20, maxLength: 128 } } } }
+  }, async (request, reply) => {
+    if (limited(`recover:${request.ip}`, 5, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many recovery attempts');
+    try {
+      const code = assertRecoveryCode((request.body as { recovery_code: unknown }).recovery_code);
+      const hash = hashSecret(code);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const result = await client.query<MemberRow & { recovery_codes_hash: string[] }>('SELECT id,nickname,avatar_file,role,activity_visible,recovery_codes_hash FROM leaderboard_members WHERE $1=ANY(recovery_codes_hash) FOR UPDATE', [hash]);
+        const member = result.rows[0];
+        if (!member) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_recovery_code', 'Recovery code is invalid or has already been used'); }
+        const token = randomBytes(32).toString('base64url');
+        await client.query('UPDATE leaderboard_members SET token_hash=$1,recovery_codes_hash=$2,updated_at=NOW() WHERE id=$3', [hashSecret(token), member.recovery_codes_hash.filter(value => value !== hash), member.id]);
+        await client.query('COMMIT');
+        boardCache.clear();
+        return { member: memberJson(member), token };
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally { client.release(); }
+    } catch (error: any) {
+      if (error?.message === 'invalid_recovery_code') return fail(reply, 400, 'invalid_recovery_code', 'Recovery code format is invalid');
       throw error;
     }
   });

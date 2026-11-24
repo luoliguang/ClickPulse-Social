@@ -24,6 +24,10 @@ ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFA
 
 ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS activity_visible BOOLEAN NOT NULL DEFAULT FALSE;
 
+ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS recovery_codes_hash TEXT[] DEFAULT '{}';
+
+CREATE INDEX IF NOT EXISTS leaderboard_members_recovery_codes_idx ON leaderboard_members USING GIN (recovery_codes_hash);
+
 DO $$
 BEGIN
   IF NOT EXISTS (

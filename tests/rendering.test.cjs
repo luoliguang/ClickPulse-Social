@@ -39,6 +39,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   const nav=['overview','history','keys','share','leaderboard','settings'].map(id=>{const button=new Element();button.dataset.page=id;return button;});
   const pages=nav.map(button=>get(button.dataset.page));
   const leaderboardPeriods=['today','week'].map(period=>{const button=new Element();button.dataset.leaderboardPeriod=period;return button;});
+  const leaderboardJoinModes=['new','recover'].map(mode=>{const button=new Element();button.dataset.joinMode=mode;return button;});
   const settingsLinks=['personalization-settings','handoff-settings','capture-settings','storage-settings','app-settings'].map(id=>{const b=new Element();b.dataset.settingsSection=id;return b;});
   for(const id of ['handoff-settings','capture-settings'])get(id).hidden=true;
   const ranges=[14,30,90].map(days=>{const button=new Element();button.dataset.range=String(days);return button;});
@@ -48,7 +49,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   const root=new Element('root');root.lang='en';
   document={documentElement:root,body:new Element(),getElementById:id=>['export','history-export','settings-pause','recording-description','quit','sport-open-mini','refresh-time','calendar-description'].includes(id)?null:get(id),
     querySelector(selector){return get(selector==='header'?'header':selector==='.sidebar'?'sidebar':'main');},
-    querySelectorAll(selector){return selector==='nav button[data-page]'?nav:selector==='[data-settings-section]'?settingsLinks:selector==='.page'?pages:selector==='[data-range]'?ranges:selector==='[data-leaderboard-period]'?leaderboardPeriods:[];},
+    querySelectorAll(selector){return selector==='nav button[data-page]'?nav:selector==='[data-settings-section]'?settingsLinks:selector==='.page'?pages:selector==='[data-range]'?ranges:selector==='[data-leaderboard-period]'?leaderboardPeriods:selector==='[data-join-mode]'?leaderboardJoinModes:[];},
     createElement(){const node=new Element();node.ownerDocument=document;return node;},createElementNS(){const node=new Element();node.ownerDocument=document;return node;}};
   const window={ipc:{postMessage(){}},presentationView:{compact:false},clickpulsePlatform:platform,clickpulseMessages:messages,clickpulseLocale:'en'};
   Object.assign(window,{matchMedia:()=>({matches:reducedMotion,addEventListener(){}}),performance:{now:()=>now},setInterval(handler,ms){const id=++timerId;intervals.set(id,{handler,ms});return id;},clearInterval(id){intervals.delete(id);}});
@@ -61,7 +62,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   }
   vm.runInContext(readFileSync('ui/app.js','utf8'),context);
   vm.runInContext(readFileSync('ui/presentation.js','utf8'),context);
-  return {window,get,root,context,intervals,settingsLinks,leaderboardPeriods,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
+  return {window,get,root,context,intervals,settingsLinks,leaderboardPeriods,leaderboardJoinModes,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
 }
 
 test('Mini-only startup accepts counts without history and preserves the full snapshot across expansion',()=>{
@@ -922,6 +923,22 @@ test('Scoop-managed updates keep checks and localized guidance without sending i
     assert.equal(a.get('update-managed').hidden,true);
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
+});
+test('leaderboard recovery form switches modes and displays one-time recovery codes after joining',()=>{
+  const a=app();
+  const newForm=a.get('leaderboard-join-new-form'),recoverForm=a.get('leaderboard-join-recover-form');
+  a.leaderboardJoinModes[1].fire();
+  assert.ok(newForm.hidden);assert.ok(!recoverForm.hidden);
+  a.leaderboardJoinModes[0].fire();
+  assert.ok(!newForm.hidden);assert.ok(recoverForm.hidden);
+  a.window.receiveLeaderboard({
+    profile:{joined:true,member_id:'self',nickname:'Luo',role:'other',activity_supported:false},
+    board:{period:'today',page:1,total_pages:1,total_entries:0,entries:[]},
+    recovery_codes:['RC_alpha1234567890123456','RC_beta12345678901234567']
+  });
+  const card=a.get('leaderboard-recovery-codes'),list=a.get('leaderboard-recovery-list');
+  assert.ok(!card.hidden);assert.equal(list.children.length,2);
+  assert.equal(list.children[0].textContent,'RC_alpha1234567890123456');
 });
 test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
   const a=app();
