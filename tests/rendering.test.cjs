@@ -272,7 +272,7 @@ test('calendar literary aside uses only selected keyboard history and follows ra
   a.window.receive(s);
   const aside=a.get('calendar-aside');
   assert.equal(aside.hidden,false);assert.match(aside.textContent,/About 3 copies of Pride and Prejudice/);
-  assert.equal(aside.title,messages.en['calendar.literary_basis']);
+  assert.equal(aside.dataset.tooltip,messages.en['calendar.literary_basis']);
   const range=a.get('calendar-range-select');range.value='2025';range.fire('change');
   assert.match(aside.textContent,/About 1 copy of Pride and Prejudice/);
   range.value='90';range.fire('change');assert.match(aside.textContent,/About 2 copies/);
@@ -755,10 +755,10 @@ test('the thirty-day trend range uses thirty dates and survives refresh and lang
   a.window.receive(s);a.selectRange(30);
   const bars=()=>a.get('trend-chart').children[0].children.filter(node=>node.attributes.fill);
   assert.equal(bars().length,60);
-  assert.ok(bars()[0].children[0].textContent.includes('61'));
+  assert.ok(bars()[0].attributes['data-tooltip'].includes('61'));
   s.days[89].counts.keyboard=999;a.window.receive(s);assert.equal(bars().length,60);
   a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});assert.equal(bars().length,60);
-  assert.ok(bars()[59].children[0].textContent.includes('999'));
+  assert.ok(bars()[59].attributes['data-tooltip'].includes('999'));
   a.selectRange(14);assert.equal(bars().length,28);
   a.selectRange(90);assert.equal(bars().length,180);
 });

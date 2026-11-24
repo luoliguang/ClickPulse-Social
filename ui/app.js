@@ -404,8 +404,9 @@ function renderLeaderboardActivity(data){
     bar.append(keyboardBar,mouseBar);
     const label=document.createElement('span');label.className='leaderboard-activity-day-label';label.textContent=String(day.day||'').slice(8);
     column.append(bar,label);
-    column.title=`${day.day||''} · ${t('common.keyboard')} ${n(keyboard)} · ${t('common.mouse')} ${n(mouse)} · ${t('history.total')} ${n(keyboard+mouse)}`;
-    column.setAttribute('role','img');column.setAttribute('aria-label',column.title);
+    const detail=`${day.day||''} · ${t('common.keyboard')} ${n(keyboard)} · ${t('common.mouse')} ${n(mouse)} · ${t('history.total')} ${n(keyboard+mouse)}`;
+    column.dataset.tooltip=detail;
+    column.setAttribute('role','img');column.setAttribute('aria-label',detail);
     chart.append(column);
   }
   body.append(chart);
@@ -699,6 +700,7 @@ window.receive=snapshot=>{
   }else if(page==='share'){
     renderShareCard();
   }
+  hudTooltip.sync();
 };
 function renderPermission(){
   if(onLinux)$('permission-reset').hidden=true;
@@ -804,7 +806,7 @@ function renderTrend(container,days){
   const width=600/Math.max(1,days.length),barWidth=Math.min(26,width*.6),palette=T.get(currentTheme);
   days.forEach((d,i)=>{const x=i*width+(width-barWidth)/2,kh=d.counts.keyboard/ceiling*132,mh=d.counts.mouse/ceiling*132;
     const period=d.start?I.day(d.start)+' — '+I.day(d.end):I.day(d.day);
-    for(const[color,y,height]of [[palette.accent,132-kh,kh],[palette.mouse,132-kh-mh,mh]]){const bar=svgNode('rect',{x,y,width:barWidth,height,rx:1.4,fill:color});const title=svgNode('title');title.textContent=t('chart.tooltip',{period,keyboard:n(d.counts.keyboard),mouse:n(d.counts.mouse)});bar.append(title);svg.append(bar)}
+    for(const[color,y,height]of [[palette.accent,132-kh,kh],[palette.mouse,132-kh-mh,mh]]){const bar=svgNode('rect',{x,y,width:barWidth,height,rx:1.4,fill:color,'data-tooltip':t('chart.tooltip',{period,keyboard:n(d.counts.keyboard),mouse:n(d.counts.mouse)})});svg.append(bar)}
   });
   const multipleYears=new Set(days.map(d=>(d.start||d.day).slice(0,4))).size>1;
   for(const i of H.trendLabelIndices(days.length)){
@@ -865,15 +867,15 @@ function renderCalendar(){
     calendarLayout=layout;
   }
   const max=Math.max(1,...days.map(d=>total(d.counts)));
-  for(const d of days){const cell=calendarCells.get(d.day),value=total(d.counts),level=value?Math.max(1,Math.ceil(value/max*4)):0;cell.className='heat-cell level-'+level+(d.day===today?' today':'');cell.title=t('calendar.tooltip',{day:d.day,count:n(value),keyboard:n(d.counts.keyboard),mouse:n(d.counts.mouse)});}
+  for(const d of days){const cell=calendarCells.get(d.day),value=total(d.counts),level=value?Math.max(1,Math.ceil(value/max*4)):0;cell.className='heat-cell level-'+level+(d.day===today?' today':'');const tip=t('calendar.tooltip',{day:d.day,count:n(value),keyboard:n(d.counts.keyboard),mouse:n(d.counts.mouse)});cell.dataset.tooltip=tip;cell.setAttribute('aria-label',tip);}
   $('active-days').textContent=t('calendar.recorded',{count:n(days.filter(d=>total(d.counts)>0).length)});
   const comparison=H.bookComparison(days.reduce((sum,d)=>sum+d.counts.keyboard,0)),aside=$('calendar-aside');
   aside.hidden=!comparison;
   if(comparison){
     const book=t('calendar.book_title');
     aside.textContent=comparison.opening?t('calendar.literary_opening'):t(comparison.copies===1?'calendar.literary_one':'calendar.literary',{count:n(comparison.copies),book});
-    aside.title=t('calendar.literary_basis',{book,characters:n(comparison.characters)});
-  }else{aside.textContent='';aside.title='';}
+    aside.dataset.tooltip=t('calendar.literary_basis',{book,characters:n(comparison.characters)});
+  }else{aside.textContent='';aside.dataset.tooltip='';}
   $('calendar-range').textContent=t('calendar.period',{start:I.day(bounds.start),end:I.day(bounds.end),count:n(days.reduce((sum,d)=>sum+total(d.counts),0))});
 }
 function renderHistory(){
@@ -955,7 +957,7 @@ function renderKeyboard(){
     cell.firstElementChild.textContent=key.cap||label;
     cell.lastElementChild.textContent=K.compact(key.count);
     const detail=t('keys.tooltip',{key:label,count:n(key.count),percent:I.percent(view.total?key.count/view.total:0)});
-    cell.title=detail;cell.setAttribute('aria-label',detail);
+    cell.dataset.tooltip=detail;cell.setAttribute('aria-label',detail);
   }
 }
 function keyColor(count,max){
@@ -989,10 +991,59 @@ function renderKeyboardTreemap(view){
     cell.style.setProperty('--key-bg',color);cell.style.setProperty('--key-text',T.textFor(color));
     cell.firstElementChild.firstElementChild.hidden=key.w<Math.max(28,key.label.length*8+8)||key.h<18;
     const detail=t('keys.tooltip',{key:key.label,count:n(key.count),percent:I.percent(sum?key.count/sum:0)});
-    cell.title=detail;cell.setAttribute('aria-label',detail);
+    cell.dataset.tooltip=detail;cell.setAttribute('aria-label',detail);
   }
 }
 send('ready');
+
+const hudTooltip=(()=>{
+  const tip=$('hud-tooltip');
+  if(!tip||typeof tip.querySelector!=='function'||typeof document.addEventListener!=='function')return {show(){},sync(){}};
+  const label=tip.querySelector('.hud-tooltip-label'),body=tip.querySelector('.hud-tooltip-body');
+  let anchor=null,visible=false,timer=0;
+  const split=text=>{const i=text.indexOf(' · ');return i<0?['',text]:[text.slice(0,i),text.slice(i+3)]};
+  const position=()=>{
+    const r=anchor.getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight,gap=9,margin=8;
+    let x=r.left+r.width/2-tw/2,y=r.top-gap-th,p='top';
+    if(y<margin){y=r.bottom+gap;p='bottom'}
+    x=Math.max(margin,Math.min(x,window.innerWidth-tw-margin));
+    tip.style.left=x+'px';tip.style.top=y+'px';tip.dataset.placement=p;
+  };
+  const show=el=>{
+    const text=el.dataset.tooltip||'';
+    const [head,rest]=split(text);
+    label.textContent=head;label.style.display=head?'':'none';
+    body.textContent=rest;
+    anchor=el;position();
+    if(!visible){tip.classList.toggle('is-visible',true);tip.setAttribute('aria-hidden','false')}
+    visible=true;
+  };
+  const hide=()=>{
+    if(timer){clearTimeout(timer);timer=0}
+    tip.classList.toggle('is-visible',false);tip.setAttribute('aria-hidden','true');
+    visible=false;anchor=null;
+  };
+  document.addEventListener('pointerover',e=>{
+    const el=e.target.closest?.('[data-tooltip]');
+    if(!el){hide();return}
+    if(el===anchor&&visible)return;
+    if(timer)clearTimeout(timer);
+    timer=setTimeout(()=>{timer=0;show(el)},60);
+  },{passive:true});
+  document.addEventListener('pointerout',e=>{
+    const next=e.relatedTarget?.closest?.('[data-tooltip]');
+    if(next&&next!==anchor){if(timer)clearTimeout(timer);show(next);return}
+    hide();
+  },{passive:true});
+  document.addEventListener('focusin',e=>{
+    const el=e.target.closest?.('[data-tooltip]');
+    if(el){if(timer)clearTimeout(timer);show(el)}
+  });
+  document.addEventListener('focusout',e=>{if(!e.relatedTarget?.closest?.('[data-tooltip]'))hide()});
+  window.addEventListener('scroll',hide,{passive:true,capture:true});
+  window.addEventListener('resize',hide,{passive:true});
+  return {show,sync:()=>{if(visible&&anchor)show(anchor)}};
+})();
 
 $('takeover').addEventListener('click',()=>send('takeover'));
 $('autostart')?.addEventListener('change',event=>{

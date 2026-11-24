@@ -149,6 +149,17 @@ td:first-child,th:first-child {text-align:left}tbody tr {transition:background-c
 @media(prefers-reduced-motion:reduce){.info-tip-bubble{transition:none}}
 .settings-card .button,.settings-card select {font:600 var(--ui-label-size)/1.4 var(--sans);text-align:center}
 #demo-badge {font-size:10px;color:#497bc1;border:1px solid #bcd2ef;border-radius:4px;padding:4px 7px}
+#hud-tooltip {position:fixed;z-index:90;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:320px;padding:8px 12px;border-radius:9px;background:linear-gradient(165deg,#1b4578,#122a4a);border:1px solid #ffffff1f;box-shadow:0 12px 32px #0d1b3059,0 2px 6px #0d1b3033;color:#fff;font:400 12px/1.5 var(--sans);opacity:0;visibility:hidden;transform:translateY(4px) scale(.97);transform-origin:center bottom;transition:opacity .15s var(--motion-out),transform .15s var(--motion-out),visibility .15s}
+#hud-tooltip.is-visible {opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+#hud-tooltip[data-placement="bottom"] {transform:translateY(-4px) scale(.97);transform-origin:center top}
+#hud-tooltip[data-placement="bottom"].is-visible {transform:translateY(0) scale(1)}
+.hud-tooltip-label {font-size:10px;letter-spacing:.02em;color:#9fc0e8;font-weight:600}
+.hud-tooltip-body {font-variant-numeric:tabular-nums}
+.hud-tooltip-arrow {position:absolute;left:50%;width:10px;height:10px;background:#122a4a;border:1px solid #ffffff1f;transform:translateX(-50%) rotate(45deg)}
+#hud-tooltip[data-placement="top"] .hud-tooltip-arrow {bottom:-6px;border-top:none;border-left:none}
+#hud-tooltip[data-placement="bottom"] .hud-tooltip-arrow {top:-6px;border-bottom:none;border-right:none}
+@media(hover:none){#hud-tooltip{display:none}}
+@media(prefers-reduced-motion:reduce){#hud-tooltip{transition:none}}
 #toast {position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#173b6b;color:#fff;padding:12px 20px;border-radius:7px;font-size:12px;box-shadow:0 5px 24px #17376325;max-width:80%;z-index:10}
 #toast:not([hidden]) {animation:toast-enter .24s var(--motion-out) both}
 @keyframes toast-enter {from{opacity:0;transform:translate(-50%,10px) scale(.98)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
