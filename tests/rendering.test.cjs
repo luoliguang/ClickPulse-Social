@@ -923,6 +923,24 @@ test('Scoop-managed updates keep checks and localized guidance without sending i
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
 });
+test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
+  const a=app();
+  a.window.receiveLeaderboardActivity({
+    start_day:'2026-11-02',end_day:'2026-11-08',
+    days:[
+      {day:'2026-11-02',keyboard:10,mouse:2,total:12},
+      {day:'2026-11-08',keyboard:4,mouse:1,total:5}
+    ]
+  });
+  const body=a.get('leaderboard-activity-body');
+  assert.equal(body.children.length,2);
+  assert.equal(body.children[0].className,'leaderboard-activity-heatmap');
+  assert.equal(body.children[0].children[0].children.length,7);
+  assert.equal(body.children[1].className,'leaderboard-activity-chart');
+  assert.equal(body.children[1].children.length,7);
+  assert.match(body.children[0].children[0].children[0].dataset.tooltip,/2026-11-02/);
+  assert.match(body.children[0].children[0].children[3].dataset.tooltip,/2026-11-05/);
+});
 test('leaderboard join and leave use an in-app confirmation dialog before sending requests',()=>{
   const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
   a.get('leaderboard-invite').value='CP_fixture';a.get('leaderboard-nickname').value='Luo';

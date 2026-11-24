@@ -371,6 +371,7 @@ function openLeaderboardActivity(entry){
 function closeLeaderboardActivity(){
   const overlay=$('leaderboard-activity-overlay');
   if(overlay.hidden)return;
+  hudTooltip.hide();
   overlay.hidden=true;
   for(const surface of leaderboardConfirmSurfaces)surface.inert=false;
   leaderboardActivityPreviousFocus?.focus();
@@ -393,9 +394,31 @@ function renderLeaderboardActivity(data){
   const active=days.filter(day=>(Number(day.total)||0)>0).length;
   const peak=days.reduce((max,day)=>Math.max(max,Number(day.total)||0),0);
   $('leaderboard-activity-summary').textContent=t('leaderboard.activity_summary',{total:n(total),active:n(active),peak:n(peak)});
-  const maxTotal=Math.max(1,peak);
+  const maxTotal=Math.max(1,peak),byDate=new Map(days.map(day=>[day.day,day]));
+  const start=String(data.start_day||days[0]?.day||''),end=String(data.end_day||days[days.length-1]?.day||'');
+  const normalized=[];
+  if(/^\d{4}-\d{2}-\d{2}$/.test(start)&&/^\d{4}-\d{2}-\d{2}$/.test(end)){
+    for(let date=new Date(start+'T00:00:00Z'),last=new Date(end+'T00:00:00Z');date<=last&&normalized.length<90;date.setUTCDate(date.getUTCDate()+1)){
+      const key=date.toISOString().slice(0,10),day=byDate.get(key)||{day:key,keyboard:0,mouse:0,total:0};normalized.push(day);
+    }
+  }
+  if(!normalized.length)normalized.push(...days);
+  const heatmap=document.createElement('section');heatmap.className='leaderboard-activity-heatmap';heatmap.setAttribute('aria-label',t('chart.calendar'));
+  const heatGrid=document.createElement('div');heatGrid.className='leaderboard-activity-heat-grid';
+  const firstDate=new Date(String(normalized[0]?.day)+'T00:00:00Z'),padding=(firstDate.getUTCDay()+6)%7;
+  for(let index=0;index<padding;index++){const blank=document.createElement('span');blank.className='leaderboard-activity-heat-cell blank';heatGrid.append(blank);}
+  for(const day of normalized){
+    const keyboard=Number(day.keyboard)||0,mouse=Number(day.mouse)||0,value=Number(day.total)||(keyboard+mouse),level=value?Math.max(1,Math.ceil(value/maxTotal*4)):0;
+    const cell=document.createElement('span');cell.className=`leaderboard-activity-heat-cell level-${level}`;
+    const detail=`${day.day||''} · ${t('common.keyboard')} ${n(keyboard)} · ${t('common.mouse')} ${n(mouse)} · ${t('history.total')} ${n(value)}`;
+    cell.dataset.tooltip=detail;cell.setAttribute('role','img');cell.setAttribute('aria-label',detail);cell.tabIndex=0;heatGrid.append(cell);
+  }
+  const heatLegend=document.createElement('div');heatLegend.className='leaderboard-activity-heat-legend';
+  const low=document.createElement('span');low.textContent=t('common.low');const high=document.createElement('span');high.textContent=t('common.high');
+  heatLegend.append(low,...[0,1,2,3,4].map(level=>{const swatch=document.createElement('i');swatch.className=`leaderboard-activity-heat-cell level-${level}`;return swatch;}),high);
+  heatmap.append(heatGrid,heatLegend);
   const chart=document.createElement('div');chart.className='leaderboard-activity-chart';chart.setAttribute('role','img');chart.setAttribute('aria-label',$('leaderboard-activity-summary').textContent);
-  for(const day of days){
+  for(const day of normalized){
     const keyboard=Number(day.keyboard)||0,mouse=Number(day.mouse)||0;
     const column=document.createElement('div');column.className='leaderboard-activity-day';
     const bar=document.createElement('div');bar.className='leaderboard-activity-bar';
@@ -409,7 +432,7 @@ function renderLeaderboardActivity(data){
     column.setAttribute('role','img');column.setAttribute('aria-label',detail);
     chart.append(column);
   }
-  body.append(chart);
+  body.append(heatmap,chart);
 }
 window.receiveLeaderboardActivity=data=>{if(!data||data.error)renderActivityError(t('leaderboard.activity_error'));else renderLeaderboardActivity(data);};
 window.receiveLeaderboardActivityError=message=>{renderActivityError(t(message==='activity_private'?'leaderboard.activity_private':'leaderboard.activity_error'));};
@@ -998,7 +1021,7 @@ send('ready');
 
 const hudTooltip=(()=>{
   const tip=$('hud-tooltip');
-  if(!tip||typeof tip.querySelector!=='function'||typeof document.addEventListener!=='function')return {show(){},sync(){}};
+  if(!tip||typeof tip.querySelector!=='function'||typeof document.addEventListener!=='function')return {show(){},hide(){},sync(){}};
   const label=tip.querySelector('.hud-tooltip-label'),body=tip.querySelector('.hud-tooltip-body');
   let anchor=null,visible=false,timer=0;
   const split=text=>{const i=text.indexOf(' · ');return i<0?['',text]:[text.slice(0,i),text.slice(i+3)]};
@@ -1042,7 +1065,7 @@ const hudTooltip=(()=>{
   document.addEventListener('focusout',e=>{if(!e.relatedTarget?.closest?.('[data-tooltip]'))hide()});
   window.addEventListener('scroll',hide,{passive:true,capture:true});
   window.addEventListener('resize',hide,{passive:true});
-  return {show,sync:()=>{if(visible&&anchor)show(anchor)}};
+  return {show,hide,sync:()=>{if(visible&&anchor)show(anchor)}};
 })();
 
 $('takeover').addEventListener('click',()=>send('takeover'));

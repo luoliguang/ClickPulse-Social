@@ -149,7 +149,7 @@ td:first-child,th:first-child {text-align:left}tbody tr {transition:background-c
 @media(prefers-reduced-motion:reduce){.info-tip-bubble{transition:none}}
 .settings-card .button,.settings-card select {font:600 var(--ui-label-size)/1.4 var(--sans);text-align:center}
 #demo-badge {font-size:10px;color:#497bc1;border:1px solid #bcd2ef;border-radius:4px;padding:4px 7px}
-#hud-tooltip {position:fixed;z-index:90;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:320px;padding:8px 12px;border-radius:9px;background:linear-gradient(165deg,#1b4578,#122a4a);border:1px solid #ffffff1f;box-shadow:0 12px 32px #0d1b3059,0 2px 6px #0d1b3033;color:#fff;font:400 12px/1.5 var(--sans);opacity:0;visibility:hidden;transform:translateY(4px) scale(.97);transform-origin:center bottom;transition:opacity .15s var(--motion-out),transform .15s var(--motion-out),visibility .15s}
+#hud-tooltip {position:fixed;z-index:1100;pointer-events:none;display:flex;flex-direction:column;gap:3px;max-width:320px;padding:8px 12px;border-radius:9px;background:linear-gradient(165deg,#1b4578,#122a4a);border:1px solid #ffffff1f;box-shadow:0 12px 32px #0d1b3059,0 2px 6px #0d1b3033;color:#fff;font:400 12px/1.5 var(--sans);opacity:0;visibility:hidden;transform:translateY(4px) scale(.97);transform-origin:center bottom;transition:opacity .15s var(--motion-out),transform .15s var(--motion-out),visibility .15s}
 #hud-tooltip.is-visible {opacity:1;visibility:visible;transform:translateY(0) scale(1)}
 #hud-tooltip[data-placement="bottom"] {transform:translateY(-4px) scale(.97);transform-origin:center top}
 #hud-tooltip[data-placement="bottom"].is-visible {transform:translateY(0) scale(1)}
@@ -318,6 +318,18 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-activity-body {min-height:200px;margin-top:8px}
 .leaderboard-activity-loading {width:22px;height:22px;margin:60px auto;border:2px solid color-mix(in srgb,var(--blue) 22%,transparent);border-right-color:var(--blue);border-radius:50%;animation:leaderboard-spin .7s linear infinite}
 .leaderboard-activity-state {margin:0;padding:46px 12px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7}
+.leaderboard-activity-heatmap {display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:14px 0 8px;padding:14px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--muted) 4%,transparent)}
+.leaderboard-activity-heat-grid {display:grid;grid-template-rows:repeat(7,11px);grid-auto-flow:column;grid-auto-columns:11px;gap:3px;min-width:0}
+.leaderboard-activity-heat-cell {display:block;width:11px;height:11px;border-radius:2px;background:var(--heat-0);outline-offset:2px;transition:transform .12s var(--motion-out),outline-color .12s}
+.leaderboard-activity-heat-cell.level-1 {background:var(--heat-1)}
+.leaderboard-activity-heat-cell.level-2 {background:var(--heat-2)}
+.leaderboard-activity-heat-cell.level-3 {background:var(--heat-3)}
+.leaderboard-activity-heat-cell.level-4 {background:var(--heat-4)}
+.leaderboard-activity-heat-cell.blank {visibility:hidden}
+.leaderboard-activity-heat-cell[data-tooltip]:hover {outline:2px solid var(--blue);transform:scale(1.2)}
+.leaderboard-activity-heat-cell:focus-visible {outline:2px solid var(--blue)}
+.leaderboard-activity-heat-legend {display:flex;align-items:center;justify-content:flex-end;gap:4px;flex:none;color:var(--muted);font-size:9px;white-space:nowrap}
+.leaderboard-activity-heat-legend .leaderboard-activity-heat-cell {width:9px;height:9px}
 .leaderboard-activity-chart {display:flex;align-items:flex-end;gap:3px;height:190px;padding:6px 2px 0}
 .leaderboard-activity-day {flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
 .leaderboard-activity-bar {width:100%;max-width:15px;height:150px;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--muted) 7%,transparent)}
@@ -339,8 +351,8 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-confirm-note {padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd;color:#62748e;font-size:11px;line-height:1.6}
 .leaderboard-confirm-dialog .close-dialog-actions {grid-template-columns:auto auto;justify-content:end;margin-top:18px}
 .leaderboard-confirm-dialog .close-dialog-actions .button {min-width:104px;min-height:40px;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .14s cubic-bezier(.23,1,.32,1)}
-@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}}
-@media(prefers-reduced-motion:reduce){#leaderboard-join-button,.leaderboard-confirm-dialog .button,.leaderboard-name-edit,.leaderboard-board .table-wrap,.leaderboard-period-segments::before{transition:none}#leaderboard-sync.is-loading::before{animation:none}}
+@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}.leaderboard-activity-heatmap{align-items:flex-start;flex-direction:column}.leaderboard-activity-heat-legend{align-self:flex-end}}
+@media(prefers-reduced-motion:reduce){#leaderboard-join-button,.leaderboard-confirm-dialog .button,.leaderboard-name-edit,.leaderboard-board .table-wrap,.leaderboard-period-segments::before,.leaderboard-activity-heat-cell{transition:none}#leaderboard-sync.is-loading::before{animation:none}.leaderboard-activity-heat-cell[data-tooltip]:hover{transform:none}}
 body.compact .close-dialog {padding:14px}
 body.compact .close-dialog-heading h2 {font-size:14px}
 body.compact .close-dialog p {font-size:11px;margin:8px 0 10px}
