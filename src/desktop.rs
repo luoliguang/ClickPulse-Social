@@ -913,6 +913,12 @@ pub fn run(
                                 leaderboard::recover(snapshot_proxy.clone(), recovery_code);
                             }
                         }
+                        Request::LeaderboardRecoveryCodes {} => {
+                            if !demo && !source_mode && runtime.is_some() {
+                                leaderboard_syncing = true;
+                                leaderboard::recovery_codes(snapshot_proxy.clone());
+                            }
+                        }
                         Request::LeaderboardSync { period } => {
                             leaderboard_period = period;
                             if demo {

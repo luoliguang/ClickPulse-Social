@@ -69,6 +69,7 @@ pub(super) enum Request {
     LeaderboardRecover {
         recovery_code: String,
     },
+    LeaderboardRecoveryCodes {},
     LeaderboardSync {
         period: clickpulse::leaderboard::Period,
     },

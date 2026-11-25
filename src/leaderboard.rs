@@ -1,7 +1,10 @@
 //! Opt-in leaderboard client. Local activity remains private until a member joins.
 use anyhow::{Context, Result, bail, ensure};
+use chrono::{TimeZone, Utc};
+use chrono_tz::Asia::Shanghai;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    collections::HashSet,
     io::Read,
     path::{Path, PathBuf},
     time::Duration,
@@ -117,6 +120,10 @@ struct JoinResponse {
     recovery_codes: Vec<String>,
 }
 #[derive(Clone, Debug, Deserialize)]
+struct RecoveryCodesResponse {
+    recovery_codes: Vec<String>,
+}
+#[derive(Clone, Debug, Deserialize)]
 struct Member {
     id: String,
     nickname: String,
@@ -129,6 +136,20 @@ pub struct DailyCount<'a> {
     pub date: &'a str,
     pub keyboard: i64,
     pub mouse: i64,
+}
+
+/// Returns the set of dates (YYYY-MM-DD) the server accepts for stat uploads.
+/// Server only accepts the most recent 8 calendar days in Asia/Shanghai timezone.
+pub fn allowed_upload_dates() -> HashSet<String> {
+    let now = Utc::now();
+    (0..8)
+        .map(|days_ago| {
+            let shifted = now - chrono::Duration::days(days_ago);
+            Shanghai.from_utc_datetime(&shifted.naive_utc())
+                .format("%Y-%m-%d")
+                .to_string()
+        })
+        .collect()
 }
 
 fn profile_path() -> Result<PathBuf> {
@@ -322,6 +343,16 @@ pub fn recover(recovery_code: &str) -> Result<Profile> {
     };
     save_profile(&profile)?;
     Ok(profile)
+}
+
+pub fn regenerate_recovery_codes(profile: &Profile) -> Result<Vec<String>> {
+    let response: RecoveryCodesResponse = json_request(
+        "POST",
+        "/recovery-codes",
+        &serde_json::json!({}),
+        Some(profile),
+    )?;
+    Ok(response.recovery_codes)
 }
 
 pub fn sync(profile: &Profile, days: &[DailyCount<'_>]) -> Result<()> {

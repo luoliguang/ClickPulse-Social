@@ -948,6 +948,15 @@ test('leaderboard recovery form switches modes and displays one-time recovery co
   assert.ok(!card.hidden);assert.equal(list.children.length,2);
   assert.equal(list.children[0].textContent,'RC_alpha1234567890123456');
 });
+test('existing leaderboard members can replace recovery codes after confirmation',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.window.receiveLeaderboard({profile:{joined:true,nickname:'Legacy',member_id:'member'},board:{period:'today',page:1,total_pages:1,total_entries:0,entries:[]}});
+  sent.length=0;a.get('leaderboard-recovery-regenerate').fire();
+  assert.equal(sent.length,0);assert.equal(a.get('leaderboard-confirm-overlay').hidden,false);
+  assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.recovery_regenerate_confirm_title']);
+  a.get('leaderboard-confirm-submit').fire();
+  assert.deepEqual(sent[0],{action:'leaderboard_recovery_codes'});
+});
 test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
   const a=app();
   a.window.receiveLeaderboardActivity({

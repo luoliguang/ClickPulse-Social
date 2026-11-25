@@ -160,7 +160,21 @@ pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String) {
         let board = leaderboard::board(Some(&profile), Period::Today, 1)?;
         Ok(json!({
             "profile": leaderboard::profile_summary(Some(&profile)),
-            "board": board
+            "board": board,
+            "skip_auto_sync": true
+        }))
+    });
+}
+
+pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>) {
+    spawn(proxy, move || {
+        let profile =
+            leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+        let recovery_codes = leaderboard::regenerate_recovery_codes(&profile)?;
+        Ok(json!({
+            "profile": leaderboard::profile_summary(Some(&profile)),
+            "recovery_codes": recovery_codes,
+            "board": leaderboard::board(Some(&profile), Period::Today, 1)?
         }))
     });
 }
@@ -177,6 +191,18 @@ pub(super) fn sync_snapshot(proxy: EventLoopProxy<UiEvent>, snapshot: String, pe
         let owned = rows
             .iter()
             .rev()
+            .filter_map(|row| {
+                let date = row
+                    .get("day")
+                    .and_then(Value::as_str)
+                    .context("Invalid statistics date")
+                    .ok()?;
+                // Skip dates outside the server's allowed upload window
+                if !leaderboard::allowed_upload_dates().contains(date) {
+                    return None;
+                }
+                Some(row)
+            })
             .take(8)
             .map(|row| {
                 let date = row

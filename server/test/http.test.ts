@@ -183,6 +183,32 @@ test('joining records the invitation slot and leaving releases it atomically', a
   }
 });
 
+test('authenticated members can replace all recovery codes, including legacy members', async () => {
+  const originalQuery = pool.query.bind(pool);
+  const queries: Array<{ sql: string; values?: unknown[] }> = [];
+  try {
+    (pool as any).query = async (sql: string, values?: unknown[]) => {
+      queries.push({ sql, values });
+      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'legacy-member', nickname: 'Legacy', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.startsWith('UPDATE leaderboard_members SET recovery_codes_hash')) return { rows: [], rowCount: 1 };
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp();
+    const response = await app.inject({ method: 'POST', url: '/api/v1/recovery-codes', headers: { authorization: 'Bearer membership-token' }, payload: {} });
+    assert.equal(response.statusCode, 200);
+    const codes = response.json().recovery_codes;
+    assert.equal(codes.length, 8);
+    assert.equal(new Set(codes).size, 8);
+    const update = queries.find(entry => entry.sql.startsWith('UPDATE leaderboard_members SET recovery_codes_hash'));
+    assert.ok(update);
+    assert.equal((update?.values?.[0] as string[]).length, 8);
+    assert.equal((update?.values?.[0] as string[]).every(value => /^[a-f0-9]{64}$/.test(value)), true);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
 test('POST /recover validates recovery codes, rotates token, and removes the used code', async () => {
   const originalConnect = pool.connect.bind(pool);
   const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];

@@ -505,8 +505,10 @@ fn replace_windows(
     manifest: &Manifest,
     nonce: &str,
 ) -> Result<PathBuf> {
-    let backup = install.root.join(format!(".ClickPulse-before-{nonce}"));
-    let prepared = install.root.join(format!(".ClickPulse-new-{nonce}"));
+    let workspace = install.root.join(".clickpulse-update-cache");
+    fs::create_dir_all(&workspace)?;
+    let backup = workspace.join(format!("before-{nonce}"));
+    let prepared = workspace.join(format!("new-{nonce}"));
     fs::create_dir(&backup)?;
     fs::create_dir(&prepared)?;
     let mut files: BTreeSet<_> = manifest.files.keys().cloned().collect();
@@ -828,7 +830,14 @@ fn apply_update_with_restart(
         &plan.notes,
         &plan.notes_zh_cn,
     );
+    let backup = result.as_ref().ok().cloned();
     relaunch(&plan.installation, paused)?;
+    if let Some(backup) = backup {
+        let _ = fs::remove_dir_all(&backup);
+        if let Some(workspace) = backup.parent() {
+            let _ = fs::remove_dir(workspace);
+        }
+    }
     result.map(|_| ())
 }
 

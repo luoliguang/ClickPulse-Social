@@ -237,6 +237,14 @@ export function buildApp() {
     }
   });
 
+  app.post('/api/v1/recovery-codes', async (request, reply) => {
+    const member = await authenticate(request, reply); if (!member) return;
+    if (limited(`recovery-codes:${member.id}`, 3, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Recovery codes are being regenerated too frequently');
+    const codes = generateRecoveryCodes();
+    await pool.query('UPDATE leaderboard_members SET recovery_codes_hash=$1,updated_at=NOW() WHERE id=$2', [codes.map(hashSecret), member.id]);
+    return { recovery_codes: codes };
+  });
+
   app.get('/api/v1/me', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
     return memberJson(member);
