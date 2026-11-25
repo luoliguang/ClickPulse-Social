@@ -225,7 +225,6 @@ function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined,activitySupported=profile.activity_supported===true;
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
-  $('leaderboard-recovery-codes').hidden=true;
   $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=leaderboardBusy;
   $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
@@ -289,7 +288,12 @@ window.receiveLeaderboardBackground=state=>{
   }
   leaderboardState=incoming;renderLeaderboard();
 };
-window.receiveLeaderboardError=message=>{clearLeaderboardRequestTimer();leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=message;$('leaderboard-error').hidden=false;};
+function leaderboardErrorMessage(message){
+  const code=String(message||'').match(/leaderboard_server_([a-z_]+)/)?.[1];
+  const known=new Set(['invalid_invite','invalid_nickname','invalid_role','invalid_visibility','invalid_stats','stats_decreased','invalid_avatar','invalid_recovery_code','invalid_request','unauthorized','rate_limited']);
+  return code&&known.has(code)?t(`leaderboard.error.${code}`):message;
+}
+window.receiveLeaderboardError=message=>{clearLeaderboardRequestTimer();leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=leaderboardErrorMessage(message);$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>{clearLeaderboardRequestTimer();setLeaderboardBusy(false);};
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
 const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];

@@ -225,7 +225,11 @@ fn json_request<T: Serialize, R: DeserializeOwned>(
             if let Some(token) = &token {
                 request = request.header("Authorization", token);
             }
-            request.send(&bytes)?
+            request
+                .config()
+                .http_status_as_error(false)
+                .build()
+                .send(&bytes)?
         }
         "PUT" => {
             let mut request = client
@@ -235,7 +239,11 @@ fn json_request<T: Serialize, R: DeserializeOwned>(
             if let Some(token) = &token {
                 request = request.header("Authorization", token);
             }
-            request.send(&bytes)?
+            request
+                .config()
+                .http_status_as_error(false)
+                .build()
+                .send(&bytes)?
         }
         "PATCH" => {
             let mut request = client
@@ -245,10 +253,23 @@ fn json_request<T: Serialize, R: DeserializeOwned>(
             if let Some(token) = &token {
                 request = request.header("Authorization", token);
             }
-            request.send(&bytes)?
+            request
+                .config()
+                .http_status_as_error(false)
+                .build()
+                .send(&bytes)?
         }
         _ => unreachable!("unsupported JSON method"),
     };
+    let status = response.status().as_u16();
+    if status >= 400 {
+        let value: serde_json::Value = read_json(response)?;
+        let code = value
+            .pointer("/error/code")
+            .and_then(|value| value.as_str())
+            .unwrap_or("unknown");
+        bail!("leaderboard_server_{code}");
+    }
     read_json(response)
 }
 

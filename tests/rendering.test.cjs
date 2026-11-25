@@ -924,6 +924,14 @@ test('Scoop-managed updates keep checks and localized guidance without sending i
     a.get('check-updates').fire();assert.deepEqual(sent.pop(),{action:'install_update'});
   }
 });
+test('leaderboard server errors show an actionable localized reason instead of an HTTP status',()=>{
+  const a=app();
+  a.window.receiveLeaderboardError('leaderboard_server_invalid_stats');
+  assert.equal(a.get('leaderboard-error').textContent,messages.en['leaderboard.error.invalid_stats']);
+  assert.equal(a.get('leaderboard-error').hidden,false);
+  a.window.receiveLeaderboardError('network offline');
+  assert.equal(a.get('leaderboard-error').textContent,'network offline');
+});
 test('leaderboard recovery form switches modes and displays one-time recovery codes after joining',()=>{
   const a=app();
   const newForm=a.get('leaderboard-join-new-form'),recoverForm=a.get('leaderboard-join-recover-form');
