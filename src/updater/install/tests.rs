@@ -604,6 +604,11 @@ fn helper_process_waits_for_saved_parent_and_preserves_profile_files() {
         fs::read(profile.join("presentation.json")).unwrap(),
         b"preferences must never change"
     );
+    #[cfg(not(target_os = "macos"))]
+    assert!(
+        !root.join(".clickpulse-update-cache").exists(),
+        "successful update must retire the rollback cache"
+    );
 }
 
 #[test]

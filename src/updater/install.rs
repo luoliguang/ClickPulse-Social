@@ -832,10 +832,17 @@ fn apply_update_with_restart(
     );
     let backup = result.as_ref().ok().cloned();
     relaunch(&plan.installation, paused)?;
-    if let Some(backup) = backup {
-        let _ = fs::remove_dir_all(&backup);
-        if let Some(workspace) = backup.parent() {
-            let _ = fs::remove_dir(workspace);
+    if result.is_ok() {
+        if plan.installation.target.mac() {
+            // macOS keeps its rollback copy beside the app bundle; remove it
+            // directly. A failed update leaves it in place for manual recovery.
+            if let Some(backup) = backup {
+                let _ = fs::remove_dir_all(&backup);
+            }
+        } else {
+            // A successful update retires every rollback cache, including
+            // stale ones left behind by earlier failed attempts.
+            let _ = fs::remove_dir_all(plan.installation.root.join(".clickpulse-update-cache"));
         }
     }
     result.map(|_| ())
