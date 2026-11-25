@@ -256,6 +256,7 @@ function renderLeaderboard(){
   $('leaderboard-count').textContent=t('leaderboard.showing',{shown:n(shown),total:n(total)});
   $('leaderboard-load-more').hidden=!board||board.page>=Math.min(board.total_pages,LEADERBOARD_MAX_PAGES);
   if(body.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)body.animate([{opacity:.25},{opacity:1}],{duration:160,easing:'ease-out'});
+  requestLeaderboardDevices();
 }
 window.receiveLeaderboard=state=>{
   if(state.board?.period&&state.board.period!==leaderboardPeriod)return;
@@ -295,6 +296,34 @@ function leaderboardErrorMessage(message){
 }
 window.receiveLeaderboardError=message=>{clearLeaderboardRequestTimer();leaderboardRenamePending=false;leaderboardRenameValue='';setLeaderboardBusy(false);renderLeaderboard();$('leaderboard-error').textContent=leaderboardErrorMessage(message);$('leaderboard-error').hidden=false;};
 window.receiveLeaderboardCancelled=()=>{clearLeaderboardRequestTimer();setLeaderboardBusy(false);};
+let leaderboardDevicesMember=null;
+function requestLeaderboardDevices(){
+  const member=leaderboardState.profile?.joined&&!leaderboardState.profile?.demo?leaderboardState.profile.member_id:null;
+  if(!member){leaderboardDevicesMember=null;$('leaderboard-devices').hidden=true;return;}
+  if(leaderboardDevicesMember===member)return;
+  leaderboardDevicesMember=member;send('leaderboard_devices');
+}
+function renderLeaderboardDevices(devices){
+  const list=$('leaderboard-devices-list'),wrap=$('leaderboard-devices'),items=Array.isArray(devices)?devices:[];
+  wrap.hidden=items.length===0;
+  list.replaceChildren(...items.map(device=>{
+    const li=document.createElement('li');li.className='leaderboard-device';
+    const info=document.createElement('div');info.className='leaderboard-device-info';
+    const name=document.createElement('strong');name.textContent=device.name||t('leaderboard.device_unknown');
+    const meta=document.createElement('span');meta.className='leaderboard-device-meta';
+    let when='';if(!device.current&&typeof device.last_seen_at==='string'&&device.last_seen_at){const parsed=new Date(device.last_seen_at);when=isNaN(parsed.getTime())?'':parsed.toLocaleDateString();}
+    meta.textContent=device.current?t('leaderboard.device_current'):t('leaderboard.device_last_seen',{when});
+    info.append(name,meta);li.append(info);
+    if(!device.current){
+      const revoke=document.createElement('button');revoke.type='button';revoke.className='button';revoke.textContent=t('leaderboard.device_revoke');
+      revoke.addEventListener('click',()=>openLeaderboardConfirm('device',()=>{send('leaderboard_revoke_device',{device_id:device.id});},{device_name:device.name||t('leaderboard.device_unknown')}));
+      li.append(revoke);
+    }
+    return li;
+  }));
+}
+window.receiveLeaderboardDevices=state=>{leaderboardDevicesMember=leaderboardState.profile?.member_id||null;renderLeaderboardDevices(state?.devices);};
+window.receiveLeaderboardDevicesError=message=>{leaderboardDevicesMember=null;window.toast(leaderboardErrorMessage(message));};
 const leaderboardConfirmOverlay=$('leaderboard-confirm-overlay');
 const leaderboardConfirmSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
 let leaderboardConfirmAction=null,leaderboardConfirmPreviousFocus=null,leaderboardConfirmKind=null;
@@ -307,12 +336,12 @@ function closeLeaderboardConfirm(){
 }
 function openLeaderboardConfirm(kind,action,values={}){
   Dropdowns.closeAll();leaderboardConfirmPreviousFocus=document.activeElement;leaderboardConfirmAction=action;leaderboardConfirmKind=kind;
-  const leaving=kind==='leave',visibility=kind==='visibility',recovery=kind==='recovery';
-  $('leaderboard-confirm-title').textContent=t(leaving?'leaderboard.leave_confirm_title':visibility?'leaderboard.visibility_confirm_title':recovery?'leaderboard.recovery_regenerate_confirm_title':'leaderboard.join_confirm_title');
-  $('leaderboard-confirm-description').textContent=t(leaving?'leaderboard.leave_confirm':visibility?'leaderboard.visibility_confirm':recovery?'leaderboard.recovery_regenerate_confirm':'leaderboard.join_confirm',{nickname:values.nickname||''});
-  $('leaderboard-confirm-note').textContent=t(leaving?'leaderboard.leave_confirm_note':visibility?'leaderboard.visibility_confirm_note':recovery?'leaderboard.recovery_regenerate_confirm_note':'leaderboard.join_confirm_note');
-  const submit=$('leaderboard-confirm-submit');submit.textContent=t(leaving?'leaderboard.leave':visibility?'leaderboard.visibility_enable':recovery?'leaderboard.recovery_regenerate':'leaderboard.join');
-  submit.classList.toggle('danger',leaving);submit.classList.toggle('solid',leaving);submit.classList.toggle('primary',!leaving&&!visibility);
+  const leaving=kind==='leave',visibility=kind==='visibility',recovery=kind==='recovery',device=kind==='device';
+  $('leaderboard-confirm-title').textContent=t(leaving?'leaderboard.leave_confirm_title':visibility?'leaderboard.visibility_confirm_title':recovery?'leaderboard.recovery_regenerate_confirm_title':device?'leaderboard.device_revoke_confirm_title':'leaderboard.join_confirm_title');
+  $('leaderboard-confirm-description').textContent=t(leaving?'leaderboard.leave_confirm':visibility?'leaderboard.visibility_confirm':recovery?'leaderboard.recovery_regenerate_confirm':device?'leaderboard.device_revoke_confirm':'leaderboard.join_confirm',{nickname:values.nickname||'',device_name:values.device_name||''});
+  $('leaderboard-confirm-note').textContent=t(leaving?'leaderboard.leave_confirm_note':visibility?'leaderboard.visibility_confirm_note':recovery?'leaderboard.recovery_regenerate_confirm_note':device?'leaderboard.device_revoke_confirm_note':'leaderboard.join_confirm_note');
+  const submit=$('leaderboard-confirm-submit');submit.textContent=t(leaving?'leaderboard.leave':visibility?'leaderboard.visibility_enable':recovery?'leaderboard.recovery_regenerate':device?'leaderboard.device_revoke':'leaderboard.join');
+  submit.classList.toggle('danger',leaving||device);submit.classList.toggle('solid',leaving);submit.classList.toggle('primary',!leaving&&!visibility&&!device);
   leaderboardConfirmOverlay.hidden=false;for(const surface of leaderboardConfirmSurfaces)surface.inert=true;submit.focus();
 }
 $('leaderboard-confirm-close')?.addEventListener('click',closeLeaderboardConfirm);

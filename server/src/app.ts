@@ -15,6 +15,8 @@ const adminCookie = 'clickpulse_admin';
 const updateTargets = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64'];
 
 type MemberRow = { id: string; nickname: string; avatar_file: string | null; invitation_id?: string | null; role: string; activity_visible: boolean };
+type AuthContext = MemberRow & { device_id: string; device_name: string };
+type DeviceRow = { id: string; name: string; created_at: string; last_seen_at: string; current: boolean };
 type InvitationRow = { id: string; max_uses: number; uses: number; expires_at: string | null; revoked_at: string | null; created_at: string; expired: boolean };
 
 function limited(key: string, maximum: number, windowMs: number): boolean {
@@ -32,13 +34,19 @@ function fail(reply: FastifyReply, status: number, code: string, message: string
   return reply.code(status).send({ error: { code, message } });
 }
 
-async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<MemberRow | undefined> {
+async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<AuthContext | undefined> {
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ') || header.length > 256) { fail(reply, 401, 'unauthorized', 'Membership token is required'); return; }
   const token = header.slice(7);
-  const result = await pool.query<MemberRow>('SELECT id,nickname,avatar_file,invitation_id,role,activity_visible FROM leaderboard_members WHERE token_hash=$1', [hashSecret(token)]);
+  const result = await pool.query<AuthContext>('WITH active AS (UPDATE leaderboard_devices SET last_seen_at=NOW() WHERE token_hash=$1 RETURNING id, member_id, name) SELECT m.id,m.nickname,m.avatar_file,m.invitation_id,m.role,m.activity_visible,active.id AS device_id,active.name AS device_name FROM active JOIN leaderboard_members m ON m.id=active.member_id', [hashSecret(token)]);
   if (!result.rows[0]) { fail(reply, 401, 'unauthorized', 'Membership token is invalid'); return; }
   return result.rows[0];
+}
+
+function deviceNameFromRequest(request: FastifyRequest): string {
+  const userAgent = request.headers['user-agent'] || '';
+  const match = /ClickPulse\/[\d.]+ \(([^)]*)\)/.exec(userAgent);
+  return (match?.[1] ?? '').trim().slice(0, 64);
 }
 
 function avatar(member: MemberRow) {
@@ -194,7 +202,8 @@ export function buildApp() {
         await client.query('BEGIN');
         const invitation = await client.query<{ id: string }>('SELECT id FROM leaderboard_invitations WHERE code_hash=$1 AND uses<max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>NOW()) FOR UPDATE', [hashSecret(code)]);
         if (!invitation.rows[0]) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_invite', 'Invitation code is invalid or exhausted'); }
-        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,token_hash,invitation_id,role,recovery_codes_hash) VALUES($1,$2,$3,$4,$5,$6,$7)', [id, nickname, key, hashSecret(token), invitation.rows[0].id, role, recoveryCodes.map(hashSecret)]);
+        await client.query('INSERT INTO leaderboard_members(id,nickname,nickname_key,invitation_id,role,recovery_codes_hash) VALUES($1,$2,$3,$4,$5,$6)', [id, nickname, key, invitation.rows[0].id, role, recoveryCodes.map(hashSecret)]);
+        await client.query('INSERT INTO leaderboard_devices(id,member_id,token_hash,name) VALUES($1,$2,$3,$4)', [randomUUID(), id, hashSecret(token), deviceNameFromRequest(request)]);
         await client.query('UPDATE leaderboard_invitations SET uses=uses+1 WHERE id=$1', [invitation.rows[0].id]);
         await client.query('COMMIT');
       } catch (error: any) {
@@ -223,7 +232,8 @@ export function buildApp() {
         const member = result.rows[0];
         if (!member) { await client.query('ROLLBACK'); return fail(reply, 400, 'invalid_recovery_code', 'Recovery code is invalid or has already been used'); }
         const token = randomBytes(32).toString('base64url');
-        await client.query('UPDATE leaderboard_members SET token_hash=$1,recovery_codes_hash=$2,updated_at=NOW() WHERE id=$3', [hashSecret(token), member.recovery_codes_hash.filter(value => value !== hash), member.id]);
+        await client.query('UPDATE leaderboard_members SET recovery_codes_hash=$1,updated_at=NOW() WHERE id=$2', [member.recovery_codes_hash.filter(value => value !== hash), member.id]);
+        await client.query('INSERT INTO leaderboard_devices(id,member_id,token_hash,name) VALUES($1,$2,$3,$4)', [randomUUID(), member.id, hashSecret(token), deviceNameFromRequest(request)]);
         await client.query('COMMIT');
         boardCache.clear();
         const stats = await pool.query<{ day: string; keyboard: string; mouse: string }>('SELECT day::text AS day, keyboard, mouse FROM leaderboard_daily_stats WHERE member_id=$1 ORDER BY day ASC', [member.id]);
@@ -249,6 +259,23 @@ export function buildApp() {
   app.get('/api/v1/me', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
     return memberJson(member);
+  });
+
+  app.get('/api/v1/devices', async (request, reply) => {
+    const member = await authenticate(request, reply); if (!member) return;
+    const result = await pool.query<DeviceRow>('SELECT id,name,created_at,last_seen_at,(id=$1) AS current FROM leaderboard_devices WHERE member_id=$2 ORDER BY created_at ASC', [member.device_id, member.id]);
+    return { devices: result.rows };
+  });
+
+  app.delete('/api/v1/devices/:id', {
+    schema: { params: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', minLength: 1, maxLength: 64 } } } }
+  }, async (request, reply) => {
+    const member = await authenticate(request, reply); if (!member) return;
+    const { id } = request.params as { id: string };
+    if (id === member.device_id) return fail(reply, 400, 'cannot_remove_current_device', 'Sign out instead of removing the current device');
+    const result = await pool.query('DELETE FROM leaderboard_devices WHERE id=$1 AND member_id=$2 RETURNING id', [id, member.id]);
+    if (!result.rows[0]) return fail(reply, 404, 'not_found', 'Device not found');
+    return { ok: true };
   });
 
   app.patch('/api/v1/me', {

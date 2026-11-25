@@ -70,6 +70,10 @@ pub(super) enum Request {
         recovery_code: String,
     },
     LeaderboardRecoveryCodes {},
+    LeaderboardDevices {},
+    LeaderboardRevokeDevice {
+        device_id: String,
+    },
     LeaderboardSync {
         period: clickpulse::leaderboard::Period,
     },
@@ -163,6 +167,9 @@ mod tests {
             r#"{"action":"leaderboard_join","invite_code":"x"}"#,
             r#"{"action":"leaderboard_sync","period":"today","keyboard":1}"#,
             r#"{"action":"leaderboard_leave","keep_data":true}"#,
+            r#"{"action":"leaderboard_revoke_device"}"#,
+            r#"{"action":"leaderboard_revoke_device","device_id":7}"#,
+            r#"{"action":"leaderboard_devices","device_id":"x"}"#,
             r#"{"action":"autostart"}"#,
         ] {
             assert!(serde_json::from_str::<Request>(body).is_err(), "{body}");
@@ -251,6 +258,20 @@ mod tests {
             )
             .unwrap(),
             Request::LeaderboardVisibility { visible: true }
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_devices"}"#
+            )
+            .unwrap(),
+            Request::LeaderboardDevices {}
+        ));
+        assert!(matches!(
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_revoke_device","device_id":"dev-1"}"#
+            )
+            .unwrap(),
+            Request::LeaderboardRevokeDevice { device_id } if device_id == "dev-1"
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(

@@ -29,6 +29,12 @@ fn finish_visibility(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
     ));
 }
 
+fn finish_devices(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardDevices(
+        result.map_err(|error| format!("{error:#}")),
+    ));
+}
+
 fn spawn(proxy: EventLoopProxy<UiEvent>, task: impl FnOnce() -> Result<Value> + Send + 'static) {
     thread::Builder::new()
         .name("clickpulse-leaderboard".into())
@@ -180,6 +186,37 @@ pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>) {
             "board": leaderboard::board(Some(&profile), Period::Today, 1)?
         }))
     });
+}
+
+pub(super) fn devices(proxy: EventLoopProxy<UiEvent>) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-devices".into())
+        .spawn(move || {
+            let result = (|| -> Result<Value> {
+                let profile =
+                    leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+                let devices = leaderboard::devices(&profile)?;
+                Ok(json!({ "devices": devices }))
+            })();
+            finish_devices(proxy, result);
+        })
+        .ok();
+}
+
+pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-devices".into())
+        .spawn(move || {
+            let result = (|| -> Result<Value> {
+                let profile =
+                    leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+                leaderboard::revoke_device(&profile, device_id.trim())?;
+                let devices = leaderboard::devices(&profile)?;
+                Ok(json!({ "devices": devices }))
+            })();
+            finish_devices(proxy, result);
+        })
+        .ok();
 }
 
 pub(super) fn sync_snapshot(proxy: EventLoopProxy<UiEvent>, snapshot: String, period: Period) {

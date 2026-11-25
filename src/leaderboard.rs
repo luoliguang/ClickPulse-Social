@@ -134,6 +134,21 @@ pub struct RecoveryDay {
     pub mouse: i64,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Device {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub last_seen_at: String,
+    #[serde(default)]
+    pub current: bool,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct DevicesResponse {
+    devices: Vec<Device>,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct RecoveryCodesResponse {
     recovery_codes: Vec<String>,
@@ -223,7 +238,7 @@ fn agent() -> ureq::Agent {
         .timeout_global(Some(Duration::from_secs(30)))
         .timeout_connect(Some(Duration::from_secs(10)))
         .timeout_per_read(Some(Duration::from_secs(20)))
-        .user_agent(format!("ClickPulse/{}", crate::version::PUBLIC))
+        .user_agent(format!("ClickPulse/{} ({})", crate::version::PUBLIC, crate::platform::name()))
         .build()
         .into()
 }
@@ -459,6 +474,52 @@ pub fn set_activity_visible(profile: &Profile, visible: bool) -> Result<()> {
         },
         Some(profile),
     )?;
+    Ok(())
+}
+
+pub fn devices(profile: &Profile) -> Result<Vec<Device>> {
+    let client = agent();
+    let response = client
+        .get(format!("{API_BASE}/devices"))
+        .header("Accept", "application/json")
+        .header("Authorization", &format!("Bearer {}", profile.token))
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()?;
+    let status = response.status().as_u16();
+    let value: serde_json::Value = read_json(response)?;
+    if status >= 400 {
+        let code = value
+            .pointer("/error/code")
+            .and_then(|code| code.as_str())
+            .unwrap_or("unknown");
+        bail!("leaderboard_server_{code}");
+    }
+    let response: DevicesResponse =
+        serde_json::from_value(value).context("Invalid leaderboard response")?;
+    Ok(response.devices)
+}
+
+pub fn revoke_device(profile: &Profile, device_id: &str) -> Result<()> {
+    let client = agent();
+    let response = client
+        .delete(format!("{API_BASE}/devices/{}", device_id.trim()))
+        .header("Accept", "application/json")
+        .header("Authorization", &format!("Bearer {}", profile.token))
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()?;
+    let status = response.status().as_u16();
+    let value: serde_json::Value = read_json(response)?;
+    if status >= 400 {
+        let code = value
+            .pointer("/error/code")
+            .and_then(|code| code.as_str())
+            .unwrap_or("unknown");
+        bail!("leaderboard_server_{code}");
+    }
     Ok(())
 }
 

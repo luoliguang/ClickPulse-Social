@@ -28,6 +28,31 @@ ALTER TABLE leaderboard_members ADD COLUMN IF NOT EXISTS recovery_codes_hash TEX
 
 CREATE INDEX IF NOT EXISTS leaderboard_members_recovery_codes_idx ON leaderboard_members USING GIN (recovery_codes_hash);
 
+-- The single token_hash on members predates multi-device support. Tokens now
+-- live per-device in leaderboard_devices; keep this column nullable as a
+-- legacy backfill source only.
+ALTER TABLE leaderboard_members ALTER COLUMN token_hash DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS leaderboard_devices (
+  id TEXT PRIMARY KEY,
+  member_id TEXT NOT NULL REFERENCES leaderboard_members(id) ON DELETE CASCADE,
+  token_hash CHAR(64) UNIQUE NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS leaderboard_devices_member_idx ON leaderboard_devices(member_id);
+
+-- Migrate legacy single-token members into a device row (idempotent).
+INSERT INTO leaderboard_devices (id, member_id, token_hash, name)
+SELECT ('legacy-' || id), id, token_hash, 'Legacy device'
+FROM leaderboard_members
+WHERE token_hash IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM leaderboard_devices d WHERE d.token_hash = leaderboard_members.token_hash
+  );
+
 DO $$
 BEGIN
   IF NOT EXISTS (

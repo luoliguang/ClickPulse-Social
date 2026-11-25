@@ -41,7 +41,7 @@ test('leaderboard paginates 20 per page and pins the self entry when ranked beyo
     .concat([{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'developer', keyboard: '1', mouse: '0' }]);
   try {
     (pool as any).query = async (sql: string) => {
-      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'developer', activity_visible: false }] };
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'developer', activity_visible: false, device_id: 'dev-self', device_name: 'windows' }] };
       if (sql.includes('FROM leaderboard_members m JOIN leaderboard_daily_stats')) return { rows };
       throw new Error(`unexpected query ${sql}`);
     };
@@ -82,7 +82,7 @@ test('member activity requires auth and respects the public visibility toggle', 
   const publicId = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
   try {
     (pool as any).query = async (sql: string, values?: unknown[]) => {
-      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: viewerId, nickname: 'Viewer', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: viewerId, nickname: 'Viewer', avatar_file: null, role: 'other', activity_visible: false, device_id: 'dev-viewer', device_name: 'windows' }] };
       if (sql.includes('FROM leaderboard_members WHERE id=$1')) {
         const id = values?.[0];
         if (id === missingId) return { rows: [] };
@@ -121,7 +121,7 @@ test('PATCH /me updates the activity visibility flag and returns it', async () =
   const originalQuery = pool.query.bind(pool);
   try {
     (pool as any).query = async (sql: string, values?: unknown[]) => {
-      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: null, role: 'other', activity_visible: false, device_id: 'dev-self', device_name: 'windows' }] };
       if (sql.startsWith('UPDATE leaderboard_members SET')) {
         assert.match(sql, /activity_visible/);
         assert.ok((values as unknown[]).includes(true));
@@ -162,10 +162,11 @@ test('joining records the invitation slot and leaving releases it atomically', a
     assert.equal(joined.json().recovery_codes.length, 8);
     for (const code of joined.json().recovery_codes) assert.match(code, /^RC_[A-Za-z0-9_-]{20,}$/);
     const insert = clientQueries.find(entry => entry.sql.startsWith('INSERT INTO leaderboard_members'));
-    assert.equal(insert?.values?.[4], 'invite-1');
-    assert.equal(insert?.values?.[5], 'designer');
-    assert.ok(Array.isArray(insert?.values?.[6]));
-    assert.equal((insert?.values?.[6] as string[]).length, 8);
+    assert.equal(insert?.values?.[3], 'invite-1');
+    assert.equal(insert?.values?.[4], 'designer');
+    assert.ok(Array.isArray(insert?.values?.[5]));
+    assert.equal((insert?.values?.[5] as string[]).length, 8);
+    assert.ok(clientQueries.some(entry => entry.sql.startsWith('INSERT INTO leaderboard_devices')));
     clientQueries.length = 0;
     (pool as any).query = async (sql: string) => {
       assert.match(sql, /invitation_id/);
@@ -189,7 +190,7 @@ test('authenticated members can replace all recovery codes, including legacy mem
   try {
     (pool as any).query = async (sql: string, values?: unknown[]) => {
       queries.push({ sql, values });
-      if (sql.includes('FROM leaderboard_members WHERE token_hash')) return { rows: [{ id: 'legacy-member', nickname: 'Legacy', avatar_file: null, role: 'other', activity_visible: false }] };
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: 'legacy-member', nickname: 'Legacy', avatar_file: null, role: 'other', activity_visible: false, device_id: 'dev-legacy', device_name: 'windows' }] };
       if (sql.startsWith('UPDATE leaderboard_members SET recovery_codes_hash')) return { rows: [], rowCount: 1 };
       throw new Error(`unexpected query ${sql}`);
     };
@@ -209,7 +210,41 @@ test('authenticated members can replace all recovery codes, including legacy mem
   }
 });
 
-test('POST /recover validates recovery codes, rotates token, and removes the used code', async () => {
+test('members list their devices and can revoke any device except the current one', async () => {
+  const originalQuery = pool.query.bind(pool);
+  const devices = [
+    { id: 'dev-current', name: 'windows', created_at: '2026-11-20T00:00:00.000Z', last_seen_at: '2026-11-25T00:00:00.000Z', current: true },
+    { id: 'dev-old', name: 'macos', created_at: '2026-11-01T00:00:00.000Z', last_seen_at: '2026-11-10T00:00:00.000Z', current: false },
+  ];
+  const queries: Array<{ sql: string; values?: unknown[] }> = [];
+  try {
+    (pool as any).query = async (sql: string, values?: unknown[]) => {
+      queries.push({ sql, values });
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: 'member-1', nickname: 'Owner', avatar_file: null, role: 'developer', activity_visible: false, device_id: 'dev-current', device_name: 'windows' }] };
+      if (sql.includes('FROM leaderboard_devices WHERE member_id')) return { rows: devices };
+      if (sql.startsWith('DELETE FROM leaderboard_devices')) return { rows: [{ id: values?.[0] }] };
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp();
+    const headers = { authorization: 'Bearer membership-token' };
+    const list = await app.inject({ method: 'GET', url: '/api/v1/devices', headers });
+    assert.equal(list.statusCode, 200);
+    assert.deepEqual(list.json().devices, devices);
+    const revoke = await app.inject({ method: 'DELETE', url: '/api/v1/devices/dev-old', headers });
+    assert.equal(revoke.statusCode, 200);
+    assert.deepEqual(revoke.json(), { ok: true });
+    const del = queries.find(entry => entry.sql.startsWith('DELETE FROM leaderboard_devices'));
+    assert.deepEqual(del?.values, ['dev-old', 'member-1']);
+    const current = await app.inject({ method: 'DELETE', url: '/api/v1/devices/dev-current', headers });
+    assert.equal(current.statusCode, 400);
+    assert.equal(current.json().error.code, 'cannot_remove_current_device');
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
+test('POST /recover validates recovery codes, creates a new device token, and removes the used code', async () => {
   const originalConnect = pool.connect.bind(pool);
   const originalQuery = pool.query.bind(pool);
   const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];
@@ -222,7 +257,7 @@ test('POST /recover validates recovery codes, rotates token, and removes the use
         if (values?.[0] === recoveryHash) return { rows: [{ id: 'member-recovered', nickname: 'Recovered', avatar_file: null, role: 'developer', activity_visible: false, recovery_codes_hash: [recoveryHash, 'other-hash'] }] };
         return { rows: [] };
       }
-      if (sql.startsWith('UPDATE leaderboard_members SET token_hash')) return { rows: [] };
+      if (sql.startsWith('UPDATE leaderboard_members SET recovery_codes_hash')) return { rows: [] };
       return { rows: [], rowCount: 1 };
     },
     release: () => undefined,
@@ -247,10 +282,12 @@ test('POST /recover validates recovery codes, rotates token, and removes the use
       { day: '2026-11-20', keyboard: 1500, mouse: 800 },
       { day: '2026-11-21', keyboard: 2000, mouse: 1200 },
     ]);
-    const update = clientQueries.find(entry => entry.sql.startsWith('UPDATE leaderboard_members SET token_hash'));
+    const update = clientQueries.find(entry => entry.sql.startsWith('UPDATE leaderboard_members SET recovery_codes_hash'));
     assert.ok(update);
-    assert.ok(Array.isArray(update?.values?.[1]));
-    assert.equal((update?.values?.[1] as string[]).includes(recoveryHash), false);
+    assert.ok(Array.isArray(update?.values?.[0]));
+    assert.equal((update?.values?.[0] as string[]).includes(recoveryHash), false);
+    assert.equal((update?.values?.[0] as string[]).includes('other-hash'), true);
+    assert.ok(clientQueries.some(entry => entry.sql.startsWith('INSERT INTO leaderboard_devices')));
     assert.equal(clientQueries.filter(entry => entry.sql === 'COMMIT').length, 1);
     clientQueries.length = 0;
     const invalid = await app.inject({ method: 'POST', url: '/api/v1/recover', payload: { recovery_code: 'RC_invalidcode12345678901234' } });

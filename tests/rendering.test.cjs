@@ -957,6 +957,31 @@ test('existing leaderboard members can replace recovery codes after confirmation
   a.get('leaderboard-confirm-submit').fire();
   assert.deepEqual(sent[0],{action:'leaderboard_recovery_codes'});
 });
+test('joined members list their devices and revoke any device except the current one',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.window.receiveLeaderboard({profile:{joined:true,nickname:'Luo',member_id:'member'},board:{period:'today',page:1,total_pages:1,total_entries:0,entries:[]}});
+  assert.deepEqual(sent[0],{action:'leaderboard_devices'});
+  assert.equal(a.get('leaderboard-devices-list').children.length,0,'list is empty until the device list arrives');
+  sent.length=0;
+  a.window.receiveLeaderboardDevices({devices:[
+    {id:'dev-1',name:'Windows',created_at:'2026-11-01T00:00:00.000Z',last_seen_at:'2026-11-25T00:00:00.000Z',current:true},
+    {id:'dev-2',name:'MacBook',created_at:'2026-11-02T00:00:00.000Z',last_seen_at:'2026-11-10T00:00:00.000Z',current:false}
+  ]});
+  const list=a.get('leaderboard-devices-list');
+  assert.equal(a.get('leaderboard-devices').hidden,false);
+  assert.equal(list.children.length,2);
+  assert.equal(list.children[0].children.length,1,'current device has no revoke button');
+  assert.match(list.children[0].children[0].children[1].textContent,new RegExp(messages.en['leaderboard.device_current']));
+  assert.equal(list.children[1].children.length,2,'non-current device exposes a revoke button');
+  assert.equal(list.children[1].children[1].textContent,messages.en['leaderboard.device_revoke']);
+  sent.length=0;list.children[1].children[1].fire();
+  assert.equal(sent.length,0,'revoke asks for confirmation first');
+  assert.equal(a.get('leaderboard-confirm-overlay').hidden,false);
+  assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.device_revoke_confirm_title']);
+  assert.match(a.get('leaderboard-confirm-description').textContent,/MacBook/);
+  a.get('leaderboard-confirm-submit').fire();
+  assert.deepEqual(sent[0],{action:'leaderboard_revoke_device',device_id:'dev-2'});
+});
 test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
   const a=app();
   a.window.receiveLeaderboardActivity({

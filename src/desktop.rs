@@ -63,6 +63,7 @@ enum UiEvent {
     LeaderboardBackground(std::result::Result<serde_json::Value, String>),
     LeaderboardActivity(std::result::Result<serde_json::Value, String>),
     LeaderboardVisibility(std::result::Result<serde_json::Value, String>),
+    LeaderboardDevices(std::result::Result<serde_json::Value, String>),
     #[cfg(target_os = "windows")]
     Activate,
 }
@@ -580,6 +581,19 @@ pub fn run(
                     let _ = webview.evaluate_script(&script);
                 }
             }
+            Event::UserEvent(UiEvent::LeaderboardDevices(result)) => {
+                let script = match result {
+                    Ok(value) => format!("window.receiveLeaderboardDevices?.({value});"),
+                    Err(error) => serde_json::to_string(&error)
+                        .map(|error| {
+                            format!("window.receiveLeaderboardDevicesError?.({error});")
+                        })
+                        .unwrap_or_default(),
+                };
+                if ready {
+                    let _ = webview.evaluate_script(&script);
+                }
+            }
             Event::UserEvent(UiEvent::SportSample { id, result })
                 if sport_samples.complete(id).is_some()
                     && ready
@@ -946,6 +960,19 @@ pub fn run(
                             if !demo && !source_mode && runtime.is_some() {
                                 leaderboard_syncing = true;
                                 leaderboard::recovery_codes(snapshot_proxy.clone());
+                            }
+                        }
+                        Request::LeaderboardDevices {} => {
+                            if !demo && !source_mode && runtime.is_some() {
+                                leaderboard::devices(snapshot_proxy.clone());
+                            } else {
+                                let _ = webview
+                                    .evaluate_script("window.receiveLeaderboardDevices?.({devices:[]});");
+                            }
+                        }
+                        Request::LeaderboardRevokeDevice { device_id } => {
+                            if !demo && !source_mode && runtime.is_some() {
+                                leaderboard::revoke_device(snapshot_proxy.clone(), device_id);
                             }
                         }
                         Request::LeaderboardSync { period } => {
