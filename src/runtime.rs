@@ -35,6 +35,7 @@ pub(crate) enum Command {
         PathBuf,
         Completion<crate::history_import::ImportReport>,
     ),
+    RecoveryImport(Vec<crate::leaderboard::RecoveryDay>, Completion<usize>),
     Relocate(PathBuf, PathBuf, PathBuf, Completion<()>),
     Stop,
 }
@@ -516,6 +517,21 @@ impl Runtime {
         Ok(())
     }
 
+    pub fn request_import_recovery_stats(
+        &self,
+        days: Vec<crate::leaderboard::RecoveryDay>,
+        reply: impl FnOnce(Result<usize>) + Send + 'static,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            self.database_mode == DatabaseMode::Default,
+            "Leaderboard recovery is only available for the normal app profile"
+        );
+        self.tx
+            .try_send(Command::RecoveryImport(days, Completion::new(reply)))
+            .map_err(|_| anyhow!("Recovery import worker is unavailable"))?;
+        Ok(())
+    }
+
     pub fn change_directory(&mut self, directory: &Path) -> Result<bool> {
         self.change_directory_with_config(directory, &crate::storage::config_path()?)
     }
@@ -754,6 +770,9 @@ fn source_loop_inner(
             Command::Import(_, _, reply) => {
                 reply.complete(Err(anyhow!("Read-only source cannot import history")));
             }
+            Command::RecoveryImport(_, reply) => {
+                reply.complete(Err(anyhow!("Read-only source cannot import recovery statistics")));
+            }
             Command::Relocate(_, _, _, reply) => {
                 reply.complete(Err(anyhow!("Read-only source cannot change storage")));
             }
@@ -815,6 +834,12 @@ impl Storage {
         match self {
             Self::Independent(db) => db.snapshot_in_timezone(now, zone),
             Self::App(db) => db.snapshot_in_timezone(now, zone),
+        }
+    }
+    fn import_recovery_stats(&mut self, days: &[crate::leaderboard::RecoveryDay]) -> Result<usize> {
+        match self {
+            Self::Independent(db) => db.import_recovery_stats(days),
+            Self::App(db) => db.import_recovery_stats(days),
         }
     }
     fn prune_rolling_cache(&mut self, now: i64) -> Result<()> {
@@ -1001,6 +1026,10 @@ impl StorageWorker {
                     Storage::App(db) => db.import_history(&source, &current),
                     _ => Err(anyhow!("This database cannot import history")),
                 };
+                Box::new(move || reply.complete(result))
+            })?,
+            Command::RecoveryImport(days, reply) => self.spawn_job(move |db| {
+                let result = db.import_recovery_stats(&days);
                 Box::new(move || reply.complete(result))
             })?,
             Command::Relocate(source, output, config, reply) => self.spawn_job(move |db| {

@@ -118,7 +118,22 @@ struct JoinResponse {
     token: String,
     #[serde(default)]
     recovery_codes: Vec<String>,
+    #[serde(default)]
+    recovery_stats: RecoveryStats,
 }
+
+#[derive(Clone, Debug, Default, Deserialize)]
+struct RecoveryStats {
+    days: Vec<RecoveryDay>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RecoveryDay {
+    pub day: String,
+    pub keyboard: i64,
+    pub mouse: i64,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct RecoveryCodesResponse {
     recovery_codes: Vec<String>,
@@ -322,7 +337,7 @@ pub fn join(invite_code: &str, nickname: &str, role: &str) -> Result<(Profile, V
     Ok((profile, response.recovery_codes))
 }
 
-pub fn recover(recovery_code: &str) -> Result<Profile> {
+pub fn recover(recovery_code: &str) -> Result<(Profile, Vec<RecoveryDay>)> {
     #[derive(Serialize)]
     struct Recover<'a> {
         recovery_code: &'a str,
@@ -342,7 +357,7 @@ pub fn recover(recovery_code: &str) -> Result<Profile> {
         token: response.token,
     };
     save_profile(&profile)?;
-    Ok(profile)
+    Ok((profile, response.recovery_stats.days))
 }
 
 pub fn regenerate_recovery_codes(profile: &Profile) -> Result<Vec<String>> {

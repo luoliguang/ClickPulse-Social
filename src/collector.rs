@@ -222,6 +222,45 @@ impl CollectorDb {
         )?;
         Ok(())
     }
+
+    /// Import recovered leaderboard aggregates without fabricating event-level history.
+    pub fn import_recovery_stats(&mut self, days: &[crate::leaderboard::RecoveryDay]) -> Result<usize> {
+        if days.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.conn.transaction()?;
+        let mut imported = 0;
+        for day in days {
+            let exists: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM daily_totals WHERE day=?1)",
+                [&day.day],
+                |r| r.get(0),
+            )?;
+            if exists {
+                continue;
+            }
+            if day.keyboard > 0 {
+                tx.execute(
+                    "INSERT INTO daily_totals VALUES(?1,1,?2)",
+                    params![&day.day, day.keyboard],
+                )?;
+                tx.execute("UPDATE lifetime_totals SET cnt=cnt+?1 WHERE dev=1", [day.keyboard])?;
+            }
+            if day.mouse > 0 {
+                tx.execute(
+                    "INSERT INTO daily_totals VALUES(?1,0,?2)",
+                    params![&day.day, day.mouse],
+                )?;
+                tx.execute("UPDATE lifetime_totals SET cnt=cnt+?1 WHERE dev=0", [day.mouse])?;
+            }
+            if day.keyboard > 0 || day.mouse > 0 {
+                imported += 1;
+            }
+        }
+        tx.commit()?;
+        self.projection.clear();
+        Ok(imported)
+    }
 }
 
 pub(crate) fn initialize(conn: &mut Connection) -> Result<()> {

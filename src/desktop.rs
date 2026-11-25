@@ -496,6 +496,35 @@ pub fn run(
                 }
             }
             Event::UserEvent(UiEvent::Leaderboard(result)) => {
+                let result = match result {
+                    Ok(mut value) if value.pointer("/recovery_stats/days").is_some() => {
+                        let days = serde_json::from_value::<Vec<clickpulse::leaderboard::RecoveryDay>>(
+                            value.pointer("/recovery_stats/days").cloned().unwrap_or_default(),
+                        );
+                        value.as_object_mut().map(|object| object.remove("recovery_stats"));
+                        match (days, runtime.as_ref()) {
+                            (Ok(days), Some(runtime)) => {
+                                let proxy = snapshot_proxy.clone();
+                                let queued = runtime.request_import_recovery_stats(days, move |result| {
+                                    let result = result.map(|count| {
+                                        value["recovered_days"] = serde_json::json!(count);
+                                        value
+                                    });
+                                    let result = result.map_err(|error| format!("{error:#}"));
+                                    let _ = proxy.send_event(UiEvent::Leaderboard(result));
+                                });
+                                if let Err(error) = queued {
+                                    Err(format!("{error:#}"))
+                                } else {
+                                    return;
+                                }
+                            }
+                            (Err(error), _) => Err(format!("Invalid recovered statistics: {error}")),
+                            (_, None) => Err("Leaderboard recovery is unavailable without a local database".into()),
+                        }
+                    }
+                    other => other,
+                };
                 leaderboard_syncing = false;
                 let script = match result {
                     Ok(value) => {

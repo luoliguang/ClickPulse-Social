@@ -211,6 +211,7 @@ test('authenticated members can replace all recovery codes, including legacy mem
 
 test('POST /recover validates recovery codes, rotates token, and removes the used code', async () => {
   const originalConnect = pool.connect.bind(pool);
+  const originalQuery = pool.query.bind(pool);
   const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];
   const recoveryCode = 'RC_validcode1234567890123456';
   const recoveryHash = hashSecret(recoveryCode);
@@ -228,6 +229,12 @@ test('POST /recover validates recovery codes, rotates token, and removes the use
   };
   try {
     (pool as any).connect = async () => fakeClient;
+    (pool as any).query = async (sql: string, values?: unknown[]) => {
+      if (sql.includes('SELECT day::text AS day, keyboard, mouse FROM leaderboard_daily_stats')) {
+        return { rows: [{ day: '2026-11-20', keyboard: '1500', mouse: '800' }, { day: '2026-11-21', keyboard: '2000', mouse: '1200' }] };
+      }
+      return { rows: [] };
+    };
     const app = buildApp();
     const recovered = await app.inject({ method: 'POST', url: '/api/v1/recover', payload: { recovery_code: recoveryCode } });
     assert.equal(recovered.statusCode, 200);
@@ -236,6 +243,10 @@ test('POST /recover validates recovery codes, rotates token, and removes the use
     assert.equal(body.member.nickname, 'Recovered');
     assert.ok(typeof body.token === 'string');
     assert.equal(body.token.length > 20, true);
+    assert.deepEqual(body.recovery_stats.days, [
+      { day: '2026-11-20', keyboard: 1500, mouse: 800 },
+      { day: '2026-11-21', keyboard: 2000, mouse: 1200 },
+    ]);
     const update = clientQueries.find(entry => entry.sql.startsWith('UPDATE leaderboard_members SET token_hash'));
     assert.ok(update);
     assert.ok(Array.isArray(update?.values?.[1]));
@@ -250,5 +261,6 @@ test('POST /recover validates recovery codes, rotates token, and removes the use
     await app.close();
   } finally {
     (pool as any).connect = originalConnect;
+    (pool as any).query = originalQuery;
   }
 });

@@ -156,12 +156,15 @@ pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String) {
             leaderboard::load_profile()?.is_none(),
             "Cannot recover: already joined"
         );
-        let profile = leaderboard::recover(recovery_code.trim())?;
+        let (profile, recovery_days) = leaderboard::recover(recovery_code.trim())?;
         let board = leaderboard::board(Some(&profile), Period::Today, 1)?;
         Ok(json!({
             "profile": leaderboard::profile_summary(Some(&profile)),
             "board": board,
-            "skip_auto_sync": true
+            "skip_auto_sync": true,
+            "recovery_stats": {
+                "days": recovery_days
+            }
         }))
     });
 }

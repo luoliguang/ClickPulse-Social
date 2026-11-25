@@ -277,7 +277,7 @@ window.receiveLeaderboard=state=>{
   }else{
     leaderboardState=incoming;
   }
-  leaderboardPage=page;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(Array.isArray(state.recovery_codes)&&state.recovery_codes.length)showRecoveryCodes(state.recovery_codes);if(!joinedBefore&&state.profile?.joined&&!state.skip_auto_sync)requestLeaderboard(true);
+  leaderboardPage=page;setLeaderboardBusy(false);if(renamed)setLeaderboardEditing(false);renderLeaderboard();if(Array.isArray(state.recovery_codes)&&state.recovery_codes.length)showRecoveryCodes(state.recovery_codes);if(typeof state.recovered_days==='number'&&state.recovered_days>0)window.toast(t('leaderboard.recovery_imported',{count:state.recovered_days}));if(!joinedBefore&&state.profile?.joined&&!state.skip_auto_sync)requestLeaderboard(true);
 };
 window.receiveLeaderboardBackground=state=>{
   if(leaderboardBusy||(state.board?.period&&state.board.period!==leaderboardPeriod))return;

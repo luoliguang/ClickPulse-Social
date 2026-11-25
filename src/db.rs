@@ -210,6 +210,47 @@ impl EventDb {
         )?)
     }
 
+    /// Import daily statistics from leaderboard recovery, filling only missing dates.
+    /// Local data always takes precedence; existing dates are never overwritten.
+    pub fn import_recovery_stats(&mut self, days: &[crate::leaderboard::RecoveryDay]) -> Result<usize> {
+        if days.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.conn.transaction()?;
+        let mut imported = 0;
+        for day in days {
+            // Only import if this date has no local records at all
+            let exists: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM daily WHERE day=?1)",
+                [&day.day],
+                |r| r.get(0),
+            )?;
+            if exists {
+                continue;
+            }
+            if day.keyboard > 0 {
+                tx.execute(
+                    "INSERT INTO daily VALUES(?1,1,?2)",
+                    params![&day.day, day.keyboard],
+                )?;
+                tx.execute("UPDATE totals SET cnt=cnt+?1 WHERE dev=1", [day.keyboard])?;
+            }
+            if day.mouse > 0 {
+                tx.execute(
+                    "INSERT INTO daily VALUES(?1,0,?2)",
+                    params![&day.day, day.mouse],
+                )?;
+                tx.execute("UPDATE totals SET cnt=cnt+?1 WHERE dev=0", [day.mouse])?;
+            }
+            if day.keyboard > 0 || day.mouse > 0 {
+                imported += 1;
+            }
+        }
+        tx.commit()?;
+        self.projection.clear();
+        Ok(imported)
+    }
+
     pub fn insert(&mut self, events: &[InputEvent]) -> Result<()> {
         if events.is_empty() {
             return Ok(());

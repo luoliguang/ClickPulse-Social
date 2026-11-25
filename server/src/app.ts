@@ -226,7 +226,8 @@ export function buildApp() {
         await client.query('UPDATE leaderboard_members SET token_hash=$1,recovery_codes_hash=$2,updated_at=NOW() WHERE id=$3', [hashSecret(token), member.recovery_codes_hash.filter(value => value !== hash), member.id]);
         await client.query('COMMIT');
         boardCache.clear();
-        return { member: memberJson(member), token };
+        const stats = await pool.query<{ day: string; keyboard: string; mouse: string }>('SELECT day::text AS day, keyboard, mouse FROM leaderboard_daily_stats WHERE member_id=$1 ORDER BY day ASC', [member.id]);
+        return { member: memberJson(member), token, recovery_stats: { days: stats.rows.map(row => ({ day: row.day, keyboard: Number(row.keyboard), mouse: Number(row.mouse) })) } };
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
