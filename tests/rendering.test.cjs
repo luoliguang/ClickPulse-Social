@@ -61,6 +61,7 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
     for(const module of ['themes','i18n','history','keyboard','dropdown','sport','share'])vm.runInContext(readFileSync('ui/'+module+'.js','utf8'),context);
   }
   vm.runInContext(readFileSync('ui/app.js','utf8'),context);
+  vm.runInContext(readFileSync('ui/tooltip.js','utf8'),context);
   vm.runInContext(readFileSync('ui/presentation.js','utf8'),context);
   return {window,get,root,context,intervals,settingsLinks,leaderboardPeriods,leaderboardJoinModes,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
 }

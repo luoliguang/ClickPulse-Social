@@ -270,7 +270,7 @@ pub fn run(
         .replace(
             "/*__SCRIPT__*/",
             &format!(
-                "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                 include_str!("../ui/i18n.js"),
                 include_str!("../ui/themes.js"),
                 include_str!("../ui/dropdown.js"),
@@ -279,6 +279,7 @@ pub fn run(
                 include_str!("../ui/sport.js"),
                 include_str!("../ui/share.js"),
                 include_str!("../ui/app.js"),
+                include_str!("../ui/tooltip.js"),
                 include_str!("../ui/presentation.js")
             ),
         );
