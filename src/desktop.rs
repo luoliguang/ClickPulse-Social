@@ -61,7 +61,10 @@ enum UiEvent {
     },
     Leaderboard(std::result::Result<serde_json::Value, String>),
     LeaderboardBackground(std::result::Result<serde_json::Value, String>),
-    LeaderboardActivity(std::result::Result<serde_json::Value, String>),
+    LeaderboardActivity {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
     LeaderboardVisibility(std::result::Result<serde_json::Value, String>),
     LeaderboardDevices(std::result::Result<serde_json::Value, String>),
     #[cfg(target_os = "windows")]
@@ -557,11 +560,17 @@ pub fn run(
                     ));
                 }
             }
-            Event::UserEvent(UiEvent::LeaderboardActivity(result)) => {
+            Event::UserEvent(UiEvent::LeaderboardActivity { request_id, result }) => {
                 let script = match result {
-                    Ok(value) => format!("window.receiveLeaderboardActivity?.({value});"),
+                    Ok(value) => format!(
+                        "window.receiveLeaderboardActivity?.({request_id},{value});"
+                    ),
                     Err(error) => serde_json::to_string(&error)
-                        .map(|error| format!("window.receiveLeaderboardActivityError?.({error});"))
+                        .map(|error| {
+                            format!(
+                                "window.receiveLeaderboardActivityError?.({request_id},{error});"
+                            )
+                        })
                         .unwrap_or_default(),
                 };
                 if ready {
@@ -1038,16 +1047,21 @@ pub fn run(
                             leaderboard_syncing = true;
                             leaderboard::leave(snapshot_proxy.clone());
                         }
-                        Request::LeaderboardActivity { member_id, days } => {
+                        Request::LeaderboardActivity {
+                            member_id,
+                            days,
+                            request_id,
+                        } => {
                             if demo {
-                                let _ = webview.evaluate_script(
-                                    "window.receiveLeaderboardActivityError?.('Activity is unavailable in demo mode.');",
-                                );
+                                let _ = webview.evaluate_script(&format!(
+                                    "window.receiveLeaderboardActivityError?.({request_id},'Activity is unavailable in demo mode.');"
+                                ));
                             } else {
                                 leaderboard::activity(
                                     snapshot_proxy.clone(),
                                     member_id,
                                     days.unwrap_or(30),
+                                    request_id,
                                 );
                             }
                         }

@@ -24,6 +24,25 @@ test('health reports the running deployment revision after checking the database
   }
 });
 
+test('authentication reads valid devices while throttling last-seen writes in one query', async () => {
+  const originalQuery = pool.query.bind(pool);
+  try {
+    let authenticationSql = '';
+    (pool as any).query = async (sql: string) => {
+      authenticationSql = sql;
+      return { rows: [{ id: 'member-1', nickname: 'Luo', avatar_file: null, role: 'developer', activity_visible: false, device_id: 'device-1', device_name: 'windows' }] };
+    };
+    const app = buildApp();
+    const response = await app.inject({ method: 'GET', url: '/api/v1/me', headers: { authorization: 'Bearer membership-token' } });
+    assert.equal(response.statusCode, 200);
+    assert.match(authenticationSql, /active AS \(SELECT id,member_id,name FROM leaderboard_devices WHERE token_hash=\$1\)/);
+    assert.match(authenticationSql, /last_seen_at<=NOW\(\)-INTERVAL '10 minutes'/);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
 test('strict request schemas reject unexpected activity fields before database access', async () => {
   const app = buildApp();
   const join = await app.inject({ method: 'POST', url: '/api/v1/join', payload: { invite_code: 'ABCDEF', nickname: 'Luo', typed_text: 'never' } });
@@ -140,6 +159,27 @@ test('PATCH /me updates the activity visibility flag and returns it', async () =
     (pool as any).query = originalQuery;
   }
 });
+test('avatar deletion succeeds after the database commit even when file cleanup fails', async () => {
+  const originalQuery = pool.query.bind(pool);
+  const removed: string[] = [];
+  try {
+    (pool as any).query = async (sql: string) => {
+      if (sql.includes('UPDATE leaderboard_devices SET last_seen_at')) return { rows: [{ id: 'self-id', nickname: 'Self', avatar_file: '12345678-1234-4234-9234-123456789abc.webp', role: 'other', activity_visible: false, device_id: 'dev-self', device_name: 'windows' }] };
+      if (sql.startsWith('UPDATE leaderboard_members SET avatar_file=NULL')) return { rows: [], rowCount: 1 };
+      throw new Error(`unexpected query ${sql}`);
+    };
+    const app = buildApp({ removeFile: async path => { removed.push(path); throw new Error('disk is read-only'); } });
+    const response = await app.inject({ method: 'DELETE', url: '/api/v1/avatar', headers: { authorization: 'Bearer membership-token' } });
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+    assert.equal(removed.length, 1);
+    assert.match(removed[0], /12345678-1234-4234-9234-123456789abc\.webp$/);
+    await app.close();
+  } finally {
+    (pool as any).query = originalQuery;
+  }
+});
+
 test('joining records the invitation slot and leaving releases it atomically', async () => {
   const originalQuery = pool.query.bind(pool), originalConnect = pool.connect.bind(pool);
   const clientQueries: Array<{ sql: string; values?: unknown[] }> = [];

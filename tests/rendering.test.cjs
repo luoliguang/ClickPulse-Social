@@ -900,9 +900,20 @@ test('legacy leaderboard totals and activity controls remain compatible during A
   a.window.receiveLeaderboard({profile:{...legacy.profile,activity_supported:true,activity_visible:false},board:{...board,page:1,page_size:20,total_entries:2,total_pages:1}});
   assert.equal(a.get('leaderboard-visibility-row').hidden,false);
   a.get('leaderboard-rows').children[1].fire();
-  assert.deepEqual(sent.pop(),{action:'leaderboard_activity',member_id:'other',days:30});
+  assert.deepEqual(sent.pop(),{action:'leaderboard_activity',member_id:'other',days:30,request_id:1});
   a.get('leaderboard-visibility').checked=true;a.get('leaderboard-visibility').fire('change');
+  assert.equal(sent.length,0,'visibility is not enabled before confirmation');
+  assert.equal(a.get('leaderboard-confirm-overlay').hidden,false);
+  assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.visibility_confirm_title']);
+  a.get('leaderboard-confirm-cancel').fire();
+  assert.equal(a.get('leaderboard-visibility').checked,false,'cancelling restores the saved visibility');
+  a.get('leaderboard-visibility').checked=true;a.get('leaderboard-visibility').fire('change');
+  a.get('leaderboard-confirm-submit').fire();
   assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:true});
+  a.window.receiveLeaderboardVisibility({activity_visible:true});
+  a.get('leaderboard-visibility').checked=false;a.get('leaderboard-visibility').fire('change');
+  assert.equal(a.get('leaderboard-confirm-overlay').hidden,true,'disabling visibility needs no confirmation');
+  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:false});
 });
 test('Scoop-managed updates keep checks and localized guidance without sending install requests',()=>{
   for(const locale of Object.keys(messages)){
@@ -983,8 +994,14 @@ test('joined members list their devices and revoke any device except the current
   assert.deepEqual(sent[0],{action:'leaderboard_revoke_device',device_id:'dev-2'});
 });
 test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
-  const a=app();
-  a.window.receiveLeaderboardActivity({
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.window.receiveLeaderboard({
+    profile:{joined:true,member_id:'self',nickname:'Self',activity_supported:true},
+    board:{period:'today',page:1,total_pages:1,total_entries:1,entries:[{member_id:'member-a',nickname:'Member A',role:'other',keyboard:12,mouse:5,total:17,avatar:{initial:'A',color:'#123'}}]}
+  });
+  sent.length=0;a.get('leaderboard-rows').children[0].fire();
+  const request=sent.pop();
+  a.window.receiveLeaderboardActivity(request.request_id,{
     start_day:'2026-11-02',end_day:'2026-11-08',
     days:[
       {day:'2026-11-02',keyboard:10,mouse:2,total:12},
@@ -999,6 +1016,29 @@ test('public leaderboard activity fills missing dates and renders a heatmap befo
   assert.equal(body.children[1].children.length,7);
   assert.match(body.children[0].children[0].children[0].dataset.tooltip,/2026-11-02/);
   assert.match(body.children[0].children[0].children[3].dataset.tooltip,/2026-11-05/);
+});
+test('leaderboard activity ignores stale and closed-dialog responses',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  a.window.receiveLeaderboard({
+    profile:{joined:true,member_id:'self',nickname:'Self',activity_supported:true},
+    board:{period:'today',page:1,total_pages:1,total_entries:2,entries:[
+      {member_id:'member-a',nickname:'Member A',role:'other',keyboard:12,mouse:5,total:17,avatar:{initial:'A',color:'#123'}},
+      {member_id:'member-b',nickname:'Member B',role:'other',keyboard:11,mouse:4,total:15,avatar:{initial:'B',color:'#456'}}
+    ]}
+  });
+  sent.length=0;
+  a.get('leaderboard-rows').children[0].fire();const first=sent.pop();
+  a.get('leaderboard-rows').children[1].fire();const second=sent.pop();
+  assert.ok(second.request_id>first.request_id);
+  a.window.receiveLeaderboardActivity(second.request_id,{start_day:'2026-11-08',end_day:'2026-11-08',days:[{day:'2026-11-08',keyboard:2,mouse:1,total:3}]});
+  const body=a.get('leaderboard-activity-body');
+  const currentTooltip=()=>body.children[0].children[0].children.find(child=>child.dataset.tooltip)?.dataset.tooltip;
+  assert.match(currentTooltip(),/2026-11-08/);
+  a.window.receiveLeaderboardActivity(first.request_id,{start_day:'2026-11-07',end_day:'2026-11-07',days:[{day:'2026-11-07',keyboard:9,mouse:9,total:18}]});
+  assert.match(currentTooltip(),/2026-11-08/,'older response cannot replace the current member');
+  a.get('leaderboard-activity-close').fire();
+  a.window.receiveLeaderboardActivityError(second.request_id,'activity_private');
+  assert.match(currentTooltip(),/2026-11-08/,'closed activity dialog ignores in-flight responses');
 });
 test('leaderboard join and leave use an in-app confirmation dialog before sending requests',()=>{
   const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));

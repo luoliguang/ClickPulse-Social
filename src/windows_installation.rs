@@ -346,35 +346,61 @@ mod tests {
     }
 
     #[test]
-    fn stable_entry_must_resolve_to_this_program_and_survives_version_changes() {
+    fn versioned_installations_remain_registered_across_upgrades() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("packages");
         fs::create_dir(&root).unwrap();
-        let link = temp.path().join("clickpulse.exe");
-        let record = [Registration {
-            package_id: PACKAGE_ID.into(),
-            location: root.clone(),
-            link: link.clone(),
-        }];
         for version in ["0.3.1", "0.3.2"] {
             let exe = root.join(format!("ClickPulse-{version}-windows-x64/ClickPulse.exe"));
             fs::create_dir_all(exe.parent().unwrap()).unwrap();
             fs::write(&exe, b"app").unwrap();
-            if link.exists() {
-                fs::remove_file(&link).unwrap();
-            }
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(&exe, &link).unwrap();
-            #[cfg(windows)]
-            std::os::windows::fs::symlink_file(&exe, &link).unwrap();
+            let record = [Registration {
+                package_id: PACKAGE_ID.into(),
+                location: root.clone(),
+                link: exe.clone(),
+            }];
             assert_eq!(
                 registered_installation(&exe, &record).unwrap().link,
-                Some(link.clone())
+                Some(exe)
             );
         }
+    }
+
+    #[test]
+    fn stable_symlink_resolves_to_the_registered_program_when_supported() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("packages");
+        fs::create_dir(&root).unwrap();
+        let exe = root.join("ClickPulse-0.3.2-windows-x64/ClickPulse.exe");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, b"app").unwrap();
+        let link = temp.path().join("clickpulse.exe");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&exe, &link).unwrap();
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_file(&exe, &link) {
+            if error.raw_os_error() == Some(1314) {
+                eprintln!("symlink capability unavailable: Windows developer mode is disabled");
+                return;
+            }
+            panic!("failed to create test symlink: {error}");
+        }
+        let record = [Registration {
+            package_id: PACKAGE_ID.into(),
+            location: root,
+            link: link.clone(),
+        }];
+        assert_eq!(
+            registered_installation(&exe, &record).unwrap().link,
+            Some(link.clone())
+        );
         let other = temp.path().join("other.exe");
         fs::write(&other, b"other").unwrap();
         assert!(!same_program(&link, &other));
+    }
+
+    #[test]
+    fn winget_update_uses_the_stable_package_id() {
         assert_eq!(
             WINGET_UPDATE,
             "winget upgrade --id endNone.ClickPulse --exact"

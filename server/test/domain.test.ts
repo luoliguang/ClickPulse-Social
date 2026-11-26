@@ -36,10 +36,47 @@ test('activity range spans the requested trailing days and clamps to safe bounds
   assert.deepEqual(activityRange(0, new Date('2026-06-17T04:00:00Z')), { start: '2026-06-17', end: '2026-06-17' });
 });
 
-test('avatar validation checks bounded WebP signatures and defaults are stable', () => {
-  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), Buffer.from('x')]);
+test('avatar validation checks complete bounded WebP containers and defaults are stable', () => {
+  const makeChunk = (type: string, payload: Buffer) => {
+    const header = Buffer.alloc(8);
+    header.write(type, 0);
+    header.writeUInt32LE(payload.length, 4);
+    return Buffer.concat([header, payload, payload.length & 1 ? Buffer.alloc(1) : Buffer.alloc(0)]);
+  };
+  const makeContainer = (chunks: Buffer[]) => {
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), ...chunks]);
+    webp.writeUInt32LE(webp.length - 8, 4);
+    return webp;
+  };
+  const makeVp8Chunk = (width: number, height: number) => {
+    const payload = Buffer.alloc(10);
+    payload.set([0x9d, 0x01, 0x2a], 3);
+    payload.writeUInt16LE(width, 6);
+    payload.writeUInt16LE(height, 8);
+    return makeChunk('VP8 ', payload);
+  };
+  const makeVp8xChunk = (width: number, height: number) => {
+    const payload = Buffer.alloc(10);
+    payload.writeUIntLE(width - 1, 4, 3);
+    payload.writeUIntLE(height - 1, 7, 3);
+    return makeChunk('VP8X', payload);
+  };
+
+  const webp = makeContainer([makeVp8Chunk(256, 256)]);
   assert.equal(assertWebp(webp), webp);
+  const encodedAlphaWebp = Buffer.from('UklGRmAAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSAoAAAABB9C/iAhERP8DVlA4IDAAAADQAQCdASoQABAAAgA0JaACdLoB+AADsAD+8Oj3/yC5YXXI1/8gP+QH/ID/+PIAAAA=', 'base64');
+  const encodedLosslessWebp = Buffer.from('UklGRhwAAABXRUJQVlA4TA8AAAAvD8ADAAcQ0f/+ByKi/wEA', 'base64');
+  assert.equal(assertWebp(encodedAlphaWebp), encodedAlphaWebp);
+  assert.equal(assertWebp(encodedLosslessWebp), encodedLosslessWebp);
+
   assert.throws(() => assertWebp(Buffer.from('not an image')));
+  assert.throws(() => assertWebp(webp.subarray(0, webp.length - 1)));
+  assert.throws(() => assertWebp(makeContainer([makeVp8Chunk(0, 256)])));
+  assert.throws(() => assertWebp(makeContainer([makeVp8Chunk(1025, 256)])));
+  assert.throws(() => assertWebp(makeContainer([makeVp8xChunk(1025, 1), makeVp8Chunk(1, 1)])));
+  assert.throws(() => assertWebp(makeContainer([makeVp8xChunk(2, 2), makeVp8Chunk(1, 1)])));
+  assert.throws(() => assertWebp(makeContainer([makeVp8xChunk(1, 1), makeVp8xChunk(1, 1), makeVp8Chunk(1, 1)])));
+  assert.throws(() => assertWebp(makeContainer([makeVp8Chunk(1, 1), makeVp8Chunk(1, 1)])));
   assert.deepEqual(defaultAvatar('member-1', '罗洋洋'), defaultAvatar('member-1', '罗洋洋'));
 });
 

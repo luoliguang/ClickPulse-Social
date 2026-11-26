@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 
 export const MAX_DAILY_COUNT = 5_000_000;
 export const MAX_AVATAR_BYTES = 200 * 1024;
+export const MAX_AVATAR_DIMENSION = 1024;
 
 export function hashSecret(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
@@ -44,8 +45,49 @@ export function assertInvite(value: unknown): string {
 }
 
 export function assertWebp(body: unknown): Buffer {
-  if (!Buffer.isBuffer(body) || body.length < 12 || body.length > MAX_AVATAR_BYTES || body.subarray(0, 4).toString() !== 'RIFF' || body.subarray(8, 12).toString() !== 'WEBP') throw new Error('invalid_avatar');
-  return body;
+  const invalid = (): never => { throw new Error('invalid_avatar'); };
+  if (!Buffer.isBuffer(body)) invalid();
+  const bytes = body as Buffer;
+  if (bytes.length < 26 || bytes.length > MAX_AVATAR_BYTES || bytes.subarray(0, 4).toString() !== 'RIFF' || bytes.subarray(8, 12).toString() !== 'WEBP') invalid();
+  if (bytes.readUInt32LE(4) + 8 !== bytes.length) invalid();
+
+  let offset = 12;
+  let imageSize: { width: number; height: number } | undefined;
+  let canvasSize: { width: number; height: number } | undefined;
+  while (offset < bytes.length) {
+    if (offset + 8 > bytes.length) invalid();
+    const type = bytes.subarray(offset, offset + 4).toString();
+    const chunkSize = bytes.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    const end = start + chunkSize;
+    if (end > bytes.length) invalid();
+    const chunk = bytes.subarray(start, end);
+
+    if (type === 'VP8 ') {
+      if (imageSize || chunk.length < 10 || chunk[3] !== 0x9d || chunk[4] !== 0x01 || chunk[5] !== 0x2a) invalid();
+      imageSize = { width: chunk.readUInt16LE(6) & 0x3fff, height: chunk.readUInt16LE(8) & 0x3fff };
+    } else if (type === 'VP8L') {
+      if (imageSize || chunk.length < 5 || chunk[0] !== 0x2f) invalid();
+      imageSize = {
+        width: 1 + chunk[1] + ((chunk[2] & 0x3f) << 8),
+        height: 1 + (chunk[2] >> 6) + (chunk[3] << 2) + ((chunk[4] & 0x0f) << 10)
+      };
+    } else if (type === 'VP8X') {
+      if (offset !== 12 || canvasSize || chunk.length !== 10 || (chunk[0] & 0xc3) !== 0 || chunk[1] !== 0 || chunk[2] !== 0 || chunk[3] !== 0) invalid();
+      canvasSize = {
+        width: 1 + chunk.readUIntLE(4, 3),
+        height: 1 + chunk.readUIntLE(7, 3)
+      };
+      if (canvasSize.width > MAX_AVATAR_DIMENSION || canvasSize.height > MAX_AVATAR_DIMENSION || canvasSize.width * canvasSize.height > MAX_AVATAR_DIMENSION * MAX_AVATAR_DIMENSION) invalid();
+    }
+    offset = end + (chunkSize & 1);
+  }
+
+  if (offset !== bytes.length || !imageSize) invalid();
+  const frameSize = imageSize as { width: number; height: number };
+  if (frameSize.width < 1 || frameSize.height < 1 || frameSize.width > MAX_AVATAR_DIMENSION || frameSize.height > MAX_AVATAR_DIMENSION || frameSize.width * frameSize.height > MAX_AVATAR_DIMENSION * MAX_AVATAR_DIMENSION) invalid();
+  if (canvasSize && (canvasSize.width !== frameSize.width || canvasSize.height !== frameSize.height)) invalid();
+  return bytes;
 }
 
 export type DailyInput = { date: string; keyboard: number; mouse: number };

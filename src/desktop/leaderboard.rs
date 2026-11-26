@@ -17,10 +17,11 @@ fn finish_background(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
     ));
 }
 
-fn finish_activity(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
-    let _ = proxy.send_event(UiEvent::LeaderboardActivity(
-        result.map_err(|error| format!("{error:#}")),
-    ));
+fn finish_activity(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardActivity {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
 }
 
 fn finish_visibility(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
@@ -105,7 +106,12 @@ pub(super) fn load_background(proxy: EventLoopProxy<UiEvent>, period: Period, pa
         .ok();
 }
 
-pub(super) fn activity(proxy: EventLoopProxy<UiEvent>, member_id: String, days: u64) {
+pub(super) fn activity(
+    proxy: EventLoopProxy<UiEvent>,
+    member_id: String,
+    days: u64,
+    request_id: u64,
+) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-activity".into())
         .spawn(move || {
@@ -114,7 +120,7 @@ pub(super) fn activity(proxy: EventLoopProxy<UiEvent>, member_id: String, days: 
                     .context("Join the leaderboard to view activity")?;
                 leaderboard::activity(&profile, &member_id, days)
             })();
-            finish_activity(proxy, result);
+            finish_activity(proxy, request_id, result);
         })
         .ok();
 }

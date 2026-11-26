@@ -410,7 +410,7 @@ $('leaderboard-leave')?.addEventListener('click',()=>{
 });
 buildRoleOptions($('leaderboard-role'),'other');
 buildRoleOptions($('leaderboard-role-edit'),'other');
-let leaderboardActivityPreviousFocus=null;
+let leaderboardActivityPreviousFocus=null,leaderboardActivityRequestId=0;
 function openLeaderboardActivity(entry){
   if(!leaderboardState.profile?.joined)return;
   Dropdowns.closeAll();leaderboardActivityPreviousFocus=document.activeElement;
@@ -423,12 +423,14 @@ function openLeaderboardActivity(entry){
   leaderboardAvatar($('leaderboard-activity-avatar'),entry.avatar,entry.nickname);
   for(const surface of leaderboardConfirmSurfaces)surface.inert=true;
   $('leaderboard-activity-close').focus();
-  send('leaderboard_activity',{member_id:entry.member_id,days:30});
+  const requestId=++leaderboardActivityRequestId;
+  send('leaderboard_activity',{member_id:entry.member_id,days:30,request_id:requestId});
 }
 function closeLeaderboardActivity(){
   const overlay=$('leaderboard-activity-overlay');
   if(overlay.hidden)return;
   hudTooltip.hide();
+  leaderboardActivityRequestId++;
   overlay.hidden=true;
   for(const surface of leaderboardConfirmSurfaces)surface.inert=false;
   leaderboardActivityPreviousFocus?.focus();
@@ -491,10 +493,16 @@ function renderLeaderboardActivity(data){
   }
   body.append(heatmap,chart);
 }
-window.receiveLeaderboardActivity=data=>{if(!data||data.error)renderActivityError(t('leaderboard.activity_error'));else renderLeaderboardActivity(data);};
-window.receiveLeaderboardActivityError=message=>{renderActivityError(t(message==='activity_private'?'leaderboard.activity_private':'leaderboard.activity_error'));};
-window.receiveLeaderboardVisibility=state=>{if(state?.activity_visible!==undefined&&leaderboardState.profile){leaderboardState.profile.activity_visible=!!state.activity_visible;renderLeaderboard();}};
-window.receiveLeaderboardVisibilityError=message=>{window.toast(message);renderLeaderboard();};
+window.receiveLeaderboardActivity=(requestId,data)=>{
+  if(requestId!==leaderboardActivityRequestId||$('leaderboard-activity-overlay').hidden)return;
+  if(!data||data.error)renderActivityError(t('leaderboard.activity_error'));else renderLeaderboardActivity(data);
+};
+window.receiveLeaderboardActivityError=(requestId,message)=>{
+  if(requestId!==leaderboardActivityRequestId||$('leaderboard-activity-overlay').hidden)return;
+  renderActivityError(t(message==='activity_private'?'leaderboard.activity_private':'leaderboard.activity_error'));
+};
+window.receiveLeaderboardVisibility=state=>{setLeaderboardBusy(false);if(state?.activity_visible!==undefined&&leaderboardState.profile){leaderboardState.profile.activity_visible=!!state.activity_visible;renderLeaderboard();}};
+window.receiveLeaderboardVisibilityError=message=>{setLeaderboardBusy(false);window.toast(message);renderLeaderboard();};
 $('leaderboard-load-more')?.addEventListener('click',()=>{if(!leaderboardBusy&&leaderboardState.board&&leaderboardPage<Math.min(leaderboardState.board.total_pages,LEADERBOARD_MAX_PAGES))requestLeaderboard(false,leaderboardPage+1);});
 $('leaderboard-visibility')?.addEventListener('change',()=>{
   if(leaderboardBusy){$('leaderboard-visibility').checked=!!leaderboardState.profile?.activity_visible;return;}

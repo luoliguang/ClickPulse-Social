@@ -95,6 +95,7 @@ pub(super) enum Request {
     LeaderboardActivity {
         member_id: String,
         days: Option<u64>,
+        request_id: u64,
     },
     LeaderboardVisibility {
         visible: bool,
@@ -246,11 +247,14 @@ mod tests {
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_activity","member_id":"m1","days":30}"#
+                r#"{"action":"leaderboard_activity","member_id":"m1","days":30,"request_id":7}"#
             )
             .unwrap(),
-            Request::LeaderboardActivity { member_id, days }
-                if member_id == "m1" && days == Some(30)
+            Request::LeaderboardActivity {
+                member_id,
+                days,
+                request_id,
+            } if member_id == "m1" && days == Some(30) && request_id == 7
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(

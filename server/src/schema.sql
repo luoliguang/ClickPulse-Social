@@ -60,9 +60,10 @@ BEGIN
     WHERE table_schema='public' AND table_name='leaderboard_members' AND column_name='invitation_id'
   ) THEN
     ALTER TABLE leaderboard_members ADD COLUMN invitation_id TEXT REFERENCES leaderboard_invitations(id) ON DELETE SET NULL;
-    -- Before this column existed, uses was cumulative and could not be released
-    -- after a member left. Start the new active-slot accounting once.
-    UPDATE leaderboard_invitations SET uses=0;
+    -- Legacy members cannot be mapped back to their invitation reliably. Keep
+    -- the historical usage counts rather than reopening previously consumed
+    -- or exhausted invitations. New members are linked and release their slot
+    -- when they leave.
   END IF;
 END $$;
 

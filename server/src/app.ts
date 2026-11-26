@@ -10,7 +10,6 @@ import { activityRange, allowedUploadDates, assertInvite, assertRecoveryCode, as
 const avatarRoot = process.env.AVATAR_ROOT || join(process.cwd(), 'avatars');
 const updateRoot = () => process.env.UPDATE_ROOT || join(process.cwd(), 'updates');
 const publicBase = (process.env.PUBLIC_BASE || 'https://clickpulse.fangdutex.cn').replace(/\/$/, '');
-const limiter = new Map<string, { count: number; reset: number }>();
 const adminCookie = 'clickpulse_admin';
 const updateTargets = ['windows-x64', 'macos-arm64', 'macos-x64', 'linux-arm64', 'linux-x64'];
 
@@ -18,17 +17,43 @@ type MemberRow = { id: string; nickname: string; avatar_file: string | null; inv
 type AuthContext = MemberRow & { device_id: string; device_name: string };
 type DeviceRow = { id: string; name: string; created_at: string; last_seen_at: string; current: boolean };
 type InvitationRow = { id: string; max_uses: number; uses: number; expires_at: string | null; revoked_at: string | null; created_at: string; expired: boolean };
+type RemoveFile = (path: string, options: { force: boolean }) => Promise<void>;
 
-function limited(key: string, maximum: number, windowMs: number): boolean {
-  const now = Date.now();
-  if (limiter.size > 10_000) {
-    for (const [candidate, value] of limiter) if (value.reset <= now) limiter.delete(candidate);
-  }
-  const current = limiter.get(key);
-  if (!current || current.reset <= now) { limiter.set(key, { count: 1, reset: now + windowMs }); return false; }
-  current.count += 1;
-  return current.count > maximum;
+const avatarFilePattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$/;
+function avatarFilePath(file: string): string | undefined {
+  return avatarFilePattern.test(file) ? join(avatarRoot, file) : undefined;
 }
+
+export class FixedWindowLimiter {
+  private readonly entries = new Map<string, { count: number; reset: number }>();
+
+  constructor(private readonly capacity = 10_000, private readonly now = Date.now) {}
+
+  isLimited(key: string, maximum: number, windowMs: number): boolean {
+    const now = this.now();
+    const current = this.entries.get(key);
+    if (current && current.reset > now) {
+      current.count += 1;
+      return current.count > maximum;
+    }
+    if (current) this.entries.delete(key);
+    if (this.entries.size >= this.capacity) return true;
+    this.entries.set(key, { count: 1, reset: now + windowMs });
+    return false;
+  }
+
+  deleteExpired(): void {
+    const now = this.now();
+    for (const [key, value] of this.entries) {
+      if (value.reset <= now) this.entries.delete(key);
+    }
+  }
+
+  get size(): number { return this.entries.size; }
+}
+
+const limiter = new FixedWindowLimiter();
+setInterval(() => limiter.deleteExpired(), 60_000).unref();
 
 function fail(reply: FastifyReply, status: number, code: string, message: string) {
   return reply.code(status).send({ error: { code, message } });
@@ -38,7 +63,7 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply): Promi
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ') || header.length > 256) { fail(reply, 401, 'unauthorized', 'Membership token is required'); return; }
   const token = header.slice(7);
-  const result = await pool.query<AuthContext>('WITH active AS (UPDATE leaderboard_devices SET last_seen_at=NOW() WHERE token_hash=$1 RETURNING id, member_id, name) SELECT m.id,m.nickname,m.avatar_file,m.invitation_id,m.role,m.activity_visible,active.id AS device_id,active.name AS device_name FROM active JOIN leaderboard_members m ON m.id=active.member_id', [hashSecret(token)]);
+  const result = await pool.query<AuthContext>("WITH active AS (SELECT id,member_id,name FROM leaderboard_devices WHERE token_hash=$1), touched AS (UPDATE leaderboard_devices SET last_seen_at=NOW() FROM active WHERE leaderboard_devices.id=active.id AND leaderboard_devices.last_seen_at<=NOW()-INTERVAL '10 minutes' RETURNING leaderboard_devices.id) SELECT m.id,m.nickname,m.avatar_file,m.invitation_id,m.role,m.activity_visible,active.id AS device_id,active.name AS device_name FROM active JOIN leaderboard_members m ON m.id=active.member_id", [hashSecret(token)]);
   if (!result.rows[0]) { fail(reply, 401, 'unauthorized', 'Membership token is invalid'); return; }
   return result.rows[0];
 }
@@ -77,7 +102,7 @@ function adminCookieHeader(value: string, maxAge: number): string {
   return `${adminCookie}=${value}; Path=/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 }
 
-export function buildApp() {
+export function buildApp(options: { removeFile?: RemoveFile } = {}) {
   const app = Fastify({
     logger: true,
     bodyLimit: 256 * 1024,
@@ -86,6 +111,23 @@ export function buildApp() {
   });
   const boardCache = new Map<string, { expires: number; starts_on: string; ends_on: string; entries: Array<{ rank: number; member_id: string; nickname: string; role: string; avatar: ReturnType<typeof avatar>; keyboard: number; mouse: number; total: number }> }>();
   const boardCacheMs = 10_000;
+  const removeFile = options.removeFile ?? rm;
+  const removePath = async (request: FastifyRequest, path: string, operation: string): Promise<void> => {
+    try {
+      await removeFile(path, { force: true });
+    } catch (error) {
+      request.log.error({ err: error, path, operation }, 'avatar file cleanup failed');
+    }
+  };
+  const removeAvatarFile = async (request: FastifyRequest, file: string | null, operation: string): Promise<void> => {
+    if (!file) return;
+    const path = avatarFilePath(file);
+    if (!path) {
+      request.log.error({ avatar_file: file, operation }, 'refusing to remove an invalid avatar file name');
+      return;
+    }
+    await removePath(request, path, operation);
+  };
   app.addContentTypeParser('image/webp', { parseAs: 'buffer', bodyLimit: 200 * 1024 }, (_request, body, done) => done(null, body));
 
   app.get('/api/v1/health', async () => {
@@ -137,7 +179,7 @@ export function buildApp() {
   }, async (request, reply) => {
     if (!process.env.ADMIN_PASSWORD_HASH) return fail(reply, 404, 'not_found', 'Not found');
     if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
-    if (limited(`admin-login:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many sign-in attempts');
+    if (limiter.isLimited(`admin-login:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many sign-in attempts');
     const password = (request.body as { password: unknown }).password;
     if (!verifyPassword(password, process.env.ADMIN_PASSWORD_HASH)) return fail(reply, 401, 'admin_unauthorized', 'Password is incorrect');
     const session = createAdminSession(process.env.ADMIN_PASSWORD_HASH);
@@ -160,7 +202,7 @@ export function buildApp() {
   }, async (request, reply) => {
     if (!sameOrigin(request)) return fail(reply, 403, 'invalid_origin', 'The request origin is not allowed');
     if (!requireAdmin(request, reply)) return;
-    if (limited('admin-invite', 60, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Invitations are being generated too frequently');
+    if (limiter.isLimited('admin-invite', 60, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Invitations are being generated too frequently');
     const { max_uses, valid_days, count } = request.body as { max_uses: number; valid_days: number; count: number };
     const codes = Array.from({ length: count }, generateInviteCode);
     const client = await pool.connect();
@@ -188,7 +230,7 @@ export function buildApp() {
   app.post('/api/v1/join', {
     schema: { body: { type: 'object', additionalProperties: false, required: ['invite_code', 'nickname'], properties: { invite_code: { type: 'string', minLength: 6, maxLength: 64 }, nickname: { type: 'string', minLength: 1, maxLength: 96 }, role: { type: 'string', minLength: 1, maxLength: 32 } } } }
   }, async (request, reply) => {
-    if (limited(`join:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many join attempts');
+    if (limiter.isLimited(`join:${request.ip}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many join attempts');
     try {
       const body = request.body as { invite_code: unknown; nickname: unknown; role?: unknown };
       const code = assertInvite(body.invite_code);
@@ -221,7 +263,7 @@ export function buildApp() {
   app.post('/api/v1/recover', {
     schema: { body: { type: 'object', additionalProperties: false, required: ['recovery_code'], properties: { recovery_code: { type: 'string', minLength: 20, maxLength: 128 } } } }
   }, async (request, reply) => {
-    if (limited(`recover:${request.ip}`, 5, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many recovery attempts');
+    if (limiter.isLimited(`recover:${request.ip}`, 5, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Too many recovery attempts');
     try {
       const code = assertRecoveryCode((request.body as { recovery_code: unknown }).recovery_code);
       const hash = hashSecret(code);
@@ -250,7 +292,7 @@ export function buildApp() {
 
   app.post('/api/v1/recovery-codes', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
-    if (limited(`recovery-codes:${member.id}`, 3, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Recovery codes are being regenerated too frequently');
+    if (limiter.isLimited(`recovery-codes:${member.id}`, 3, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Recovery codes are being regenerated too frequently');
     const codes = generateRecoveryCodes();
     await pool.query('UPDATE leaderboard_members SET recovery_codes_hash=$1,updated_at=NOW() WHERE id=$2', [codes.map(hashSecret), member.id]);
     return { recovery_codes: codes };
@@ -315,7 +357,7 @@ export function buildApp() {
     schema: { body: { type: 'object', additionalProperties: false, required: ['days'], properties: { days: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['date', 'keyboard', 'mouse'], properties: { date: { type: 'string' }, keyboard: { type: 'integer', minimum: 0 }, mouse: { type: 'integer', minimum: 0 } } } } } } }
   }, async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
-    if (limited(`stats:${member.id}`, 30, 10 * 60_000)) return fail(reply, 429, 'rate_limited', 'Statistics are syncing too frequently');
+    if (limiter.isLimited(`stats:${member.id}`, 30, 10 * 60_000)) return fail(reply, 429, 'rate_limited', 'Statistics are syncing too frequently');
     try {
       const days = normalizeDays((request.body as { days: unknown }).days, allowedUploadDates());
       const client = await pool.connect();
@@ -341,7 +383,7 @@ export function buildApp() {
   app.get('/api/v1/leaderboard', {
     schema: { querystring: { type: 'object', additionalProperties: false, required: ['period'], properties: { period: { type: 'string', enum: ['today', 'week'] }, page: { type: 'integer', minimum: 1, default: 1 } } } }
   }, async (request, reply) => {
-    if (limited(`board:${request.ip}`, 120, 60_000)) return fail(reply, 429, 'rate_limited', 'Leaderboard is refreshing too frequently');
+    if (limiter.isLimited(`board:${request.ip}`, 120, 60_000)) return fail(reply, 429, 'rate_limited', 'Leaderboard is refreshing too frequently');
     const period = (request.query as { period: 'today' | 'week' }).period;
     const requestedPage = (request.query as { page?: number }).page ?? 1;
     let selfId: string | undefined;
@@ -379,14 +421,14 @@ export function buildApp() {
     const member = await authenticate(request, reply); if (!member) return;
     const { memberId } = request.params as { memberId: string };
     const days = (request.query as { days?: number }).days ?? 30;
-    let displayMember = member;
+    let displayMember: MemberRow = member;
     if (memberId !== member.id) {
       const target = await pool.query<MemberRow>('SELECT id,nickname,avatar_file,role,activity_visible FROM leaderboard_members WHERE id=$1', [memberId]);
       if (!target.rows[0]) return fail(reply, 404, 'not_found', 'Member not found');
       if (!target.rows[0].activity_visible) return fail(reply, 403, 'activity_private', 'This member has not made their activity public');
       displayMember = target.rows[0];
     }
-    if (limited(`activity:${member.id}`, 60, 60_000)) return fail(reply, 429, 'rate_limited', 'Activity is being viewed too frequently');
+    if (limiter.isLimited(`activity:${member.id}`, 60, 60_000)) return fail(reply, 429, 'rate_limited', 'Activity is being viewed too frequently');
     const range = activityRange(days);
     const rows = await pool.query<{ day: string; keyboard: string; mouse: string }>('SELECT day::text AS day, keyboard, mouse FROM leaderboard_daily_stats WHERE member_id=$1 AND day BETWEEN $2 AND $3 ORDER BY day ASC', [memberId, range.start, range.end]);
     return { member: memberJson(displayMember), start_day: range.start, end_day: range.end, days: rows.rows.map(row => ({ day: row.day, keyboard: Number(row.keyboard), mouse: Number(row.mouse), total: Number(row.keyboard) + Number(row.mouse) })) };
@@ -398,33 +440,39 @@ export function buildApp() {
     const result = await pool.query<{ avatar_file: string | null }>('SELECT avatar_file FROM leaderboard_members WHERE id=$1', [memberId]);
     const file = result.rows[0]?.avatar_file;
     if (!file) return fail(reply, 404, 'not_found', 'Avatar not found');
+    const path = avatarFilePath(file);
+    if (!path) return fail(reply, 404, 'not_found', 'Avatar not found');
     try {
-      const bytes = await readFile(join(avatarRoot, file));
+      const bytes = await readFile(path);
       return reply.header('Cache-Control', 'public, max-age=300').type('image/webp').send(bytes);
     } catch { return fail(reply, 404, 'not_found', 'Avatar not found'); }
   });
 
   app.post('/api/v1/avatar', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
-    if (limited(`avatar:${member.id}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Avatar is changing too frequently');
+    if (limiter.isLimited(`avatar:${member.id}`, 10, 60 * 60_000)) return fail(reply, 429, 'rate_limited', 'Avatar is changing too frequently');
+    let staged: string | undefined;
     try {
       const bytes = assertWebp(request.body);
       await mkdir(avatarRoot, { recursive: true });
-      const file = `${randomUUID()}.webp`, staged = join(avatarRoot, `.${file}.tmp`);
+      const file = `${randomUUID()}.webp`;
+      staged = join(avatarRoot, `.${file}.tmp`);
       await writeFile(staged, bytes, { flag: 'wx', mode: 0o600 });
       const published = join(avatarRoot, file);
       await rename(staged, published);
+      staged = undefined;
       try {
         await pool.query('UPDATE leaderboard_members SET avatar_file=$1,updated_at=NOW() WHERE id=$2', [file, member.id]);
       } catch (error) {
-        await rm(published, { force: true });
+        await removeAvatarFile(request, file, 'rollback_new_avatar');
         throw error;
       }
-      if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+      await removeAvatarFile(request, member.avatar_file, 'replace_avatar');
       boardCache.clear();
       return memberJson({ ...member, avatar_file: file });
     } catch (error: any) {
-      if (error?.message === 'invalid_avatar') return fail(reply, 400, 'invalid_avatar', 'Avatar must be a WebP image up to 200 KB');
+      if (staged) await removePath(request, staged, 'rollback_staged_avatar');
+      if (error?.message === 'invalid_avatar') return fail(reply, 400, 'invalid_avatar', 'Avatar must be a static WebP image up to 1024×1024 and 200 KB');
       throw error;
     }
   });
@@ -432,7 +480,7 @@ export function buildApp() {
   app.delete('/api/v1/avatar', async (request, reply) => {
     const member = await authenticate(request, reply); if (!member) return;
     await pool.query('UPDATE leaderboard_members SET avatar_file=NULL,updated_at=NOW() WHERE id=$1', [member.id]);
-    if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+    await removeAvatarFile(request, member.avatar_file, 'delete_avatar');
     boardCache.clear();
     return { ok: true };
   });
@@ -450,7 +498,7 @@ export function buildApp() {
       await client.query('ROLLBACK');
       throw error;
     } finally { client.release(); }
-    if (member.avatar_file) await rm(join(avatarRoot, member.avatar_file), { force: true });
+    await removeAvatarFile(request, member.avatar_file, 'delete_account');
     boardCache.clear();
     return { ok: true };
   });
