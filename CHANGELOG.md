@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.8 · 2026-11-26
+
+### New
+
+- Recover a leaderboard account on another installation with one-time recovery codes, including missing daily totals.
+- View every device signed in to a leaderboard account and revoke devices that are no longer used.
+
+### Improved
+
+- Keep leaderboard activity, profile changes and background refreshes consistent during fast navigation.
+- Refresh the visible leaderboard automatically after periodic statistics syncs.
+- Make account recovery, invitation capacity, avatar cleanup and update-cache cleanup more reliable.
+
+### Security
+
+- Bound server-side rate limiting and reduce unnecessary authentication writes.
+- Validate uploaded WebP containers, dimensions and animation flags before publishing avatars.
+- Preserve historical invitation usage during database upgrades instead of reopening consumed capacity.
+
 ## 0.4.7 · 2026-11-21
 
 ### New

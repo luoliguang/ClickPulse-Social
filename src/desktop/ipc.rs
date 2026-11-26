@@ -239,16 +239,20 @@ mod tests {
                 if recovery_code == "RC_abcd1234567890123456" && request_id == 8
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week","request_id":9}"#)
-                .unwrap(),
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard_sync","period":"week","request_id":9}"#
+            )
+            .unwrap(),
             Request::LeaderboardSync {
                 period: clickpulse::leaderboard::Period::Week,
                 request_id: 9,
             }
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"today","request_id":10}"#)
-                .unwrap(),
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard","period":"today","request_id":10}"#
+            )
+            .unwrap(),
             Request::Leaderboard {
                 period: clickpulse::leaderboard::Period::Today,
                 page: 1,
@@ -256,8 +260,10 @@ mod tests {
             }
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"week","page":3,"request_id":11}"#)
-                .unwrap(),
+            serde_json::from_str::<Request>(
+                r#"{"action":"leaderboard","period":"week","page":3,"request_id":11}"#
+            )
+            .unwrap(),
             Request::Leaderboard {
                 period: clickpulse::leaderboard::Period::Week,
                 page: 3,
@@ -280,13 +286,14 @@ mod tests {
                 r#"{"action":"leaderboard_visibility","visible":true,"request_id":12}"#
             )
             .unwrap(),
-            Request::LeaderboardVisibility { visible: true, request_id: 12 }
+            Request::LeaderboardVisibility {
+                visible: true,
+                request_id: 12
+            }
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_devices","request_id":13}"#
-            )
-            .unwrap(),
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard_devices","request_id":13}"#)
+                .unwrap(),
             Request::LeaderboardDevices { request_id: 13 }
         ));
         assert!(matches!(

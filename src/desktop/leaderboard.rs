@@ -172,7 +172,8 @@ pub(super) fn join(
             leaderboard::load_profile()?.is_none(),
             "This installation has already joined the leaderboard"
         );
-        let (profile, recovery_codes) = leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
+        let (profile, recovery_codes) =
+            leaderboard::join(invite_code.trim(), nickname.trim(), role.trim())?;
         let profile_json = leaderboard::profile_summary(Some(&profile));
         let board = leaderboard::board(Some(&profile), Period::Today, 1)?;
         Ok(json!({
@@ -204,8 +205,7 @@ pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String, req
 
 pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>, request_id: u64) {
     spawn(proxy, request_id, move || {
-        let profile =
-            leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
+        let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         let recovery_codes = leaderboard::regenerate_recovery_codes(&profile)?;
         Ok(json!({
             "profile": leaderboard::profile_summary(Some(&profile)),
@@ -247,8 +247,7 @@ pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String, r
 }
 
 fn sync_core(snapshot: &str, period: Period) -> Result<Value> {
-    let profile =
-        leaderboard::load_profile()?.context("Join the leaderboard before syncing")?;
+    let profile = leaderboard::load_profile()?.context("Join the leaderboard before syncing")?;
     let value: Value = serde_json::from_str(snapshot)?;
     let rows = value
         .get("history_days")

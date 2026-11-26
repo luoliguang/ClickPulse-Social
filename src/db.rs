@@ -212,7 +212,10 @@ impl EventDb {
 
     /// Import daily statistics from leaderboard recovery, filling only missing dates.
     /// Local data always takes precedence; existing dates are never overwritten.
-    pub fn import_recovery_stats(&mut self, days: &[crate::leaderboard::RecoveryDay]) -> Result<usize> {
+    pub fn import_recovery_stats(
+        &mut self,
+        days: &[crate::leaderboard::RecoveryDay],
+    ) -> Result<usize> {
         if days.is_empty() {
             return Ok(0);
         }

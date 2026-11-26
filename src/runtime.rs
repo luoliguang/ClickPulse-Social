@@ -771,7 +771,9 @@ fn source_loop_inner(
                 reply.complete(Err(anyhow!("Read-only source cannot import history")));
             }
             Command::RecoveryImport(_, reply) => {
-                reply.complete(Err(anyhow!("Read-only source cannot import recovery statistics")));
+                reply.complete(Err(anyhow!(
+                    "Read-only source cannot import recovery statistics"
+                )));
             }
             Command::Relocate(_, _, _, reply) => {
                 reply.complete(Err(anyhow!("Read-only source cannot change storage")));

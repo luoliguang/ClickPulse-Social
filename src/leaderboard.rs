@@ -175,7 +175,8 @@ pub fn allowed_upload_dates() -> HashSet<String> {
     (0..8)
         .map(|days_ago| {
             let shifted = now - chrono::Duration::days(days_ago);
-            Shanghai.from_utc_datetime(&shifted.naive_utc())
+            Shanghai
+                .from_utc_datetime(&shifted.naive_utc())
                 .format("%Y-%m-%d")
                 .to_string()
         })
@@ -238,7 +239,11 @@ fn agent() -> ureq::Agent {
         .timeout_global(Some(Duration::from_secs(30)))
         .timeout_connect(Some(Duration::from_secs(10)))
         .timeout_per_read(Some(Duration::from_secs(20)))
-        .user_agent(format!("ClickPulse/{} ({})", crate::version::PUBLIC, crate::platform::name()))
+        .user_agent(format!(
+            "ClickPulse/{} ({})",
+            crate::version::PUBLIC,
+            crate::platform::name()
+        ))
         .build()
         .into()
 }
