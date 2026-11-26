@@ -67,6 +67,10 @@ enum UiEvent {
         request_id: u64,
         result: std::result::Result<serde_json::Value, String>,
     },
+    LeaderboardAutoSync {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
     LeaderboardActivity {
         request_id: u64,
         result: std::result::Result<serde_json::Value, String>,
@@ -434,7 +438,6 @@ pub fn run(
     let mut leaderboard_syncing = false;
     let mut leaderboard_background_refreshing = false;
     let mut leaderboard_period = clickpulse::leaderboard::Period::Today;
-    let mut leaderboard_request_id = 0u64;
     let mut leaderboard_background_request_id = 0u64;
     let mut next_leaderboard_sync = Instant::now();
     let mut next_leaderboard_refresh = Instant::now();
@@ -578,6 +581,18 @@ pub fn run(
                     let _ = webview.evaluate_script(&format!(
                         "window.receiveLeaderboardBackground?.({request_id},{value});"
                     ));
+                }
+            }
+            Event::UserEvent(UiEvent::LeaderboardAutoSync { request_id, result }) => {
+                leaderboard_syncing = false;
+                match result {
+                    Ok(value) if ready => {
+                        let _ = webview.evaluate_script(&format!(
+                            "window.receiveLeaderboardBackground?.({request_id},{value});"
+                        ));
+                    }
+                    Ok(_) => {}
+                    Err(error) => eprintln!("Leaderboard auto-sync failed: {error}"),
                 }
             }
             Event::UserEvent(UiEvent::LeaderboardActivity { request_id, result }) => {
@@ -951,7 +966,6 @@ pub fn run(
                         }
                         Request::Leaderboard { period, page, request_id } => {
                             leaderboard_period = period;
-                            leaderboard_request_id = request_id;
                             if demo {
                                 let _ = snapshot_proxy.send_event(UiEvent::Leaderboard {
                                     request_id,
@@ -972,7 +986,6 @@ pub fn run(
                                 let _ = webview.evaluate_script(&format!("window.receiveLeaderboardError?.({request_id},'Leaderboard membership is only available for the normal local profile.');"));
                             } else {
                                 leaderboard_syncing = true;
-                                leaderboard_request_id = request_id;
                                 leaderboard::join(
                                     snapshot_proxy.clone(),
                                     invite_code,
@@ -987,14 +1000,12 @@ pub fn run(
                                 let _ = webview.evaluate_script(&format!("window.receiveLeaderboardError?.({request_id},'Leaderboard recovery is only available for the normal local profile.');"));
                             } else {
                                 leaderboard_syncing = true;
-                                leaderboard_request_id = request_id;
                                 leaderboard::recover(snapshot_proxy.clone(), recovery_code, request_id);
                             }
                         }
                         Request::LeaderboardRecoveryCodes { request_id } => {
                             if !demo && !source_mode && runtime.is_some() {
                                 leaderboard_syncing = true;
-                                leaderboard_request_id = request_id;
                                 leaderboard::recovery_codes(snapshot_proxy.clone(), request_id);
                             }
                         }
@@ -1013,7 +1024,6 @@ pub fn run(
                         }
                         Request::LeaderboardSync { period, request_id } => {
                             leaderboard_period = period;
-                            leaderboard_request_id = request_id;
                             if demo {
                                 let _ = snapshot_proxy.send_event(UiEvent::Leaderboard {
                                     request_id,
@@ -1050,12 +1060,10 @@ pub fn run(
                         }
                         Request::LeaderboardRename { nickname, period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard_request_id = request_id;
                             leaderboard::rename(snapshot_proxy.clone(), nickname, period, request_id);
                         }
                         Request::LeaderboardRole { role, period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard_request_id = request_id;
                             leaderboard::set_role(snapshot_proxy.clone(), role, period, request_id);
                         }
                         Request::LeaderboardAvatar { period, request_id } => {
@@ -1065,7 +1073,6 @@ pub fn run(
                                 .pick_file()
                             {
                                 leaderboard_syncing = true;
-                                leaderboard_request_id = request_id;
                                 leaderboard::upload_avatar(snapshot_proxy.clone(), path, period, request_id);
                             } else {
                                 let _ = webview
@@ -1074,12 +1081,10 @@ pub fn run(
                         }
                         Request::LeaderboardAvatarDelete { period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard_request_id = request_id;
                             leaderboard::delete_avatar(snapshot_proxy.clone(), period, request_id);
                         }
                         Request::LeaderboardLeave { request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard_request_id = request_id;
                             leaderboard::leave(snapshot_proxy.clone(), request_id);
                         }
                         Request::LeaderboardActivity {
@@ -1346,20 +1351,20 @@ pub fn run(
                     && let Some(rt) = &runtime
                 {
                     leaderboard_syncing = true;
-                    leaderboard_request_id = leaderboard_request_id.wrapping_add(1);
+                    leaderboard_background_request_id = leaderboard_background_request_id.wrapping_add(1);
                     next_leaderboard_sync = Instant::now() + Duration::from_secs(15 * 60);
                     let proxy = snapshot_proxy.clone();
                     let period = leaderboard_period;
-                    let request_id = leaderboard_request_id;
+                    let request_id = leaderboard_background_request_id;
                     let zone = clickpulse::timezone::TimeZonePreference::Named(
                         "Asia/Shanghai".parse().expect("valid leaderboard timezone"),
                     );
                     if rt
                         .request_snapshot_in_timezone(zone, move |result| match result {
-                            Ok(snapshot) => leaderboard::sync_snapshot(proxy, snapshot, period, request_id),
+                            Ok(snapshot) => leaderboard::auto_sync(proxy, snapshot, period, request_id),
                             Err(error) => {
                                 let _ = proxy
-                                    .send_event(UiEvent::Leaderboard {
+                                    .send_event(UiEvent::LeaderboardAutoSync {
                                         request_id,
                                         result: Err(format!("{error:#}")),
                                     });

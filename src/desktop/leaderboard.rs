@@ -19,6 +19,13 @@ fn finish_background(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Re
     });
 }
 
+fn finish_autosync(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardAutoSync {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
+}
+
 fn finish_activity(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
     let _ = proxy.send_event(UiEvent::LeaderboardActivity {
         request_id,
@@ -239,66 +246,83 @@ pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String, r
         .ok();
 }
 
+fn sync_core(snapshot: &str, period: Period) -> Result<Value> {
+    let profile =
+        leaderboard::load_profile()?.context("Join the leaderboard before syncing")?;
+    let value: Value = serde_json::from_str(snapshot)?;
+    let rows = value
+        .get("history_days")
+        .and_then(Value::as_array)
+        .context("Statistics history is unavailable")?;
+    let owned = rows
+        .iter()
+        .rev()
+        .filter_map(|row| {
+            let date = row
+                .get("day")
+                .and_then(Value::as_str)
+                .context("Invalid statistics date")
+                .ok()?;
+            // Skip dates outside the server's allowed upload window
+            if !leaderboard::allowed_upload_dates().contains(date) {
+                return None;
+            }
+            Some(row)
+        })
+        .take(8)
+        .map(|row| {
+            let date = row
+                .get("day")
+                .and_then(Value::as_str)
+                .context("Invalid statistics date")?
+                .to_owned();
+            let counts = row.get("counts").context("Invalid statistics counts")?;
+            let keyboard = counts
+                .get("keyboard")
+                .and_then(Value::as_i64)
+                .context("Invalid keyboard count")?;
+            let mouse = counts
+                .get("mouse")
+                .and_then(Value::as_i64)
+                .context("Invalid mouse count")?;
+            ensure!(keyboard >= 0 && mouse >= 0, "Statistics cannot be negative");
+            Ok((date, keyboard, mouse))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let days = owned
+        .iter()
+        .map(|(date, keyboard, mouse)| DailyCount {
+            date,
+            keyboard: *keyboard,
+            mouse: *mouse,
+        })
+        .collect::<Vec<_>>();
+    leaderboard::sync(&profile, &days)?;
+    state(period, 1)
+}
+
 pub(super) fn sync_snapshot(
     proxy: EventLoopProxy<UiEvent>,
     snapshot: String,
     period: Period,
     request_id: u64,
 ) {
-    spawn(proxy, request_id, move || {
-        let profile =
-            leaderboard::load_profile()?.context("Join the leaderboard before syncing")?;
-        let value: Value = serde_json::from_str(&snapshot)?;
-        let rows = value
-            .get("history_days")
-            .and_then(Value::as_array)
-            .context("Statistics history is unavailable")?;
-        let owned = rows
-            .iter()
-            .rev()
-            .filter_map(|row| {
-                let date = row
-                    .get("day")
-                    .and_then(Value::as_str)
-                    .context("Invalid statistics date")
-                    .ok()?;
-                // Skip dates outside the server's allowed upload window
-                if !leaderboard::allowed_upload_dates().contains(date) {
-                    return None;
-                }
-                Some(row)
-            })
-            .take(8)
-            .map(|row| {
-                let date = row
-                    .get("day")
-                    .and_then(Value::as_str)
-                    .context("Invalid statistics date")?
-                    .to_owned();
-                let counts = row.get("counts").context("Invalid statistics counts")?;
-                let keyboard = counts
-                    .get("keyboard")
-                    .and_then(Value::as_i64)
-                    .context("Invalid keyboard count")?;
-                let mouse = counts
-                    .get("mouse")
-                    .and_then(Value::as_i64)
-                    .context("Invalid mouse count")?;
-                ensure!(keyboard >= 0 && mouse >= 0, "Statistics cannot be negative");
-                Ok((date, keyboard, mouse))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let days = owned
-            .iter()
-            .map(|(date, keyboard, mouse)| DailyCount {
-                date,
-                keyboard: *keyboard,
-                mouse: *mouse,
-            })
-            .collect::<Vec<_>>();
-        leaderboard::sync(&profile, &days)?;
-        state(period, 1)
-    });
+    spawn(proxy, request_id, move || sync_core(&snapshot, period));
+}
+
+pub(super) fn auto_sync(
+    proxy: EventLoopProxy<UiEvent>,
+    snapshot: String,
+    period: Period,
+    request_id: u64,
+) {
+    thread::Builder::new()
+        .name("clickpulse-leaderboard-sync".into())
+        .spawn(move || {
+            let result = sync_core(&snapshot, period);
+            finish_autosync(proxy, request_id, result);
+        })
+        .ok();
 }
 
 pub(super) fn rename(
