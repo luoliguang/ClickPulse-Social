@@ -59,14 +59,26 @@ enum UiEvent {
         id: u64,
         result: std::result::Result<DataOutcome, String>,
     },
-    Leaderboard(std::result::Result<serde_json::Value, String>),
-    LeaderboardBackground(std::result::Result<serde_json::Value, String>),
+    Leaderboard {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
+    LeaderboardBackground {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
     LeaderboardActivity {
         request_id: u64,
         result: std::result::Result<serde_json::Value, String>,
     },
-    LeaderboardVisibility(std::result::Result<serde_json::Value, String>),
-    LeaderboardDevices(std::result::Result<serde_json::Value, String>),
+    LeaderboardVisibility {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
+    LeaderboardDevices {
+        request_id: u64,
+        result: std::result::Result<serde_json::Value, String>,
+    },
     #[cfg(target_os = "windows")]
     Activate,
 }
@@ -422,6 +434,8 @@ pub fn run(
     let mut leaderboard_syncing = false;
     let mut leaderboard_background_refreshing = false;
     let mut leaderboard_period = clickpulse::leaderboard::Period::Today;
+    let mut leaderboard_request_id = 0u64;
+    let mut leaderboard_background_request_id = 0u64;
     let mut next_leaderboard_sync = Instant::now();
     let mut next_leaderboard_refresh = Instant::now();
     let mut data_job: Option<u64> = None;
@@ -500,7 +514,7 @@ pub fn run(
                     }
                 }
             }
-            Event::UserEvent(UiEvent::Leaderboard(result)) => {
+            Event::UserEvent(UiEvent::Leaderboard { request_id, result }) => {
                 let result = match result {
                     Ok(mut value) if value.pointer("/recovery_stats/days").is_some() => {
                         let days = serde_json::from_value::<Vec<clickpulse::leaderboard::RecoveryDay>>(
@@ -516,7 +530,10 @@ pub fn run(
                                         value
                                     });
                                     let result = result.map_err(|error| format!("{error:#}"));
-                                    let _ = proxy.send_event(UiEvent::Leaderboard(result));
+                                    let _ = proxy.send_event(UiEvent::Leaderboard {
+                                        request_id,
+                                        result,
+                                    });
                                 });
                                 if let Err(error) = queued {
                                     Err(format!("{error:#}"))
@@ -540,24 +557,26 @@ pub fn run(
                         if leaderboard_joined {
                             next_leaderboard_sync = Instant::now() + Duration::from_secs(15 * 60);
                         }
-                        format!("window.receiveLeaderboard?.({value});")
+                        format!("window.receiveLeaderboard?.({request_id},{value});")
                     }
                     Err(error) => serde_json::to_string(&error)
-                        .map(|error| format!("window.receiveLeaderboardError?.({error});"))
+                        .map(|error| {
+                            format!("window.receiveLeaderboardError?.({request_id},{error});")
+                        })
                         .unwrap_or_default(),
                 };
                 if ready {
                     let _ = webview.evaluate_script(&script);
                 }
             }
-            Event::UserEvent(UiEvent::LeaderboardBackground(result)) => {
+            Event::UserEvent(UiEvent::LeaderboardBackground { request_id, result }) => {
                 leaderboard_background_refreshing = false;
                 if ready
                     && !leaderboard_syncing
                     && let Ok(value) = result
                 {
                     let _ = webview.evaluate_script(&format!(
-                        "window.receiveLeaderboardBackground?.({value});"
+                        "window.receiveLeaderboardBackground?.({request_id},{value});"
                     ));
                 }
             }
@@ -578,12 +597,12 @@ pub fn run(
                     let _ = webview.evaluate_script(&script);
                 }
             }
-            Event::UserEvent(UiEvent::LeaderboardVisibility(result)) => {
+            Event::UserEvent(UiEvent::LeaderboardVisibility { request_id, result }) => {
                 let script = match result {
-                    Ok(value) => format!("window.receiveLeaderboardVisibility?.({value});"),
+                    Ok(value) => format!("window.receiveLeaderboardVisibility?.({request_id},{value});"),
                     Err(error) => serde_json::to_string(&error)
                         .map(|error| {
-                            format!("window.receiveLeaderboardVisibilityError?.({error});")
+                            format!("window.receiveLeaderboardVisibilityError?.({request_id},{error});")
                         })
                         .unwrap_or_default(),
                 };
@@ -591,12 +610,12 @@ pub fn run(
                     let _ = webview.evaluate_script(&script);
                 }
             }
-            Event::UserEvent(UiEvent::LeaderboardDevices(result)) => {
+            Event::UserEvent(UiEvent::LeaderboardDevices { request_id, result }) => {
                 let script = match result {
-                    Ok(value) => format!("window.receiveLeaderboardDevices?.({value});"),
+                    Ok(value) => format!("window.receiveLeaderboardDevices?.({request_id},{value});"),
                     Err(error) => serde_json::to_string(&error)
                         .map(|error| {
-                            format!("window.receiveLeaderboardDevicesError?.({error});")
+                            format!("window.receiveLeaderboardDevicesError?.({request_id},{error});")
                         })
                         .unwrap_or_default(),
                 };
@@ -930,67 +949,76 @@ pub fn run(
                             }
                             view_changed = true;
                         }
-                        Request::Leaderboard { period, page } => {
+                        Request::Leaderboard { period, page, request_id } => {
                             leaderboard_period = period;
+                            leaderboard_request_id = request_id;
                             if demo {
-                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard(Ok(
-                                    leaderboard::demo(period),
-                                )));
+                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard {
+                                    request_id,
+                                    result: Ok(leaderboard::demo(period)),
+                                });
                             } else {
                                 leaderboard_syncing = true;
-                                leaderboard::load(snapshot_proxy.clone(), period, page);
+                                leaderboard::load(snapshot_proxy.clone(), period, page, request_id);
                             }
                         }
                         Request::LeaderboardJoin {
                             invite_code,
                             nickname,
                             role,
+                            request_id,
                         } => {
                             if demo || source_mode || runtime.is_none() {
-                                let _ = webview.evaluate_script("window.receiveLeaderboardError?.('Leaderboard membership is only available for the normal local profile.');");
+                                let _ = webview.evaluate_script(&format!("window.receiveLeaderboardError?.({request_id},'Leaderboard membership is only available for the normal local profile.');"));
                             } else {
                                 leaderboard_syncing = true;
+                                leaderboard_request_id = request_id;
                                 leaderboard::join(
                                     snapshot_proxy.clone(),
                                     invite_code,
                                     nickname,
                                     role,
+                                    request_id,
                                 );
                             }
                         }
-                        Request::LeaderboardRecover { recovery_code } => {
+                        Request::LeaderboardRecover { recovery_code, request_id } => {
                             if demo || source_mode || runtime.is_none() {
-                                let _ = webview.evaluate_script("window.receiveLeaderboardError?.('Leaderboard recovery is only available for the normal local profile.');");
+                                let _ = webview.evaluate_script(&format!("window.receiveLeaderboardError?.({request_id},'Leaderboard recovery is only available for the normal local profile.');"));
                             } else {
                                 leaderboard_syncing = true;
-                                leaderboard::recover(snapshot_proxy.clone(), recovery_code);
+                                leaderboard_request_id = request_id;
+                                leaderboard::recover(snapshot_proxy.clone(), recovery_code, request_id);
                             }
                         }
-                        Request::LeaderboardRecoveryCodes {} => {
+                        Request::LeaderboardRecoveryCodes { request_id } => {
                             if !demo && !source_mode && runtime.is_some() {
                                 leaderboard_syncing = true;
-                                leaderboard::recovery_codes(snapshot_proxy.clone());
+                                leaderboard_request_id = request_id;
+                                leaderboard::recovery_codes(snapshot_proxy.clone(), request_id);
                             }
                         }
-                        Request::LeaderboardDevices {} => {
+                        Request::LeaderboardDevices { request_id } => {
                             if !demo && !source_mode && runtime.is_some() {
-                                leaderboard::devices(snapshot_proxy.clone());
+                                leaderboard::devices(snapshot_proxy.clone(), request_id);
                             } else {
                                 let _ = webview
-                                    .evaluate_script("window.receiveLeaderboardDevices?.({devices:[]});");
+                                    .evaluate_script(&format!("window.receiveLeaderboardDevices?.({request_id},{{devices:[]}});"));
                             }
                         }
-                        Request::LeaderboardRevokeDevice { device_id } => {
+                        Request::LeaderboardRevokeDevice { device_id, request_id } => {
                             if !demo && !source_mode && runtime.is_some() {
-                                leaderboard::revoke_device(snapshot_proxy.clone(), device_id);
+                                leaderboard::revoke_device(snapshot_proxy.clone(), device_id, request_id);
                             }
                         }
-                        Request::LeaderboardSync { period } => {
+                        Request::LeaderboardSync { period, request_id } => {
                             leaderboard_period = period;
+                            leaderboard_request_id = request_id;
                             if demo {
-                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard(Ok(
-                                    leaderboard::demo(period),
-                                )));
+                                let _ = snapshot_proxy.send_event(UiEvent::Leaderboard {
+                                    request_id,
+                                    result: Ok(leaderboard::demo(period)),
+                                });
                             } else if !leaderboard_syncing && let Some(rt) = &runtime {
                                 leaderboard_syncing = true;
                                 let proxy = snapshot_proxy.clone();
@@ -1001,12 +1029,13 @@ pub fn run(
                                     zone,
                                     move |result| match result {
                                         Ok(snapshot) => {
-                                            leaderboard::sync_snapshot(proxy, snapshot, period)
+                                            leaderboard::sync_snapshot(proxy, snapshot, period, request_id)
                                         }
                                         Err(error) => {
-                                            let _ = proxy.send_event(UiEvent::Leaderboard(Err(
-                                                format!("{error:#}"),
-                                            )));
+                                            let _ = proxy.send_event(UiEvent::Leaderboard {
+                                                request_id,
+                                                result: Err(format!("{error:#}")),
+                                            });
                                         }
                                     },
                                 ) {
@@ -1014,39 +1043,44 @@ pub fn run(
                                     let message = serde_json::to_string(&format!("{error:#}"))
                                         .unwrap_or_else(|_| "\"Leaderboard sync failed\"".into());
                                     let _ = webview.evaluate_script(&format!(
-                                        "window.receiveLeaderboardError?.({message});"
+                                        "window.receiveLeaderboardError?.({request_id},{message});"
                                     ));
                                 }
                             }
                         }
-                        Request::LeaderboardRename { nickname, period } => {
+                        Request::LeaderboardRename { nickname, period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard::rename(snapshot_proxy.clone(), nickname, period);
+                            leaderboard_request_id = request_id;
+                            leaderboard::rename(snapshot_proxy.clone(), nickname, period, request_id);
                         }
-                        Request::LeaderboardRole { role, period } => {
+                        Request::LeaderboardRole { role, period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard::set_role(snapshot_proxy.clone(), role, period);
+                            leaderboard_request_id = request_id;
+                            leaderboard::set_role(snapshot_proxy.clone(), role, period, request_id);
                         }
-                        Request::LeaderboardAvatar { period } => {
+                        Request::LeaderboardAvatar { period, request_id } => {
                             if let Some(path) = rfd::FileDialog::new()
                                 .set_title(locale.text("leaderboard.avatar_choose"))
                                 .add_filter("Images", &["jpg", "jpeg", "png", "webp"])
                                 .pick_file()
                             {
                                 leaderboard_syncing = true;
-                                leaderboard::upload_avatar(snapshot_proxy.clone(), path, period);
+                                leaderboard_request_id = request_id;
+                                leaderboard::upload_avatar(snapshot_proxy.clone(), path, period, request_id);
                             } else {
                                 let _ = webview
-                                    .evaluate_script("window.receiveLeaderboardCancelled?.();");
+                                    .evaluate_script(&format!("window.receiveLeaderboardCancelled?.({request_id});"));
                             }
                         }
-                        Request::LeaderboardAvatarDelete { period } => {
+                        Request::LeaderboardAvatarDelete { period, request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard::delete_avatar(snapshot_proxy.clone(), period);
+                            leaderboard_request_id = request_id;
+                            leaderboard::delete_avatar(snapshot_proxy.clone(), period, request_id);
                         }
-                        Request::LeaderboardLeave {} => {
+                        Request::LeaderboardLeave { request_id } => {
                             leaderboard_syncing = true;
-                            leaderboard::leave(snapshot_proxy.clone());
+                            leaderboard_request_id = request_id;
+                            leaderboard::leave(snapshot_proxy.clone(), request_id);
                         }
                         Request::LeaderboardActivity {
                             member_id,
@@ -1066,13 +1100,13 @@ pub fn run(
                                 );
                             }
                         }
-                        Request::LeaderboardVisibility { visible } => {
+                        Request::LeaderboardVisibility { visible, request_id } => {
                             if demo {
-                                let _ = webview.evaluate_script(
-                                    "window.receiveLeaderboardVisibility?.({activity_visible:false});",
-                                );
+                                let _ = webview.evaluate_script(&format!(
+                                    "window.receiveLeaderboardVisibility?.({request_id},{{activity_visible:false}});"
+                                ));
                             } else {
-                                leaderboard::set_visibility(snapshot_proxy.clone(), visible);
+                                leaderboard::set_visibility(snapshot_proxy.clone(), visible, request_id);
                             }
                         }
                         Request::SportSample {} => {
@@ -1312,18 +1346,23 @@ pub fn run(
                     && let Some(rt) = &runtime
                 {
                     leaderboard_syncing = true;
+                    leaderboard_request_id = leaderboard_request_id.wrapping_add(1);
                     next_leaderboard_sync = Instant::now() + Duration::from_secs(15 * 60);
                     let proxy = snapshot_proxy.clone();
                     let period = leaderboard_period;
+                    let request_id = leaderboard_request_id;
                     let zone = clickpulse::timezone::TimeZonePreference::Named(
                         "Asia/Shanghai".parse().expect("valid leaderboard timezone"),
                     );
                     if rt
                         .request_snapshot_in_timezone(zone, move |result| match result {
-                            Ok(snapshot) => leaderboard::sync_snapshot(proxy, snapshot, period),
+                            Ok(snapshot) => leaderboard::sync_snapshot(proxy, snapshot, period, request_id),
                             Err(error) => {
                                 let _ = proxy
-                                    .send_event(UiEvent::Leaderboard(Err(format!("{error:#}"))));
+                                    .send_event(UiEvent::Leaderboard {
+                                        request_id,
+                                        result: Err(format!("{error:#}")),
+                                    });
                             }
                         })
                         .is_err()
@@ -1340,8 +1379,9 @@ pub fn run(
                     && Instant::now() >= next_leaderboard_refresh
                 {
                     leaderboard_background_refreshing = true;
+                    leaderboard_background_request_id = leaderboard_background_request_id.wrapping_add(1);
                     next_leaderboard_refresh = Instant::now() + Duration::from_secs(30);
-                    leaderboard::load_background(snapshot_proxy.clone(), leaderboard_period, 1);
+                    leaderboard::load_background(snapshot_proxy.clone(), leaderboard_period, 1, leaderboard_background_request_id);
                 }
                 if ready
                     && data_job.is_none()

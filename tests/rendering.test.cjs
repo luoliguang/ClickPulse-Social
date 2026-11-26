@@ -65,6 +65,10 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
   vm.runInContext(readFileSync('ui/presentation.js','utf8'),context);
   return {window,get,root,context,intervals,settingsLinks,leaderboardPeriods,leaderboardJoinModes,jumpTo(id){settingsLinks.find(b=>b.dataset.settingsSection===id).fire();},setTime(value){now=value;},selectRange(days){ranges.find(button=>Number(button.dataset.range)===days).fire();},navigate(page){nav.find(button=>button.dataset.page===page).fire();}};
 }
+function receiveLeaderboard(app,state,requestId=0){app.window.receiveLeaderboard(requestId,state);}
+function receiveLeaderboardError(app,message,requestId=0){app.window.receiveLeaderboardError(requestId,message);}
+function receiveLeaderboardDevices(app,state,requestId=0){app.window.receiveLeaderboardDevices(requestId,state);}
+function receiveLeaderboardVisibility(app,state,requestId=0){app.window.receiveLeaderboardVisibility(requestId,state);}
 
 test('Mini-only startup accepts counts without history and preserves the full snapshot across expansion',()=>{
   const a=app();a.window.receiveView({compact:true});
@@ -865,7 +869,7 @@ test('demo leaderboard role stays selectable and local across refreshes and lang
   select.value='designer';select.fire('change');
   assert.equal(sent.length,0,'demo changes never call the profile API');
   assert.equal(a.get('leaderboard-rows').children[0].children[1].children[0].children[2].textContent,'Designer');
-  a.leaderboardPeriods[1].fire();assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1});
+  a.leaderboardPeriods[1].fire();assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1,request_id:2});
   a.window.receiveLeaderboard(demo('week'));
   assert.equal(select.value,'designer','a demo refresh keeps the current session choice');
   a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
@@ -910,11 +914,11 @@ test('legacy leaderboard totals and activity controls remain compatible during A
   assert.equal(a.get('leaderboard-visibility').checked,false,'cancelling restores the saved visibility');
   a.get('leaderboard-visibility').checked=true;a.get('leaderboard-visibility').fire('change');
   a.get('leaderboard-confirm-submit').fire();
-  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:true});
-  a.window.receiveLeaderboardVisibility({activity_visible:true});
+  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:true,request_id:2});
+  a.window.receiveLeaderboardVisibility(2,{activity_visible:true});
   a.get('leaderboard-visibility').checked=false;a.get('leaderboard-visibility').fire('change');
   assert.equal(a.get('leaderboard-confirm-overlay').hidden,true,'disabling visibility needs no confirmation');
-  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:false});
+  assert.deepEqual(sent.pop(),{action:'leaderboard_visibility',visible:false,request_id:3});
 });
 test('Scoop-managed updates keep checks and localized guidance without sending install requests',()=>{
   for(const locale of Object.keys(messages)){
@@ -967,12 +971,12 @@ test('existing leaderboard members can replace recovery codes after confirmation
   assert.equal(sent.length,0);assert.equal(a.get('leaderboard-confirm-overlay').hidden,false);
   assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.recovery_regenerate_confirm_title']);
   a.get('leaderboard-confirm-submit').fire();
-  assert.deepEqual(sent[0],{action:'leaderboard_recovery_codes'});
+  assert.deepEqual(sent[0],{action:'leaderboard_recovery_codes',request_id:2});
 });
 test('joined members list their devices and revoke any device except the current one',()=>{
   const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
   a.window.receiveLeaderboard({profile:{joined:true,nickname:'Luo',member_id:'member'},board:{period:'today',page:1,total_pages:1,total_entries:0,entries:[]}});
-  assert.deepEqual(sent[0],{action:'leaderboard_devices'});
+  assert.deepEqual(sent[0],{action:'leaderboard_devices',request_id:1});
   assert.equal(a.get('leaderboard-devices-list').children.length,0,'list is empty until the device list arrives');
   sent.length=0;
   a.window.receiveLeaderboardDevices({devices:[
@@ -992,7 +996,7 @@ test('joined members list their devices and revoke any device except the current
   assert.equal(a.get('leaderboard-confirm-title').textContent,messages.en['leaderboard.device_revoke_confirm_title']);
   assert.match(a.get('leaderboard-confirm-description').textContent,/MacBook/);
   a.get('leaderboard-confirm-submit').fire();
-  assert.deepEqual(sent[0],{action:'leaderboard_revoke_device',device_id:'dev-2'});
+  assert.deepEqual(sent[0],{action:'leaderboard_revoke_device',device_id:'dev-2',request_id:2});
 });
 test('public leaderboard activity fills missing dates and renders a heatmap before daily bars',()=>{
   const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
@@ -1064,14 +1068,14 @@ test('leaderboard period changes preserve old rows while loading and nickname ed
   a.window.receiveLeaderboard(today);sent.length=0;
   assert.equal(a.get('leaderboard-rows').children.length,1);
   a.leaderboardPeriods[1].fire();
-  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1});
+  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1,request_id:2});
   assert.equal(a.get('leaderboard-rows').children.length,1,'the previous board remains visible until the response arrives');
   assert.equal(a.get('leaderboard-period-segments').dataset.period,'week');
   a.window.receiveLeaderboard({...today,board:{...today.board,period:'week',starts_on:'2026-11-10'}});
   a.get('leaderboard-name-edit').fire();
   assert.equal(a.get('leaderboard-name-form').hidden,false);assert.equal(a.get('leaderboard-name-input').value,'Luo');
   a.get('leaderboard-name-input').value='Luo Yang';a.get('leaderboard-name-save').fire();
-  assert.deepEqual(sent.pop(),{action:'leaderboard_rename',nickname:'Luo Yang',period:'week'});
+  assert.deepEqual(sent.pop(),{action:'leaderboard_rename',nickname:'Luo Yang',period:'week',request_id:3});
   a.window.receiveLeaderboard({profile:{...today.profile,nickname:'Luo Yang'},board:{...today.board,period:'week',entries:[]}});
   assert.equal(a.get('leaderboard-name-form').hidden,true);assert.equal(a.get('leaderboard-profile-name').textContent,'Luo Yang');
   a.get('leaderboard-name-edit').fire();a.get('leaderboard-name-input').value='Taken';a.get('leaderboard-name-save').fire();a.window.receiveLeaderboardError('Nickname is already in use');

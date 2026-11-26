@@ -60,38 +60,53 @@ pub(super) enum Request {
         period: clickpulse::leaderboard::Period,
         #[serde(default = "default_page")]
         page: u64,
+        request_id: u64,
     },
     LeaderboardJoin {
         invite_code: String,
         nickname: String,
         role: String,
+        request_id: u64,
     },
     LeaderboardRecover {
         recovery_code: String,
+        request_id: u64,
     },
-    LeaderboardRecoveryCodes {},
-    LeaderboardDevices {},
+    LeaderboardRecoveryCodes {
+        request_id: u64,
+    },
+    LeaderboardDevices {
+        request_id: u64,
+    },
     LeaderboardRevokeDevice {
         device_id: String,
+        request_id: u64,
     },
     LeaderboardSync {
         period: clickpulse::leaderboard::Period,
+        request_id: u64,
     },
     LeaderboardRename {
         nickname: String,
         period: clickpulse::leaderboard::Period,
+        request_id: u64,
     },
     LeaderboardRole {
         role: String,
         period: clickpulse::leaderboard::Period,
+        request_id: u64,
     },
     LeaderboardAvatar {
         period: clickpulse::leaderboard::Period,
+        request_id: u64,
     },
     LeaderboardAvatarDelete {
         period: clickpulse::leaderboard::Period,
+        request_id: u64,
     },
-    LeaderboardLeave {},
+    LeaderboardLeave {
+        request_id: u64,
+    },
     LeaderboardActivity {
         member_id: String,
         days: Option<u64>,
@@ -99,6 +114,7 @@ pub(super) enum Request {
     },
     LeaderboardVisibility {
         visible: bool,
+        request_id: u64,
     },
     Pause {},
     Permission {},
@@ -208,41 +224,44 @@ mod tests {
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_join","invite_code":"CP_123456","nickname":"Luo","role":"developer"}"#
+                r#"{"action":"leaderboard_join","invite_code":"CP_123456","nickname":"Luo","role":"developer","request_id":7}"#
             )
             .unwrap(),
-            Request::LeaderboardJoin { invite_code, nickname, role }
-                if invite_code == "CP_123456" && nickname == "Luo" && role == "developer"
+            Request::LeaderboardJoin { invite_code, nickname, role, request_id }
+                if invite_code == "CP_123456" && nickname == "Luo" && role == "developer" && request_id == 7
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_recover","recovery_code":"RC_abcd1234567890123456"}"#
+                r#"{"action":"leaderboard_recover","recovery_code":"RC_abcd1234567890123456","request_id":8}"#
             )
             .unwrap(),
-            Request::LeaderboardRecover { recovery_code }
-                if recovery_code == "RC_abcd1234567890123456"
+            Request::LeaderboardRecover { recovery_code, request_id }
+                if recovery_code == "RC_abcd1234567890123456" && request_id == 8
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week"}"#)
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard_sync","period":"week","request_id":9}"#)
                 .unwrap(),
             Request::LeaderboardSync {
-                period: clickpulse::leaderboard::Period::Week
+                period: clickpulse::leaderboard::Period::Week,
+                request_id: 9,
             }
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"today"}"#)
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"today","request_id":10}"#)
                 .unwrap(),
             Request::Leaderboard {
                 period: clickpulse::leaderboard::Period::Today,
-                page: 1
+                page: 1,
+                request_id: 10
             }
         ));
         assert!(matches!(
-            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"week","page":3}"#)
+            serde_json::from_str::<Request>(r#"{"action":"leaderboard","period":"week","page":3,"request_id":11}"#)
                 .unwrap(),
             Request::Leaderboard {
                 period: clickpulse::leaderboard::Period::Week,
-                page: 3
+                page: 3,
+                request_id: 11
             }
         ));
         assert!(matches!(
@@ -258,24 +277,24 @@ mod tests {
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_visibility","visible":true}"#
+                r#"{"action":"leaderboard_visibility","visible":true,"request_id":12}"#
             )
             .unwrap(),
-            Request::LeaderboardVisibility { visible: true }
+            Request::LeaderboardVisibility { visible: true, request_id: 12 }
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_devices"}"#
+                r#"{"action":"leaderboard_devices","request_id":13}"#
             )
             .unwrap(),
-            Request::LeaderboardDevices {}
+            Request::LeaderboardDevices { request_id: 13 }
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(
-                r#"{"action":"leaderboard_revoke_device","device_id":"dev-1"}"#
+                r#"{"action":"leaderboard_revoke_device","device_id":"dev-1","request_id":14}"#
             )
             .unwrap(),
-            Request::LeaderboardRevokeDevice { device_id } if device_id == "dev-1"
+            Request::LeaderboardRevokeDevice { device_id, request_id } if device_id == "dev-1" && request_id == 14
         ));
         assert!(matches!(
             serde_json::from_str::<Request>(

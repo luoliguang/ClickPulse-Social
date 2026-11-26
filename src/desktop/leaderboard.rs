@@ -5,16 +5,18 @@ use serde_json::{Value, json};
 use std::{path::PathBuf, thread};
 use tao::event_loop::EventLoopProxy;
 
-fn finish(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
-    let _ = proxy.send_event(UiEvent::Leaderboard(
-        result.map_err(|error| format!("{error:#}")),
-    ));
+fn finish(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::Leaderboard {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
 }
 
-fn finish_background(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
-    let _ = proxy.send_event(UiEvent::LeaderboardBackground(
-        result.map_err(|error| format!("{error:#}")),
-    ));
+fn finish_background(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardBackground {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
 }
 
 fn finish_activity(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
@@ -24,22 +26,28 @@ fn finish_activity(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Resu
     });
 }
 
-fn finish_visibility(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
-    let _ = proxy.send_event(UiEvent::LeaderboardVisibility(
-        result.map_err(|error| format!("{error:#}")),
-    ));
+fn finish_visibility(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardVisibility {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
 }
 
-fn finish_devices(proxy: EventLoopProxy<UiEvent>, result: Result<Value>) {
-    let _ = proxy.send_event(UiEvent::LeaderboardDevices(
-        result.map_err(|error| format!("{error:#}")),
-    ));
+fn finish_devices(proxy: EventLoopProxy<UiEvent>, request_id: u64, result: Result<Value>) {
+    let _ = proxy.send_event(UiEvent::LeaderboardDevices {
+        request_id,
+        result: result.map_err(|error| format!("{error:#}")),
+    });
 }
 
-fn spawn(proxy: EventLoopProxy<UiEvent>, task: impl FnOnce() -> Result<Value> + Send + 'static) {
+fn spawn(
+    proxy: EventLoopProxy<UiEvent>,
+    request_id: u64,
+    task: impl FnOnce() -> Result<Value> + Send + 'static,
+) {
     thread::Builder::new()
         .name("clickpulse-leaderboard".into())
-        .spawn(move || finish(proxy, task()))
+        .spawn(move || finish(proxy, request_id, task()))
         .ok();
 }
 
@@ -95,14 +103,19 @@ pub(super) fn demo(period: Period) -> Value {
     })
 }
 
-pub(super) fn load(proxy: EventLoopProxy<UiEvent>, period: Period, page: u64) {
-    spawn(proxy, move || state(period, page));
+pub(super) fn load(proxy: EventLoopProxy<UiEvent>, period: Period, page: u64, request_id: u64) {
+    spawn(proxy, request_id, move || state(period, page));
 }
 
-pub(super) fn load_background(proxy: EventLoopProxy<UiEvent>, period: Period, page: u64) {
+pub(super) fn load_background(
+    proxy: EventLoopProxy<UiEvent>,
+    period: Period,
+    page: u64,
+    request_id: u64,
+) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-refresh".into())
-        .spawn(move || finish_background(proxy, state_background(period, page)))
+        .spawn(move || finish_background(proxy, request_id, state_background(period, page)))
         .ok();
 }
 
@@ -125,7 +138,7 @@ pub(super) fn activity(
         .ok();
 }
 
-pub(super) fn set_visibility(proxy: EventLoopProxy<UiEvent>, visible: bool) {
+pub(super) fn set_visibility(proxy: EventLoopProxy<UiEvent>, visible: bool, request_id: u64) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-visibility".into())
         .spawn(move || {
@@ -135,7 +148,7 @@ pub(super) fn set_visibility(proxy: EventLoopProxy<UiEvent>, visible: bool) {
                 leaderboard::set_activity_visible(&profile, visible)?;
                 Ok(json!({"activity_visible":visible}))
             })();
-            finish_visibility(proxy, result);
+            finish_visibility(proxy, request_id, result);
         })
         .ok();
 }
@@ -145,8 +158,9 @@ pub(super) fn join(
     invite_code: String,
     nickname: String,
     role: String,
+    request_id: u64,
 ) {
-    spawn(proxy, move || {
+    spawn(proxy, request_id, move || {
         ensure!(
             leaderboard::load_profile()?.is_none(),
             "This installation has already joined the leaderboard"
@@ -162,8 +176,8 @@ pub(super) fn join(
     });
 }
 
-pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String) {
-    spawn(proxy, move || {
+pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String, request_id: u64) {
+    spawn(proxy, request_id, move || {
         ensure!(
             leaderboard::load_profile()?.is_none(),
             "Cannot recover: already joined"
@@ -181,8 +195,8 @@ pub(super) fn recover(proxy: EventLoopProxy<UiEvent>, recovery_code: String) {
     });
 }
 
-pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>) {
-    spawn(proxy, move || {
+pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>, request_id: u64) {
+    spawn(proxy, request_id, move || {
         let profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         let recovery_codes = leaderboard::regenerate_recovery_codes(&profile)?;
@@ -194,7 +208,7 @@ pub(super) fn recovery_codes(proxy: EventLoopProxy<UiEvent>) {
     });
 }
 
-pub(super) fn devices(proxy: EventLoopProxy<UiEvent>) {
+pub(super) fn devices(proxy: EventLoopProxy<UiEvent>, request_id: u64) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-devices".into())
         .spawn(move || {
@@ -204,12 +218,12 @@ pub(super) fn devices(proxy: EventLoopProxy<UiEvent>) {
                 let devices = leaderboard::devices(&profile)?;
                 Ok(json!({ "devices": devices }))
             })();
-            finish_devices(proxy, result);
+            finish_devices(proxy, request_id, result);
         })
         .ok();
 }
 
-pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String) {
+pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String, request_id: u64) {
     thread::Builder::new()
         .name("clickpulse-leaderboard-devices".into())
         .spawn(move || {
@@ -220,13 +234,18 @@ pub(super) fn revoke_device(proxy: EventLoopProxy<UiEvent>, device_id: String) {
                 let devices = leaderboard::devices(&profile)?;
                 Ok(json!({ "devices": devices }))
             })();
-            finish_devices(proxy, result);
+            finish_devices(proxy, request_id, result);
         })
         .ok();
 }
 
-pub(super) fn sync_snapshot(proxy: EventLoopProxy<UiEvent>, snapshot: String, period: Period) {
-    spawn(proxy, move || {
+pub(super) fn sync_snapshot(
+    proxy: EventLoopProxy<UiEvent>,
+    snapshot: String,
+    period: Period,
+    request_id: u64,
+) {
+    spawn(proxy, request_id, move || {
         let profile =
             leaderboard::load_profile()?.context("Join the leaderboard before syncing")?;
         let value: Value = serde_json::from_str(&snapshot)?;
@@ -282,8 +301,13 @@ pub(super) fn sync_snapshot(proxy: EventLoopProxy<UiEvent>, snapshot: String, pe
     });
 }
 
-pub(super) fn rename(proxy: EventLoopProxy<UiEvent>, nickname: String, period: Period) {
-    spawn(proxy, move || {
+pub(super) fn rename(
+    proxy: EventLoopProxy<UiEvent>,
+    nickname: String,
+    period: Period,
+    request_id: u64,
+) {
+    spawn(proxy, request_id, move || {
         let mut profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::rename(&mut profile, nickname.trim())?;
@@ -291,8 +315,13 @@ pub(super) fn rename(proxy: EventLoopProxy<UiEvent>, nickname: String, period: P
     });
 }
 
-pub(super) fn set_role(proxy: EventLoopProxy<UiEvent>, role: String, period: Period) {
-    spawn(proxy, move || {
+pub(super) fn set_role(
+    proxy: EventLoopProxy<UiEvent>,
+    role: String,
+    period: Period,
+    request_id: u64,
+) {
+    spawn(proxy, request_id, move || {
         let mut profile =
             leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::set_role(&mut profile, role.trim())?;
@@ -300,16 +329,21 @@ pub(super) fn set_role(proxy: EventLoopProxy<UiEvent>, role: String, period: Per
     });
 }
 
-pub(super) fn leave(proxy: EventLoopProxy<UiEvent>) {
-    spawn(proxy, move || {
+pub(super) fn leave(proxy: EventLoopProxy<UiEvent>, request_id: u64) {
+    spawn(proxy, request_id, move || {
         let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::leave(&profile)?;
         Ok(json!({"profile":leaderboard::profile_summary(None),"board":null}))
     });
 }
 
-pub(super) fn upload_avatar(proxy: EventLoopProxy<UiEvent>, path: PathBuf, period: Period) {
-    spawn(proxy, move || {
+pub(super) fn upload_avatar(
+    proxy: EventLoopProxy<UiEvent>,
+    path: PathBuf,
+    period: Period,
+    request_id: u64,
+) {
+    spawn(proxy, request_id, move || {
         let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         let bytes = leaderboard::prepare_avatar(&path)?;
         leaderboard::upload_avatar(&profile, &bytes)?;
@@ -317,8 +351,8 @@ pub(super) fn upload_avatar(proxy: EventLoopProxy<UiEvent>, path: PathBuf, perio
     });
 }
 
-pub(super) fn delete_avatar(proxy: EventLoopProxy<UiEvent>, period: Period) {
-    spawn(proxy, move || {
+pub(super) fn delete_avatar(proxy: EventLoopProxy<UiEvent>, period: Period, request_id: u64) {
+    spawn(proxy, request_id, move || {
         let profile = leaderboard::load_profile()?.context("Leaderboard membership is missing")?;
         leaderboard::delete_avatar(&profile)?;
         state(period, 1)
