@@ -41,6 +41,11 @@ header {position:sticky;top:0;z-index:30;height:58px;display:flex;justify-conten
 .header-actions {display:flex;align-items:center;gap:12px}
 .update-header {color:var(--blue);border-color:color-mix(in srgb,var(--blue) 38%,var(--line));background:color-mix(in srgb,var(--blue) 7%,var(--surface))}
 .update-header:hover {border-color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,var(--surface))}
+.update-header-active {color:var(--blue);border-color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,var(--surface))}
+.update-header-active .update-header-dot {animation:update-pulse 2s ease-in-out infinite}
+.update-header-busy,.update-header-busy:disabled,.update-header-busy:disabled:hover {opacity:1;color:var(--muted);border-color:var(--line);background:color-mix(in srgb,var(--muted) 5%,var(--surface));box-shadow:none}
+.update-header-busy .update-header-dot {background:var(--muted);box-shadow:none;animation:none}
+@keyframes update-pulse {0%,100%{opacity:1}50%{opacity:.4}}
 .update-header-dot {width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 14%,transparent)}
 .content {padding:29px 30px 20px;max-width:1400px;margin:0 auto}
 .page-heading {display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
@@ -370,7 +375,7 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-confirm-note {padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fd;color:#62748e;font-size:11px;line-height:1.6}
 .leaderboard-confirm-dialog .close-dialog-actions {grid-template-columns:auto auto;justify-content:end;margin-top:18px}
 .leaderboard-confirm-dialog .close-dialog-actions .button {min-width:104px;min-height:40px;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .14s cubic-bezier(.23,1,.32,1)}
-@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button,#leaderboard-recover-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}.leaderboard-activity-heatmap{align-items:flex-start;flex-direction:column}.leaderboard-activity-heat-legend{align-self:flex-end}}
+@media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button,#leaderboard-recover-button{width:100%}.leaderboard-profile{align-items:flex-start;flex-direction:column}.leaderboard-identity{flex-direction:column;align-items:flex-start;gap:12px}.leaderboard-identity .leaderboard-avatar{width:56px;height:56px;font-size:20px}.leaderboard-profile-copy{width:100%}.leaderboard-profile-actions,.leaderboard-toolbar{flex-wrap:wrap}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}.leaderboard-role-field{margin-top:8px}.leaderboard-role-field select{width:100%;max-width:260px}.leaderboard-visibility-row{flex-direction:column;align-items:flex-start;gap:8px}.leaderboard-activity-heatmap{align-items:flex-start;flex-direction:column}.leaderboard-activity-heat-legend{align-self:flex-end}}
 @media(prefers-reduced-motion:reduce){#leaderboard-join-button,#leaderboard-recover-button,.leaderboard-join-mode button,.leaderboard-confirm-dialog .button,.leaderboard-name-edit,.leaderboard-board .table-wrap,.leaderboard-period-segments::before,.leaderboard-activity-heat-cell{transition:none}#leaderboard-sync.is-loading::before{animation:none}.leaderboard-activity-heat-cell[data-tooltip]:hover{transform:none}}
 body.compact .close-dialog {padding:14px}
 body.compact .close-dialog-heading h2 {font-size:14px}

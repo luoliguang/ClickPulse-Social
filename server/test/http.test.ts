@@ -24,19 +24,21 @@ test('health reports the running deployment revision after checking the database
   }
 });
 
-test('authentication reads valid devices while throttling last-seen writes in one query', async () => {
+test('authentication reads valid devices, refreshes legacy names, and throttles last-seen writes in one query', async () => {
   const originalQuery = pool.query.bind(pool);
   try {
-    let authenticationSql = '';
-    (pool as any).query = async (sql: string) => {
-      authenticationSql = sql;
-      return { rows: [{ id: 'member-1', nickname: 'Luo', avatar_file: null, role: 'developer', activity_visible: false, device_id: 'device-1', device_name: 'windows' }] };
+    let authenticationSql = '', authenticationValues: unknown[] = [];
+    (pool as any).query = async (sql: string, values: unknown[]) => {
+      authenticationSql = sql; authenticationValues = values;
+      return { rows: [{ id: 'member-1', nickname: 'Luo', avatar_file: null, role: 'developer', activity_visible: false, device_id: 'device-1', device_name: 'windows-x64' }] };
     };
     const app = buildApp();
-    const response = await app.inject({ method: 'GET', url: '/api/v1/me', headers: { authorization: 'Bearer membership-token' } });
+    const response = await app.inject({ method: 'GET', url: '/api/v1/me', headers: { authorization: 'Bearer membership-token', 'user-agent': 'ClickPulse/1.2.3 (windows-x64)' } });
     assert.equal(response.statusCode, 200);
     assert.match(authenticationSql, /active AS \(SELECT id,member_id,name FROM leaderboard_devices WHERE token_hash=\$1\)/);
     assert.match(authenticationSql, /last_seen_at<=NOW\(\)-INTERVAL '10 minutes'/);
+    assert.match(authenticationSql, /name='Legacy device'/);
+    assert.deepEqual(authenticationValues, [hashSecret('membership-token'), 'windows-x64']);
     await app.close();
   } finally {
     (pool as any).query = originalQuery;

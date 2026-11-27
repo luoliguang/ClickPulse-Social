@@ -82,6 +82,28 @@ fn candidate() -> Candidate {
     .unwrap()
 }
 #[test]
+fn approved_download_sources_fall_back_in_the_opposite_order() {
+    let candidate = candidate();
+    let mirror = format!(
+        "{UPDATE_BASE}/download/{}/{}",
+        candidate.version, candidate.archive.name
+    );
+    let github = format!(
+        "{RELEASES}/download/v{}/{}",
+        candidate.version, candidate.archive.name
+    );
+    assert_eq!(
+        candidate.archive.download_urls(&candidate.version),
+        [mirror.clone(), github.clone()]
+    );
+    let mut github_first = candidate.archive.clone();
+    github_first.browser_download_url = github;
+    assert_eq!(
+        github_first.download_urls(&candidate.version),
+        [github_first.browser_download_url.clone(), mirror]
+    );
+}
+#[test]
 fn cached_download_identity_includes_every_release_asset() {
     let original = candidate();
     let mut reordered = release("1.2.3", Target::WindowsX64);

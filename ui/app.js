@@ -32,8 +32,36 @@ let recordingPaused=null;
 let dataOperationBusy=false;
 let updateState={status:'idle',current:'',version:null,can_install:false,update_command:null,automatic:true,received:0,total:0};
 let updateSnoozeTimer=null;
+let updateLastReceived=0;
+let updateSpeedSamples=[];
+let updateSpeedTimer=null;
 const updateBusy=()=>['downloading','verifying','preparing','installing'].includes(updateState.status);
 const updateInstalling=()=>['preparing','installing'].includes(updateState.status);
+function formatBytes(bytes){
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';
+  return(bytes/(1024*1024)).toFixed(1)+' MB';
+}
+function calculateDownloadSpeed(){
+  if(updateSpeedSamples.length<2)return'';
+  const now=Date.now(),latest=updateSpeedSamples.at(-1);
+  if(now-latest.time>2000)return formatBytes(0)+'/s';
+  const earliest=updateSpeedSamples[0],elapsed=(latest.time-earliest.time)/1000;
+  if(elapsed<0.25||latest.bytes<=earliest.bytes)return'';
+  return formatBytes((latest.bytes-earliest.bytes)/elapsed)+'/s';
+}
+function trackDownloadProgress(state,wasDownloading){
+  const now=Date.now(),received=Math.max(0,Number(state.received)||0);
+  if(!wasDownloading||received<updateLastReceived)updateSpeedSamples=[{time:now,bytes:received}];
+  else if(received!==updateLastReceived)updateSpeedSamples.push({time:now,bytes:received});
+  updateLastReceived=received;
+  updateSpeedSamples=updateSpeedSamples.filter(sample=>now-sample.time<=5000).slice(-30);
+  if(updateSpeedTimer===null)updateSpeedTimer=setInterval(()=>{if(updateState.status==='downloading')renderUpdateState();},1000);
+}
+function stopDownloadSpeed(){
+  if(updateSpeedTimer!==null){clearInterval(updateSpeedTimer);updateSpeedTimer=null;}
+  updateLastReceived=0;updateSpeedSamples=[];
+}
 function closeMiniUpdate(){
   const panel=$('mini-update-panel'),trigger=$('mini-update');
   if(!panel||!trigger)return;
@@ -46,9 +74,29 @@ function renderMiniUpdate(){
   const version=updateState.version,view=window.presentationView||{};
   const until=Number(view.update_snoozed_until),sameVersion=view.update_snoozed_version===version;
   const snoozed=sameVersion&&Number.isFinite(until)&&Date.now()/1000<until;
-  const offered=['available','ready'].includes(updateState.status)&&!!version&&!snoozed;
-  const header=$('header-update');
-  if(header){header.hidden=!offered;header.title=offered?t('update.mini_title',{version}):'';}
+  const available=['available','ready'].includes(updateState.status)&&!!version;
+  const offered=available&&!snoozed;
+  const header=$('header-update'),headerBusy=updateBusy();
+  if(header){
+    const shouldShow=!view.demo&&(available||headerBusy);
+    header.hidden=!shouldShow;
+    header.disabled=headerBusy;
+    header.classList.toggle('update-header-active',shouldShow&&available);
+    header.classList.toggle('update-header-busy',shouldShow&&headerBusy);
+    if(shouldShow){
+      let headerText='',headerTitle='';
+      if(updateState.status==='downloading'){
+        const hasTotal=updateState.total>0,percent=hasTotal?Math.min(100,Math.floor(updateState.received/updateState.total*100)):0,speed=calculateDownloadSpeed();
+        headerText=hasTotal?t('update.downloading_short',{percent}):t('update.updating');
+        headerTitle=(hasTotal?t('update.downloading',{percent}):t('update.updating'))+(speed?' · '+speed:'');
+      }else if(updateState.status==='verifying'){headerText=t('update.verifying_short');headerTitle=t('update.verifying');}
+      else if(['preparing','installing'].includes(updateState.status)){headerText=t('update.installing_short');headerTitle=t('update.restarting');}
+      else{headerText=t('update.available_short');headerTitle=t('update.mini_title',{version});}
+      $('header-update-text').textContent=headerText;
+      header.title=headerTitle;
+      header.setAttribute('aria-label',headerTitle);
+    }
+  }
   const miniOffered=offered&&updateState.automatic!==false;
   trigger.hidden=!miniOffered;
   if(!miniOffered){closeMiniUpdate();if(snoozed){const delay=Math.min(2147483647,Math.max(0,until*1000-Date.now()));updateSnoozeTimer=setTimeout(()=>{updateSnoozeTimer=null;renderMiniUpdate();},delay);}return;}
@@ -64,8 +112,10 @@ function renderUpdateState(){
   const currentVersion=$('update-current-version');
   if(currentVersion)setSelectableText(currentVersion,state.current?t('update.current_version',{version:state.current}):'');
   const key={checking:'update.checking',current:'update.current',ready:'update.ready',available:managed||state.can_install?'update.available':'update.manual',error:'update.failed',verifying:'update.verifying',preparing:'update.preparing',installing:'update.restarting'}[state.status];
-  const percent=state.total>0?Math.min(100,Math.floor(state.received/state.total*100)):0;
-  const text=state.status==='downloading'?t('update.downloading',{percent}):key?t(key,{version:state.version||state.current}):state.current?t('update.version',{version:state.current}):'';
+  const hasTotal=state.total>0,percent=hasTotal?Math.min(100,Math.floor(state.received/state.total*100)):0;
+  const speed=state.status==='downloading'?calculateDownloadSpeed():'';
+  const progress=state.status==='downloading'?(hasTotal?t('update.downloading',{percent}):t('update.updating'))+(speed?' · '+speed:''):'';
+  const text=state.status==='downloading'?progress:key?t(key,{version:state.version||state.current}):state.current?t('update.version',{version:state.current}):'';
   setSelectableText(status,text);
   const managedHint=$('update-managed');
   if(managedHint){managedHint.hidden=!managed;setSelectableText(managedHint,managed?t('update.managed',{manager:state.update_command.startsWith('winget ')?'WinGet':'Scoop',command:state.update_command}):'');}
@@ -88,7 +138,12 @@ function renderUpdateState(){
   renderMiniUpdate();
 }
 window.renderUpdatePreferences=renderUpdateState;
-window.receiveUpdateState=state=>{Object.assign(updateState,state);renderDataOperation();};
+window.receiveUpdateState=state=>{
+  const wasDownloading=updateState.status==='downloading',nextStatus=state.status??updateState.status;
+  if(nextStatus==='downloading')trackDownloadProgress(state,wasDownloading);
+  else if(wasDownloading)stopDownloadSpeed();
+  Object.assign(updateState,state);renderDataOperation();
+};
 window.receiveUpdateAvailable=version=>window.toast(t(updateState.update_command?'update.found_managed':'update.found',{version,command:updateState.update_command}),8000);
 const updateCompleteOverlay=$('update-complete-overlay');
 const updateCompleteSurfaces=[document.querySelector('main'),document.querySelector('.sidebar'),$('mini-widget')];
@@ -131,7 +186,10 @@ $('check-updates')?.addEventListener('click',()=>{
   send(['available','ready'].includes(updateState.status)&&!updateState.update_command?'install_update':'check_updates');
 });
 $('update-details')?.addEventListener('click',event=>{event.preventDefault();send('update_release');});
-$('header-update')?.addEventListener('click',()=>send(updateState.update_command||!updateState.can_install?'update_release':'install_update'));
+$('header-update')?.addEventListener('click',()=>{
+  if(updateBusy()||!['available','ready'].includes(updateState.status))return;
+  send(updateState.update_command||!updateState.can_install?'update_release':'install_update');
+});
 $('automatic-updates')?.addEventListener('change',event=>{
   if(updateInstalling()||updateState.automatic===false)return;
   send('automatic_updates',{enabled:event.target.checked});
@@ -316,7 +374,9 @@ function renderLeaderboardDevices(devices){
   list.replaceChildren(...items.map(device=>{
     const li=document.createElement('li');li.className='leaderboard-device';
     const info=document.createElement('div');info.className='leaderboard-device-info';
-    const name=document.createElement('strong');name.textContent=device.name||t('leaderboard.device_unknown');
+    let deviceName=device.name||t('leaderboard.device_unknown');
+    if(String(device.id||'').startsWith('legacy-')&&deviceName==='Legacy device')deviceName=t('leaderboard.device_legacy');
+    const name=document.createElement('strong');name.textContent=deviceName;
     const meta=document.createElement('span');meta.className='leaderboard-device-meta';
     let when='';if(!device.current&&typeof device.last_seen_at==='string'&&device.last_seen_at){const parsed=new Date(device.last_seen_at);when=isNaN(parsed.getTime())?'':parsed.toLocaleDateString();}
     meta.textContent=device.current?t('leaderboard.device_current'):t('leaderboard.device_last_seen',{when});

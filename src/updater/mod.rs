@@ -159,6 +159,17 @@ struct Asset {
     size: u64,
     digest: Option<String>,
 }
+impl Asset {
+    fn download_urls(&self, version: &str) -> [String; 2] {
+        let mirror = format!("{UPDATE_BASE}/download/{version}/{}", self.name);
+        let github = format!("{RELEASES}/download/v{version}/{}", self.name);
+        if self.browser_download_url == mirror {
+            [mirror, github]
+        } else {
+            [github, mirror]
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     pub version: String,
@@ -276,8 +287,8 @@ fn read_limited(reader: impl Read, limit: u64) -> Result<Vec<u8>> {
     );
     Ok(bytes)
 }
-fn fetch_small(client: &ureq::Agent, asset: &Asset) -> Result<Vec<u8>> {
-    let mut response = client.get(&asset.browser_download_url).call()?;
+fn fetch_small_from(client: &ureq::Agent, asset: &Asset, url: &str) -> Result<Vec<u8>> {
+    let mut response = client.get(url).call()?;
     let bytes = read_limited(response.body_mut().as_reader(), asset.size)?;
     ensure!(
         bytes.len() as u64 == asset.size,
@@ -290,6 +301,52 @@ fn fetch_small(client: &ureq::Agent, asset: &Asset) -> Result<Vec<u8>> {
         );
     }
     Ok(bytes)
+}
+fn fetch_small(client: &ureq::Agent, asset: &Asset, version: &str) -> Result<Vec<u8>> {
+    let mut failures = Vec::new();
+    for url in asset.download_urls(version) {
+        match fetch_small_from(client, asset, &url) {
+            Ok(bytes) => return Ok(bytes),
+            Err(error) => failures.push(format!("{url}: {error:#}")),
+        }
+    }
+    bail!(
+        "Update metadata download failed from all approved sources: {}",
+        failures.join("; ")
+    )
+}
+fn fetch_archive(
+    client: &ureq::Agent,
+    asset: &Asset,
+    url: &str,
+    path: &Path,
+    expected: &str,
+    progress: &impl Fn(u64, u64),
+) -> Result<()> {
+    let mut response = client.get(url).call()?;
+    let mut reader = response.body_mut().as_reader();
+    let mut file = File::create_new(path)?;
+    let mut hash = Sha256::new();
+    let mut bytes = 0u64;
+    let mut chunk = [0u8; 65536];
+    loop {
+        let n = reader.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        bytes += n as u64;
+        ensure!(bytes <= asset.size, "Package exceeds declared size");
+        file.write_all(&chunk[..n])?;
+        hash.update(&chunk[..n]);
+        progress(bytes, asset.size);
+    }
+    file.sync_all()?;
+    drop(file);
+    ensure!(
+        bytes == asset.size && format!("{:x}", hash.finalize()) == expected,
+        "Package checksum mismatch or incomplete download"
+    );
+    Ok(())
 }
 fn fetch_release(client: &ureq::Agent, url: &str) -> Result<Release> {
     let mut response = client
@@ -337,9 +394,9 @@ pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<Stage
         .prefix("pending-")
         .tempdir_in(base)?;
     let client = agent(Duration::from_secs(900));
-    let sums = fetch_small(&client, &candidate.sums)?;
+    let sums = fetch_small(&client, &candidate.sums, &candidate.version)?;
     let hashes = parse_sums(std::str::from_utf8(&sums)?)?;
-    let external = fetch_small(&client, &candidate.manifest)?;
+    let external = fetch_small(&client, &candidate.manifest, &candidate.version)?;
     ensure!(
         hashes.get(&candidate.manifest.name) == Some(&hash_bytes(&external)),
         "Manifest checksum mismatch"
@@ -354,31 +411,32 @@ pub fn stage(candidate: &Candidate, progress: impl Fn(u64, u64)) -> Result<Stage
         );
     }
     let archive_path = directory.path().join("package.zip");
-    let mut response = client.get(&candidate.archive.browser_download_url).call()?;
-    let mut reader = response.body_mut().as_reader();
-    let mut file = File::create_new(&archive_path)?;
-    let mut hash = Sha256::new();
-    let mut bytes = 0u64;
-    let mut chunk = [0u8; 65536];
-    loop {
-        let n = reader.read(&mut chunk)?;
-        if n == 0 {
-            break;
+    let mut failures = Vec::new();
+    let mut downloaded = false;
+    for url in candidate.archive.download_urls(&candidate.version) {
+        if archive_path.try_exists()? {
+            fs::remove_file(&archive_path)?;
         }
-        bytes += n as u64;
-        ensure!(
-            bytes <= candidate.archive.size,
-            "Package exceeds declared size"
-        );
-        file.write_all(&chunk[..n])?;
-        hash.update(&chunk[..n]);
-        progress(bytes, candidate.archive.size);
+        progress(0, candidate.archive.size);
+        match fetch_archive(
+            &client,
+            &candidate.archive,
+            &url,
+            &archive_path,
+            expected,
+            &progress,
+        ) {
+            Ok(()) => {
+                downloaded = true;
+                break;
+            }
+            Err(error) => failures.push(format!("{url}: {error:#}")),
+        }
     }
-    file.sync_all()?;
-    drop(file);
     ensure!(
-        bytes == candidate.archive.size && format!("{:x}", hash.finalize()) == *expected,
-        "Package checksum mismatch or incomplete download"
+        downloaded,
+        "Update package download failed from all approved sources: {}",
+        failures.join("; ")
     );
     let manifest = unpack(&archive_path, directory.path(), candidate, &external)?;
     Ok(StagedUpdate {
