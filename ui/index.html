@@ -100,16 +100,40 @@
         <p class="leaderboard-recovery-warning" data-i18n="leaderboard.recovery_warning">每个恢复码只能使用一次，使用后自动失效。请妥善保存，丢失后无法找回。</p>
       </article>
       <article id="leaderboard-profile" class="card leaderboard-profile" hidden>
-        <div class="leaderboard-identity"><div id="leaderboard-avatar" class="leaderboard-avatar" aria-hidden="true"></div><div class="leaderboard-profile-copy"><div id="leaderboard-name-display" class="leaderboard-name-row"><strong id="leaderboard-profile-name"></strong><button type="button" class="leaderboard-name-edit" id="leaderboard-name-edit" data-i18n="leaderboard.nickname_edit">编辑昵称</button></div><div id="leaderboard-name-form" class="leaderboard-name-form" hidden><input id="leaderboard-name-input" maxlength="24" autocomplete="nickname" aria-label="昵称" data-i18n-aria="leaderboard.nickname"><button type="button" class="button primary" id="leaderboard-name-save" data-i18n="leaderboard.nickname_save">保存</button><button type="button" class="button" id="leaderboard-name-cancel" data-i18n="action.cancel">取消</button></div><label class="leaderboard-role-field"><span data-i18n="leaderboard.role">身份</span><select id="leaderboard-role-edit" aria-label="身份" data-i18n-aria="leaderboard.role"></select></label><p id="leaderboard-sync-status"></p><div id="leaderboard-visibility-row" class="leaderboard-visibility-row"><div><strong data-i18n="leaderboard.visibility">公开我的活动记录</strong><p class="leaderboard-visibility-hint" data-i18n="leaderboard.visibility_hint">开启后，其他成员可查看你最近 30 天的键盘、鼠标汇总。</p></div><label class="preference-switch"><input id="leaderboard-visibility" type="checkbox" aria-label="公开我的活动记录" data-i18n-aria="leaderboard.visibility"><span aria-hidden="true"></span></label></div></div></div>
-        <div class="leaderboard-profile-actions" id="leaderboard-profile-actions"><button class="button" id="leaderboard-recovery-regenerate" data-i18n="leaderboard.recovery_regenerate">生成新的恢复码</button><button class="button" id="leaderboard-avatar-change" data-i18n="leaderboard.avatar_change">更换头像</button><button class="button" id="leaderboard-avatar-delete" data-i18n="leaderboard.avatar_delete">使用默认头像</button><button class="button danger" id="leaderboard-leave" data-i18n="leaderboard.leave">退出并删除资料</button></div>
-        <div class="leaderboard-devices" id="leaderboard-devices" hidden>
-          <div class="leaderboard-devices-heading"><strong data-i18n="leaderboard.devices_title">已登录设备</strong><span class="leaderboard-devices-hint" data-i18n="leaderboard.devices_hint">在这台设备以外的设备退出登录</span></div>
-          <ul class="leaderboard-devices-list" id="leaderboard-devices-list"></ul>
+        <div class="leaderboard-profile-top">
+          <section class="leaderboard-identity" aria-labelledby="leaderboard-profile-name">
+            <div id="leaderboard-avatar" class="leaderboard-avatar" aria-hidden="true"></div>
+            <div class="leaderboard-profile-copy">
+              <div id="leaderboard-name-display" class="leaderboard-name-row"><strong id="leaderboard-profile-name"></strong><button type="button" class="leaderboard-name-edit" id="leaderboard-name-edit" data-i18n="leaderboard.nickname_edit">编辑昵称</button></div>
+              <div id="leaderboard-name-form" class="leaderboard-name-form" hidden><input id="leaderboard-name-input" maxlength="24" autocomplete="nickname" aria-label="昵称" data-i18n-aria="leaderboard.nickname"><button type="button" class="button primary" id="leaderboard-name-save" data-i18n="leaderboard.nickname_save">保存</button><button type="button" class="button" id="leaderboard-name-cancel" data-i18n="action.cancel">取消</button></div>
+              <div class="leaderboard-profile-meta"><label class="leaderboard-role-field"><span data-i18n="leaderboard.role">身份</span><select id="leaderboard-role-edit" aria-label="身份" data-i18n-aria="leaderboard.role"></select></label><p id="leaderboard-sync-status"></p></div>
+            </div>
+          </section>
+          <div class="leaderboard-profile-actions" id="leaderboard-profile-actions">
+            <button class="button leaderboard-action" id="leaderboard-recovery-regenerate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.8 2.8 8.1 7 10 4.2-1.9 7-5.2 7-10V6Z"/><path d="M9.5 12.2 11.2 14l3.6-4"/></svg><span data-i18n="leaderboard.recovery_regenerate">生成新的恢复码</span></button>
+            <button class="button leaderboard-action" id="leaderboard-avatar-change"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m5.5 18 4.8-4.8 3.2 3.1 2.2-2.2 2.8 2.9"/></svg><span data-i18n="leaderboard.avatar_change">更换头像</span></button>
+            <button class="button leaderboard-action" id="leaderboard-avatar-delete"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.8-4.2 3.3-6.3 7.5-6.3s6.7 2.1 7.5 6.3"/></svg><span data-i18n="leaderboard.avatar_delete">使用默认头像</span></button>
+            <button class="button danger leaderboard-action" id="leaderboard-leave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H5v14h4M13 8l4 4-4 4m4-4H9"/></svg><span data-i18n="leaderboard.leave">退出并删除资料</span></button>
+          </div>
+        </div>
+        <div class="leaderboard-profile-lower">
+          <section id="leaderboard-visibility-row" class="leaderboard-visibility-row">
+            <span class="leaderboard-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+            <div class="leaderboard-section-copy"><strong data-i18n="leaderboard.visibility">公开我的活动记录</strong><p class="leaderboard-visibility-hint" data-i18n="leaderboard.visibility_hint">开启后，其他成员可查看你最近 30 天的键盘、鼠标汇总。</p></div>
+            <label class="preference-switch"><input id="leaderboard-visibility" type="checkbox" aria-label="公开我的活动记录" data-i18n-aria="leaderboard.visibility"><span aria-hidden="true"></span></label>
+          </section>
+          <section class="leaderboard-devices" id="leaderboard-devices" hidden>
+            <div class="leaderboard-devices-heading"><span class="leaderboard-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></span><div class="leaderboard-section-copy"><strong data-i18n="leaderboard.devices_title">已登录设备</strong><span class="leaderboard-devices-hint" data-i18n="leaderboard.devices_hint">在这台设备以外的设备退出登录</span></div></div>
+            <ul class="leaderboard-devices-list" id="leaderboard-devices-list"></ul>
+          </section>
         </div>
       </article>
       <article class="card leaderboard-board" id="leaderboard-board">
-        <div class="card-heading"><div><h2 data-i18n="leaderboard.title">社区排行榜</h2><p id="leaderboard-range"></p></div><div class="leaderboard-toolbar"><div class="segments leaderboard-period-segments" id="leaderboard-period-segments" data-period="today"><button class="selected" data-leaderboard-period="today" data-i18n="leaderboard.today">今日榜</button><button data-leaderboard-period="week" data-i18n="leaderboard.week">本周榜</button></div><button class="button" id="leaderboard-sync" data-i18n="leaderboard.sync">同步并刷新</button></div></div>
-        <div class="table-wrap"><table class="leaderboard-table"><thead><tr><th data-i18n="leaderboard.rank">名次</th><th data-i18n="leaderboard.member">成员</th><th data-i18n="common.keyboard">键盘</th><th data-i18n="common.mouse">鼠标</th><th data-i18n="history.total">总计</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
+        <div class="card-heading leaderboard-board-heading">
+          <div class="leaderboard-board-title"><span class="leaderboard-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10m7 10V4m7 16v-7"/></svg></span><div><h2 data-i18n="leaderboard.title">社区排行榜</h2><p id="leaderboard-range"></p></div></div>
+          <div class="leaderboard-toolbar"><div class="segments leaderboard-period-segments" id="leaderboard-period-segments" data-period="today"><button class="selected" data-leaderboard-period="today" data-i18n="leaderboard.today">今日榜</button><button data-leaderboard-period="week" data-i18n="leaderboard.week">本周榜</button></div><button class="button leaderboard-sync" id="leaderboard-sync"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8.2A7 7 0 0 1 18.7 7M17.9 15.8A7 7 0 0 1 5.3 17"/></svg><span id="leaderboard-sync-label" data-i18n="leaderboard.sync">同步并刷新</span></button></div>
+        </div>
+        <div class="table-wrap leaderboard-table-wrap"><table class="leaderboard-table"><thead><tr><th data-i18n="leaderboard.rank">名次</th><th data-i18n="leaderboard.member">成员</th><th data-i18n="common.keyboard">键盘</th><th data-i18n="common.mouse">鼠标</th><th data-i18n="history.total">总计</th></tr></thead><tbody id="leaderboard-rows"></tbody></table></div>
         <div class="leaderboard-footer"><p id="leaderboard-count" class="leaderboard-count" role="status" aria-live="polite" aria-atomic="true"></p><button class="button" id="leaderboard-load-more" data-i18n="leaderboard.load_more" hidden>加载更多</button></div>
         <p id="leaderboard-empty" class="leaderboard-empty" data-i18n="leaderboard.empty" hidden>还没有上榜成员。</p>
       </article>

@@ -287,7 +287,7 @@ function renderLeaderboard(){
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
   $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=leaderboardBusy;
-  $('leaderboard-sync').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
+  $('leaderboard-sync-label').textContent=t(joined&&!profile.demo?'leaderboard.sync':'leaderboard.refresh');
   if(joined){
     $('leaderboard-profile-name').textContent=profile.nickname;
     $('leaderboard-role-edit').value=profile.role||'other';Dropdowns.sync('leaderboard-role-edit');
@@ -303,13 +303,16 @@ function renderLeaderboard(){
   const rows=rendered.map(entry=>{
     const selfRow=!!entry.is_self||entry.member_id===profile.member_id;
     const row=document.createElement('tr');row.classList.toggle('leaderboard-self',selfRow);
-    const rank=document.createElement('td');rank.textContent=n(entry.rank);
+    const rank=document.createElement('td'),rankBadge=document.createElement('span'),rankValue=Number(entry.rank);
+    rank.className='leaderboard-rank-cell';rankBadge.className='leaderboard-rank';rankBadge.textContent=n(entry.rank);
+    if(rankValue>=1&&rankValue<=3)rankBadge.classList.add('leaderboard-rank-top',`leaderboard-rank-${rankValue}`);
+    rank.append(rankBadge);
     const member=document.createElement('td'),wrap=document.createElement('div'),avatar=document.createElement('span'),name=document.createElement('span'),role=document.createElement('span');
-    wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.textContent=entry.nickname;
+    wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.className='leaderboard-member-name';name.textContent=entry.nickname;
     if(selfRow){const you=document.createElement('span');you.className='leaderboard-you';you.textContent=t('leaderboard.you');name.append(' ',you);}
     role.className='leaderboard-role';role.textContent=leaderboardRoleLabel(entry.role);wrap.append(avatar,name,role);member.append(wrap);
     if(joined&&!profile.demo&&activitySupported){row.classList.toggle('leaderboard-clickable',true);row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`${t('leaderboard.activity_title')}: ${entry.nickname}`);row.addEventListener('click',()=>openLeaderboardActivity(entry));row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeaderboardActivity(entry);}});}
-    const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,keyboard,mouse,sum);return row;
+    const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.className='leaderboard-number';mouse.className='leaderboard-number';sum.className='leaderboard-number leaderboard-total-cell';keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,keyboard,mouse,sum);return row;
   });
   const body=$('leaderboard-rows');body.replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
   $('leaderboard-range').textContent=board?`${board.starts_on} — ${board.ends_on}`:'';
