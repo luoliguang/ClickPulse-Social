@@ -37,6 +37,12 @@ test('all static UI and native message keys resolve in every language',()=>{
   for(const key of keys)for(const language of Object.keys(messages))assert.equal(typeof messages[language][key],'string',`${language}: ${key}`);
 });
 
+test('Simplified Chinese leaderboard copy does not fall back to Traditional Chinese',()=>{
+  const i=create(messages,'zh-CN');
+  assert.equal(i.t('leaderboard.showing',{shown:7,total:7}),'显示 7 / 7 名');
+  assert.equal(i.t('leaderboard.page_limit'),'最多只能加载 10 页数据。');
+});
+
 test('regional aliases and Chinese scripts select the intended complete catalog',()=>{
   for(const [tag,locale] of [['zh_CN.UTF-8','zh-CN'],['zh-Hans-TW','zh-CN'],['zh-SG','zh-CN'],['zh-Hant-HK','zh-TW'],['ZH_hk','zh-TW'],['zh-MO','zh-TW'],['ja-JP','ja'],['ko_KR.UTF-8','ko'],[' en-GB ','en'],['pt-BR','en'],['fr-CA','fr'],['de_DE.UTF-8','de'],['es-MX','es']]){
     const i=create(messages,tag);assert.equal(i.locale,locale,tag);

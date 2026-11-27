@@ -354,17 +354,33 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 #leaderboard-period-segments>button:hover:not(.selected):not(:disabled) .leaderboard-period-label {color:#315582}
 #leaderboard-period-segments>button.selected .leaderboard-period-label,#leaderboard-period-segments>button.selected:focus-visible .leaderboard-period-label {color:var(--blue)}
 .leaderboard-table-wrap {max-height:460px;margin-top:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);scrollbar-gutter:stable}
-.leaderboard-table {min-width:660px}
+.leaderboard-table {min-width:850px}
 .leaderboard-table th {height:42px;padding:10px 16px;background:color-mix(in srgb,var(--blue) 4%,var(--surface));color:#5f7697;font-weight:600}
 .leaderboard-table td {height:57px;padding:11px 16px;background:var(--surface);transition:background-color .15s}
 .leaderboard-table th:first-child,.leaderboard-table td:first-child {width:82px;text-align:center}
-.leaderboard-table th:nth-child(2),.leaderboard-table td:nth-child(2) {text-align:left}
-.leaderboard-table td:nth-child(n+3),.leaderboard-table th:nth-child(n+3) {text-align:right;font-variant-numeric:tabular-nums}
+.leaderboard-table th:nth-child(2),.leaderboard-table td:nth-child(2),.leaderboard-table th:nth-child(3),.leaderboard-table td:nth-child(3) {text-align:left}
+.leaderboard-table td:nth-child(n+4),.leaderboard-table th:nth-child(n+4) {text-align:right;font-variant-numeric:tabular-nums}
 .leaderboard-table th:last-child,.leaderboard-table td:last-child {padding-right:22px}
 .leaderboard-member {display:flex;align-items:center;gap:10px;min-width:190px}
 .leaderboard-member .leaderboard-avatar {width:34px;height:34px;font-size:12px;box-shadow:0 0 0 2px color-mix(in srgb,var(--blue) 8%,var(--surface))}
 .leaderboard-member-name {min-width:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#263f62;font-weight:600}
 .leaderboard-role {color:var(--muted);font-size:10px;line-height:1;padding:4px 7px;border-radius:999px;background:color-mix(in srgb,var(--muted) 9%,transparent);white-space:nowrap}
+.leaderboard-honor-heading {display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.leaderboard-honor-help {display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;color:#7c8fa9;cursor:help}
+.leaderboard-honor-help:hover,.leaderboard-honor-help:focus-visible {color:var(--blue);background:color-mix(in srgb,var(--blue) 9%,transparent);outline:none}
+.leaderboard-honor-help svg,.leaderboard-honor-note svg {width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.leaderboard-honor-cell {width:178px}
+.leaderboard-honor-badge {display:inline-flex;align-items:center;gap:6px;max-width:168px;min-height:27px;padding:4px 9px;border:1px solid transparent;border-radius:999px;font-size:10px;line-height:1.2;font-weight:650;white-space:nowrap}
+.leaderboard-honor-badge>svg {flex:none;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.leaderboard-honor-label {min-width:0;overflow:hidden;text-overflow:ellipsis}
+.leaderboard-honor-gold {color:#a76000;background:#fff5d7;border-color:#f1d079;box-shadow:0 2px 7px #d69b201c}
+.leaderboard-honor-gold>svg {width:17px;height:17px;stroke-width:1.7}
+.leaderboard-honor-silver {color:#526a88;background:#f0f4f9;border-color:#cbd6e3}
+.leaderboard-honor-bronze {color:#98572f;background:#fff0e7;border-color:#e8c0a6}
+.leaderboard-honor-amber {color:#896318;background:#fff9e9;border-color:#eadcb3}
+.leaderboard-honor-green {color:#2f7951;background:#edf9f1;border-color:#cce9d7}
+.leaderboard-honor-blue {color:#3e638e;background:#f0f6fc;border-color:#d2e1f0}
+.leaderboard-honor-neutral {color:#6d625d;background:#f8f5f2;border-color:#e5ddd7}
 .leaderboard-rank {display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border-radius:8px;color:#60738f;font-weight:650;font-variant-numeric:tabular-nums}
 .leaderboard-rank-top {color:#fff;box-shadow:0 3px 8px #17376318}
 .leaderboard-rank-1 {background:#e4ad19}
@@ -378,7 +394,10 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-table tbody tr.leaderboard-self:hover td {background:color-mix(in srgb,var(--blue) 9%,var(--surface))}
 .leaderboard-you {display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue);font-size:9px;line-height:1.4;font-weight:700;vertical-align:middle}
 .leaderboard-footer {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:0 2px}
+.leaderboard-footer-copy {display:grid;gap:4px;min-width:0}
 .leaderboard-count {margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.leaderboard-honor-note {display:flex;align-items:flex-start;gap:5px;margin:0;color:#8392a8;font-size:9px;line-height:1.45}
+.leaderboard-honor-note svg {flex:none;width:12px;height:12px;margin-top:1px}
 .leaderboard-clickable {cursor:pointer}
 .leaderboard-clickable:hover td {background:color-mix(in srgb,var(--blue) 5%,var(--surface))}
 .leaderboard-self.leaderboard-clickable:hover td {background:color-mix(in srgb,var(--blue) 10%,var(--surface))}
@@ -427,7 +446,7 @@ html[data-platform="windows"] header,html[data-platform="linux"] header {z-index
 .leaderboard-confirm-dialog .close-dialog-actions .button {min-width:104px;min-height:40px;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .14s cubic-bezier(.23,1,.32,1)}
 @media(max-width:1180px){.leaderboard-profile-top{grid-template-columns:minmax(0,1fr)}.leaderboard-profile-actions{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:900px){.leaderboard-form{grid-template-columns:minmax(0,1fr)}#leaderboard-join-button,#leaderboard-recover-button{width:100%}.leaderboard-profile,.leaderboard-board{padding:18px}.leaderboard-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.leaderboard-profile-lower{grid-template-columns:minmax(0,1fr)}.leaderboard-name-form{flex-wrap:wrap}.leaderboard-name-form input{width:min(260px,70vw)}.leaderboard-role-field select{width:100%;max-width:220px}.leaderboard-board-heading{align-items:flex-start;flex-direction:column}.leaderboard-toolbar{width:100%;justify-content:space-between;flex-wrap:wrap}.leaderboard-table-wrap{max-height:420px}.leaderboard-activity-heatmap{align-items:flex-start;flex-direction:column}.leaderboard-activity-heat-legend{align-self:flex-end}}
-@media(max-width:620px){.leaderboard-identity{align-items:flex-start;flex-direction:column}.leaderboard-profile-copy{width:100%}.leaderboard-profile-meta{align-items:flex-start;flex-direction:column}.leaderboard-role-field select{width:min(260px,70vw)}.leaderboard-profile-actions{grid-template-columns:minmax(0,1fr)}.leaderboard-action{min-height:62px;flex-direction:row;justify-content:flex-start;text-align:left;padding-inline:14px}.leaderboard-visibility-row{grid-template-columns:auto minmax(0,1fr)}.leaderboard-visibility-row .preference-switch{grid-column:2}.leaderboard-toolbar{align-items:stretch;flex-direction:column}.leaderboard-period-segments,.leaderboard-sync{width:100%}.leaderboard-table{min-width:620px}}
+@media(max-width:620px){.leaderboard-identity{align-items:flex-start;flex-direction:column}.leaderboard-profile-copy{width:100%}.leaderboard-profile-meta{align-items:flex-start;flex-direction:column}.leaderboard-role-field select{width:min(260px,70vw)}.leaderboard-profile-actions{grid-template-columns:minmax(0,1fr)}.leaderboard-action{min-height:62px;flex-direction:row;justify-content:flex-start;text-align:left;padding-inline:14px}.leaderboard-visibility-row{grid-template-columns:auto minmax(0,1fr)}.leaderboard-visibility-row .preference-switch{grid-column:2}.leaderboard-toolbar{align-items:stretch;flex-direction:column}.leaderboard-period-segments,.leaderboard-sync{width:100%}.leaderboard-table{min-width:820px}}
 @media(prefers-reduced-motion:reduce){#leaderboard-join-button,#leaderboard-recover-button,.leaderboard-join-mode button,.leaderboard-confirm-dialog .button,.leaderboard-name-edit,.leaderboard-board .table-wrap,.leaderboard-period-segments>button,.leaderboard-activity-heat-cell{transition:none}#leaderboard-sync.is-loading::before{animation:none}.leaderboard-activity-heat-cell[data-tooltip]:hover{transform:none}}
 body.compact .close-dialog {padding:14px}
 body.compact .close-dialog-heading h2 {font-size:14px}

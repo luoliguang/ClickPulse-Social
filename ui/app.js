@@ -237,7 +237,35 @@ const LEADERBOARD_MAX_PAGES=10;
 const LEADERBOARD_REQUEST_TIMEOUT=30000;
 let leaderboardPeriod='today',leaderboardBusy=false,leaderboardEditing=false,leaderboardRenamePending=false,leaderboardRenameValue='',demoLeaderboardRole=null,leaderboardState={profile:{joined:false},board:null},leaderboardPage=0,leaderboardRequestTimer=null,leaderboardRequestId=0,leaderboardBackgroundRequestId=0,leaderboardDevicesRequestId=0;
 const LEADERBOARD_ROLES=['developer','designer','product_manager','operations','marketing','data','engineer','researcher','teacher','writer','student','office','finance','sales','hr','customer_support','legal','medical','freelancer','other'];
+const LEADERBOARD_HONORS=[
+  {rank:1,key:'king',tone:'gold',icon:'king'},
+  {rank:2,key:'intense',tone:'silver',icon:'lightning'},
+  {rank:3,key:'warrior',tone:'bronze',icon:'keyboard'},
+  {rank:4,key:'dedicated',tone:'amber',icon:'hourglass'},
+  {rank:5,key:'steady',tone:'green',icon:'sprout'},
+  {rank:6,key:'focused',tone:'blue',icon:'briefcase'}
+];
+const LEADERBOARD_HONOR_FALLBACK={key:'light',tone:'neutral',icon:'coffee'};
+const LEADERBOARD_HONOR_ICONS={
+  king:[['path',{d:'M5 7 3.5 4 7 5.5 12 2l5 3.5L20.5 4 19 7'}],['path',{d:'M7 9c-1.6 1.3-2.5 3.2-2.5 5.4C4.5 18.1 7.3 21 12 21s7.5-2.9 7.5-6.6c0-2.2-.9-4.1-2.5-5.4'}],['circle',{cx:9,cy:14,r:.8,fill:'currentColor',stroke:'none'}],['circle',{cx:15,cy:14,r:.8,fill:'currentColor',stroke:'none'}],['path',{d:'M9 17.3c1.8 1 4.2 1 6 0'}]],
+  lightning:[['path',{d:'m13.2 2-8 11h6l-.4 9 8-12h-6Z'}]],
+  keyboard:[['rect',{x:3,y:6,width:18,height:12,rx:2}],['path',{d:'M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M7 14h10'}]],
+  hourglass:[['path',{d:'M6 3h12M6 21h12M8 3v4c0 2 1.5 3.4 4 5-2.5 1.6-4 3-4 5v4m8-18v4c0 2-1.5 3.4-4 5 2.5 1.6 4 3 4 5v4'}]],
+  sprout:[['path',{d:'M12 21v-9'}],['path',{d:'M12 13c-4.4 0-7-2.3-7-6 4.3 0 7 2.1 7 6ZM12 16c4.4 0 7-2.3 7-6-4.3 0-7 2.1-7 6Z'}]],
+  briefcase:[['rect',{x:3,y:7,width:18,height:13,rx:2}],['path',{d:'M8 7V5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2M3 12h18M10 12v2h4v-2'}]],
+  coffee:[['path',{d:'M5 8h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5Z'}],['path',{d:'M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 4c1 1 .1 2 0 3m4-3c1 1 .1 2 0 3'}]]
+};
 function leaderboardRoleLabel(role){return t('leaderboard.role.'+(role||'other'));}
+function leaderboardHonor(rank){return LEADERBOARD_HONORS.find(item=>item.rank===Number(rank))||LEADERBOARD_HONOR_FALLBACK;}
+function leaderboardHonorIcon(name){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');
+  for(const [tag,attributes] of LEADERBOARD_HONOR_ICONS[name]){const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,String(value));svg.append(node);}
+  return svg;
+}
+function updateLeaderboardHonorHeading(){
+  const heading=$('leaderboard-honor-heading'),help=$('leaderboard-honor-help'),label=t(leaderboardPeriod==='week'?'leaderboard.honor_week':'leaderboard.honor_today'),disclaimer=t('leaderboard.honor_disclaimer');
+  heading.textContent=label;help.dataset.tooltip=`${label} · ${disclaimer}`;help.setAttribute('aria-label',disclaimer);
+}
 function buildRoleOptions(select,selected){select.replaceChildren(...LEADERBOARD_ROLES.map(role=>{const option=document.createElement('option');option.value=role;option.textContent=leaderboardRoleLabel(role);return option;}));select.value=selected||'other';Dropdowns.sync(select);}
 function applyDemoLeaderboardRole(state){
   if(!state.profile?.demo)return state;
@@ -284,6 +312,7 @@ function requestLeaderboard(sync=false,page=1){
 }
 function renderLeaderboard(){
   const {profile={joined:false},board}=leaderboardState,joined=!!profile.joined,activitySupported=profile.activity_supported===true;
+  updateLeaderboardHonorHeading();
   if(!joined&&leaderboardEditing)setLeaderboardEditing(false);
   $('leaderboard-join').hidden=joined;$('leaderboard-profile').hidden=!joined;
   $('leaderboard-profile-actions').hidden=!!profile.demo;$('leaderboard-name-edit').hidden=!!profile.demo;$('leaderboard-role-edit').disabled=leaderboardBusy;
@@ -305,14 +334,16 @@ function renderLeaderboard(){
     const row=document.createElement('tr');row.classList.toggle('leaderboard-self',selfRow);
     const rank=document.createElement('td'),rankBadge=document.createElement('span'),rankValue=Number(entry.rank);
     rank.className='leaderboard-rank-cell';rankBadge.className='leaderboard-rank';rankBadge.textContent=n(entry.rank);
-    if(rankValue>=1&&rankValue<=3)rankBadge.classList.add('leaderboard-rank-top',`leaderboard-rank-${rankValue}`);
+    if(rankValue>=1&&rankValue<=3)rankBadge.className+=` leaderboard-rank-top leaderboard-rank-${rankValue}`;
     rank.append(rankBadge);
     const member=document.createElement('td'),wrap=document.createElement('div'),avatar=document.createElement('span'),name=document.createElement('span'),role=document.createElement('span');
     wrap.className='leaderboard-member';avatar.className='leaderboard-avatar';leaderboardAvatar(avatar,entry.avatar,entry.nickname);name.className='leaderboard-member-name';name.textContent=entry.nickname;
     if(selfRow){const you=document.createElement('span');you.className='leaderboard-you';you.textContent=t('leaderboard.you');name.append(' ',you);}
     role.className='leaderboard-role';role.textContent=leaderboardRoleLabel(entry.role);wrap.append(avatar,name,role);member.append(wrap);
+    const honor=leaderboardHonor(rankValue),honorCell=document.createElement('td'),honorBadge=document.createElement('span'),honorLabel=document.createElement('span'),honorTitle=t(`leaderboard.honor.${honor.key}`),honorTooltip=t('leaderboard.honor_tooltip',{title:honorTitle,rank:Number.isFinite(rankValue)?n(rankValue):'—'});
+    honorCell.className='leaderboard-honor-cell';honorBadge.className=`leaderboard-honor-badge leaderboard-honor-${honor.tone}`;honorBadge.dataset.tooltip=honorTooltip;honorBadge.setAttribute('role','img');honorBadge.setAttribute('aria-label',honorTooltip);honorLabel.className='leaderboard-honor-label';honorLabel.textContent=honorTitle;honorBadge.append(leaderboardHonorIcon(honor.icon),honorLabel);honorCell.append(honorBadge);
     if(joined&&!profile.demo&&activitySupported){row.classList.toggle('leaderboard-clickable',true);row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`${t('leaderboard.activity_title')}: ${entry.nickname}`);row.addEventListener('click',()=>openLeaderboardActivity(entry));row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openLeaderboardActivity(entry);}});}
-    const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.className='leaderboard-number';mouse.className='leaderboard-number';sum.className='leaderboard-number leaderboard-total-cell';keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,keyboard,mouse,sum);return row;
+    const keyboard=document.createElement('td'),mouse=document.createElement('td'),sum=document.createElement('td');keyboard.className='leaderboard-number';mouse.className='leaderboard-number';sum.className='leaderboard-number leaderboard-total-cell';keyboard.textContent=n(entry.keyboard);mouse.textContent=n(entry.mouse);sum.textContent=n(entry.total);row.append(rank,member,honorCell,keyboard,mouse,sum);return row;
   });
   const body=$('leaderboard-rows');body.replaceChildren(...rows);$('leaderboard-empty').hidden=rows.length!==0;
   $('leaderboard-range').textContent=board?`${board.starts_on} — ${board.ends_on}`:'';
@@ -452,7 +483,7 @@ $('leaderboard-recovery-copy')?.addEventListener('click',async()=>{
 $('leaderboard-recovery-done')?.addEventListener('click',()=>{$('leaderboard-recovery-codes').hidden=true;});
 for(const button of document.querySelectorAll('[data-leaderboard-period]'))button.addEventListener('click',()=>{
   if(leaderboardBusy||button.dataset.leaderboardPeriod===leaderboardPeriod)return;
-  leaderboardPeriod=button.dataset.leaderboardPeriod;$('leaderboard-period-segments').dataset.period=leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));requestLeaderboard(false);
+  leaderboardPeriod=button.dataset.leaderboardPeriod;$('leaderboard-period-segments').dataset.period=leaderboardPeriod;document.querySelectorAll('[data-leaderboard-period]').forEach(item=>item.classList.toggle('selected',item===button));updateLeaderboardHonorHeading();requestLeaderboard(false);
 });
 $('leaderboard-sync')?.addEventListener('click',()=>requestLeaderboard(true));
 $('leaderboard-name-edit')?.addEventListener('click',()=>setLeaderboardEditing(true));

@@ -51,9 +51,10 @@ function app(platform='macos',legacyWebKit=false,reducedMotion=false){
     querySelector(selector){return get(selector==='header'?'header':selector==='.sidebar'?'sidebar':'main');},
     querySelectorAll(selector){return selector==='nav button[data-page]'?nav:selector==='[data-settings-section]'?settingsLinks:selector==='.page'?pages:selector==='[data-range]'?ranges:selector==='[data-leaderboard-period]'?leaderboardPeriods:selector==='[data-join-mode]'?leaderboardJoinModes:[];},
     createElement(){const node=new Element();node.ownerDocument=document;return node;},createElementNS(){const node=new Element();node.ownerDocument=document;return node;}};
+  const setIntervalMock=(handler,ms)=>{const id=++timerId;intervals.set(id,{handler,ms});return id;},clearIntervalMock=id=>{intervals.delete(id);};
   const window={ipc:{postMessage(){}},presentationView:{compact:false},clickpulsePlatform:platform,clickpulseMessages:messages,clickpulseLocale:'en'};
-  Object.assign(window,{matchMedia:()=>({matches:reducedMotion,addEventListener(){}}),performance:{now:()=>now},setInterval(handler,ms){const id=++timerId;intervals.set(id,{handler,ms});return id;},clearInterval(id){intervals.delete(id);}});
-  const context=vm.createContext({document,window,setTimeout,clearTimeout,...(legacyWebKit?{}:{ClickPulseSport:Sport,ClickPulseShare:Share,ClickPulseThemes:Themes,ClickPulseDropdowns:Dropdowns,ClickPulseI18n:createI18n(messages,'en',platform),ClickPulseHistory:H,ClickPulseKeyboard:K.create(platform)})});
+  Object.assign(window,{matchMedia:()=>({matches:reducedMotion,addEventListener(){}}),performance:{now:()=>now},setInterval:setIntervalMock,clearInterval:clearIntervalMock});
+  const context=vm.createContext({document,window,setTimeout,clearTimeout,setInterval:setIntervalMock,clearInterval:clearIntervalMock,...(legacyWebKit?{}:{ClickPulseSport:Sport,ClickPulseShare:Share,ClickPulseThemes:Themes,ClickPulseDropdowns:Dropdowns,ClickPulseI18n:createI18n(messages,'en',platform),ClickPulseHistory:H,ClickPulseKeyboard:K.create(platform)})});
   if(legacyWebKit){
     // Load the real modules in this realm: injected Node functions would keep
     // Node's newer built-ins and conceal a minimum-WebKit startup failure.
@@ -875,6 +876,23 @@ test('demo leaderboard role stays selectable and local across refreshes and lang
   a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
   assert.equal(select.value,'designer');
   assert.equal(a.get('leaderboard-rows').children[0].children[1].children[0].children[2].textContent,'设计师');
+});
+test('leaderboard honors derive from live rank and follow the selected period',()=>{
+  const a=app(),sent=[];a.window.ipc.postMessage=message=>sent.push(JSON.parse(message));
+  const titles=['king','intense','warrior','dedicated','steady','focused','light'];
+  const board=period=>({profile:{joined:false},board:{period,entries:titles.map((key,index)=>({rank:index+1,member_id:'member-'+index,nickname:'Member '+index,role:'other',keyboard:20-index,mouse:10-index,total:30-index})),starts_on:'2026-11-16',ends_on:'2026-11-16',page:1,total_pages:1,total_entries:7}});
+  a.window.receiveLeaderboard(board('today'));
+  const honorLabel=row=>row.children[2].children[0].children[1].textContent;
+  assert.deepEqual(a.get('leaderboard-rows').children.map(honorLabel),titles.map(key=>messages.en['leaderboard.honor.'+key]));
+  assert.match(a.get('leaderboard-rows').children[0].children[2].children[0].dataset.tooltip,/Rank #1/);
+  assert.equal(a.get('leaderboard-honor-heading').textContent,messages.en['leaderboard.honor_today']);
+  sent.length=0;a.leaderboardPeriods[1].fire();
+  assert.equal(a.get('leaderboard-honor-heading').textContent,messages.en['leaderboard.honor_week']);
+  assert.deepEqual(sent.pop(),{action:'leaderboard',period:'week',page:1,request_id:1});
+  a.window.receiveLeaderboard(1,board('week'));
+  a.window.receiveView({locale:'zh-CN',language_preference:'zh-CN'});
+  assert.equal(a.get('leaderboard-honor-heading').textContent,messages['zh-CN']['leaderboard.honor_week']);
+  assert.equal(honorLabel(a.get('leaderboard-rows').children[0]),messages['zh-CN']['leaderboard.honor.king']);
 });
 test('uploaded leaderboard avatars never retain default initials',()=>{
   const a=app();
