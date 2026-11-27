@@ -892,6 +892,11 @@ pub fn run(
                                 report_error(&webview, locale, "update.failed", &error);
                             }
                         }
+                        Request::GithubLink { target } => {
+                            if let Err(error) = updates::open_github_link(target) {
+                                report_error(&webview, locale, "link.failed", &error);
+                            }
+                        }
                         Request::Ready {} => {
                             ready = true;
                             // Publish after receiveView below, so the persisted

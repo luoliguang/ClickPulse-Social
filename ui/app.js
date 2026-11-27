@@ -211,7 +211,7 @@ $('mini-update-defer')?.addEventListener('click',()=>{
   closeMiniUpdate();renderMiniUpdate();send('defer_update',{version});
 });
 
-// Feedback dialog: scan the WeChat QR to join the feedback group.
+// Feedback dialog: contact the developer via the WeChat QR code.
 const feedbackOverlay=$('feedback-overlay');
 let feedbackPreviousFocus=null;
 function openFeedback(){
@@ -229,6 +229,10 @@ function closeFeedback(){
 }
 $('feedback-nav')?.addEventListener('click',openFeedback);
 $('feedback-open')?.addEventListener('click',openFeedback);
+for(const link of document.querySelectorAll('#about-settings [data-github-link]'))link.addEventListener('click',event=>{
+  event.preventDefault();
+  send('github_link',{target:link.dataset.githubLink});
+});
 $('feedback-done')?.addEventListener('click',closeFeedback);
 feedbackOverlay?.addEventListener('click',event=>{if(event.target===feedbackOverlay)closeFeedback();});
 feedbackOverlay?.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFeedback();}});

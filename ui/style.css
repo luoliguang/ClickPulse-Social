@@ -142,6 +142,37 @@ td:first-child,th:first-child {text-align:left}tbody tr {transition:background-c
 .setting-row + .setting-row {border-top:1px solid var(--line)}.setting-row:last-child {padding-bottom:2px}.setting-row strong {font-size:var(--ui-label-size);line-height:1.5;font-weight:600;color:#365479}
 .setting-row p {font-size:var(--ui-detail-size);line-height:1.7;color:#7186a3;margin:6px 0 0}.path {font:11px var(--mono)!important;overflow-wrap:anywhere}.setting-row>div {min-width:0}
 .setting-row a {font-size:var(--ui-detail-size);line-height:1.7;color:var(--blue)}
+.about-card {padding:24px 26px 22px;overflow:hidden}
+.about-heading {display:block;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.about-card .about-heading h2 {display:block;margin:0;font-size:20px;letter-spacing:-.25px;color:var(--navy)}
+.about-heading p {display:block;margin:7px 0 0;color:var(--muted);font-size:var(--ui-detail-size);line-height:1.65}
+.about-contact-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-bottom:1px solid var(--line);align-items:stretch}
+.about-contact-item {display:grid;grid-template-columns:36px minmax(0,1fr);gap:13px;padding:24px 24px 24px 0;min-width:0}
+.about-contact-item+ .about-contact-item {padding-left:24px;border-left:1px solid var(--line)}
+.about-icon,.about-resource-icon {display:grid;place-items:center;color:var(--blue);background:color-mix(in srgb,var(--blue) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--blue) 16%,var(--line))}
+.about-icon {width:36px;height:36px;border-radius:8px}
+.about-icon svg,.about-resource-icon svg {width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.about-contact-copy {display:flex;align-items:flex-start;flex-direction:column;min-width:0;height:100%}
+.about-card h3 {margin:0;color:#365479;font-size:var(--ui-label-size);line-height:1.5;font-weight:650}
+.about-contact-copy p {margin:6px 0 16px;color:#7186a3;font-size:var(--ui-detail-size);line-height:1.7}.about-contact-copy h3,.about-contact-copy p {overflow-wrap:anywhere}
+.about-contact-copy .button {margin-top:auto;min-height:40px;width:auto;padding-inline:16px;text-decoration:none}
+.about-contact-copy small {display:block;margin-top:8px;color:var(--muted);font-size:10px;line-height:1.5}
+.about-section {padding:21px 0}
+.about-resource-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.about-resource {display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px 16px;color:inherit;text-decoration:none;background:var(--surface);min-width:0;transition:background-color .15s,border-color .15s}
+.about-resource+ .about-resource {border-left:1px solid var(--line)}
+.about-resource:hover {background:color-mix(in srgb,var(--blue) 4%,var(--surface))}
+.about-resource:focus-visible {position:relative;z-index:1;outline:2px solid var(--blue);outline-offset:-2px}
+.about-resource-icon {width:34px;height:34px;border-radius:7px}
+.about-resource strong,.about-resource small {display:block;overflow-wrap:anywhere}
+.about-resource strong {color:#365479;font-size:var(--ui-label-size);line-height:1.5}
+.about-resource small {margin-top:3px;color:#7186a3;font-size:var(--ui-detail-size);line-height:1.55}
+.about-arrow {color:var(--muted);font-size:15px}
+.about-meta {display:grid;grid-template-columns:minmax(140px,auto) minmax(0,1fr);gap:24px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.65}
+.about-meta>div {min-width:0}.about-meta strong {display:block;margin-bottom:3px;color:#657994;font-size:11px;font-weight:600}.about-meta p {margin:0}.about-meta #about-version {font-family:var(--mono);font-variant-numeric:tabular-nums}
+@media(max-width:840px){.about-resource-list{grid-template-columns:minmax(0,1fr)}.about-resource+ .about-resource{border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:760px){.about-contact-grid,.about-meta{grid-template-columns:minmax(0,1fr)}.about-contact-item{padding-right:0}.about-contact-item+ .about-contact-item{padding:22px 0;border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:620px){.about-card{padding:20px 18px}.about-contact-item{grid-template-columns:32px minmax(0,1fr)}.about-icon{width:32px;height:32px}.about-contact-copy .button{width:100%}.about-resource{padding-inline:12px}}
 .setting-label {display:inline-flex;align-items:center;gap:7px}
 .info-tip {position:relative;display:inline-flex;align-items:center}
 .info-tip-trigger {display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--muted);cursor:pointer;flex:none}

@@ -7,6 +7,14 @@ use clickpulse::{
 };
 use serde::Deserialize;
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum GithubLink {
+    Project,
+    Issues,
+    Releases,
+}
+
 fn default_page() -> u64 {
     1
 }
@@ -42,6 +50,9 @@ pub(super) enum Request {
         version: String,
     },
     UpdateRelease {},
+    GithubLink {
+        target: GithubLink,
+    },
     Ready {},
     Compact {},
     Expand {},
@@ -159,6 +170,10 @@ mod tests {
             r#"{"action":"defer_update"}"#,
             r#"{"action":"defer_update","version":"0.4.3","days":7}"#,
             r#"{"action":"update_release","url":"https://example.com"}"#,
+            r#"{"action":"github_link"}"#,
+            r#"{"action":"github_link","target":"https://example.com"}"#,
+            r#"{"action":"github_link","target":"project","url":"https://example.com"}"#,
+            r#"{"action":"github_link","target":"unknown"}"#,
             r#"{"action":"timezone","timezone":"not/a-zone"}"#,
             r#"{"action":"timezone"}"#,
             r#"{"action":"timezone","timezone":null}"#,
@@ -190,6 +205,25 @@ mod tests {
             r#"{"action":"autostart"}"#,
         ] {
             assert!(serde_json::from_str::<Request>(body).is_err(), "{body}");
+        }
+        for (body, expected) in [
+            (
+                r#"{"action":"github_link","target":"project"}"#,
+                GithubLink::Project,
+            ),
+            (
+                r#"{"action":"github_link","target":"issues"}"#,
+                GithubLink::Issues,
+            ),
+            (
+                r#"{"action":"github_link","target":"releases"}"#,
+                GithubLink::Releases,
+            ),
+        ] {
+            assert!(matches!(
+                serde_json::from_str::<Request>(body).unwrap(),
+                Request::GithubLink { target } if target == expected
+            ));
         }
         assert!(matches!(
             serde_json::from_str::<Request>(r#"{"action":"theme","theme":"teal"}"#).unwrap(),

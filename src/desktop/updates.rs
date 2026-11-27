@@ -1,3 +1,4 @@
+use super::ipc::GithubLink;
 use clickpulse::updater::{self, ApplyGuard, Candidate, Installation, StagedUpdate, Target};
 use serde::Serialize;
 use std::{
@@ -815,19 +816,50 @@ impl Controller {
             .as_ref()
             .map(|c| c.release_url.as_str())
             .unwrap_or(updater::RELEASES);
-        #[cfg(target_os = "macos")]
-        Command::new("/usr/bin/open").arg(url).spawn()?;
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            Command::new("rundll32.exe")
-                .arg("url.dll,FileProtocolHandler")
-                .arg(url)
-                .creation_flags(0x08000000)
-                .spawn()?;
-        }
-        #[cfg(target_os = "linux")]
-        Command::new("xdg-open").arg(url).spawn()?;
-        Ok(())
+        open_url(url)
+    }
+}
+
+const PROJECT_URL: &str = "https://github.com/luoliguang/ClickPulse-Social";
+const ISSUES_URL: &str = "https://github.com/luoliguang/ClickPulse-Social/issues/new";
+
+pub(super) fn open_github_link(target: GithubLink) -> anyhow::Result<()> {
+    open_url(github_url(target))
+}
+
+fn github_url(target: GithubLink) -> &'static str {
+    match target {
+        GithubLink::Project => PROJECT_URL,
+        GithubLink::Issues => ISSUES_URL,
+        GithubLink::Releases => updater::RELEASES,
+    }
+}
+
+fn open_url(url: &str) -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    Command::new("/usr/bin/open").arg(url).spawn()?;
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        Command::new("rundll32.exe")
+            .arg("url.dll,FileProtocolHandler")
+            .arg(url)
+            .creation_flags(0x08000000)
+            .spawn()?;
+    }
+    #[cfg(target_os = "linux")]
+    Command::new("xdg-open").arg(url).spawn()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod github_link_tests {
+    use super::*;
+
+    #[test]
+    fn github_targets_map_only_to_the_three_approved_urls() {
+        assert_eq!(github_url(GithubLink::Project), PROJECT_URL);
+        assert_eq!(github_url(GithubLink::Issues), ISSUES_URL);
+        assert_eq!(github_url(GithubLink::Releases), updater::RELEASES);
     }
 }
