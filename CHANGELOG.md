@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.9 · 2026-11-28
+
+### New
+
+- Contact the developer, submit GitHub feedback and open project resources from the redesigned About & Feedback page.
+- Recognize leading members with a clearer leaderboard podium and compact achievement markers.
+
+### Improved
+
+- Follow update downloads from the window header with live progress and transfer speed, with automatic fallback between approved download sources.
+- Navigate the redesigned leaderboard profile, period controls and ranking list with clearer hierarchy and responsive spacing.
+- Keep the complete leaderboard avatar visible by preserving its original aspect ratio inside a safe circular crop area.
+
+### Fixed
+
+- Refresh legacy leaderboard device names from current device metadata when a member reconnects.
+- Show a relevant error when an external project link cannot be opened instead of reporting an update failure.
+
 ## 0.4.8 · 2026-11-26
 
 ### New
