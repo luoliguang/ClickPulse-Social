@@ -13,6 +13,7 @@ use std::{
 pub const API_BASE: &str = "https://clickpulse.fangdutex.cn/api/v1";
 const MAX_RESPONSE: u64 = 1024 * 1024;
 const MAX_AVATAR: usize = 200 * 1024;
+const AVATAR_CONTENT_PERCENT: u32 = 90;
 
 pub const ROLES: &[&str] = &[
     "developer",
@@ -569,6 +570,24 @@ pub fn delete_avatar(profile: &Profile) -> Result<()> {
     Ok(())
 }
 
+fn fit_avatar(image: &image::DynamicImage, size: u32) -> image::RgbaImage {
+    let content_size = (size.saturating_mul(AVATAR_CONTENT_PERCENT) / 100).max(1);
+    let (src_w, src_h) = (image.width() as f64, image.height() as f64);
+    let scale = content_size as f64 / src_w.max(src_h);
+    let (dst_w, dst_h) = (
+        (src_w * scale).round().max(1.0) as u32,
+        (src_h * scale).round().max(1.0) as u32,
+    );
+    let resized = image
+        .resize(dst_w, dst_h, image::imageops::FilterType::Lanczos3)
+        .to_rgba8();
+    let x = (size - resized.width()) / 2;
+    let y = (size - resized.height()) / 2;
+    let mut canvas = image::RgbaImage::new(size, size);
+    image::imageops::overlay(&mut canvas, &resized, i64::from(x), i64::from(y));
+    canvas
+}
+
 pub fn prepare_avatar(path: &Path) -> Result<Vec<u8>> {
     let input = std::fs::read(path).context("Unable to read avatar")?;
     ensure!(
@@ -580,17 +599,11 @@ pub fn prepare_avatar(path: &Path) -> Result<Vec<u8>> {
         image.width() >= 32 && image.height() >= 32,
         "Avatar is too small"
     );
-    let side = image.width().min(image.height());
-    let x = (image.width() - side) / 2;
-    let y = (image.height() - side) / 2;
-    let square = image.crop_imm(x, y, side, side);
     for size in [256, 224, 192] {
-        let resized = square
-            .resize_exact(size, size, image::imageops::FilterType::Lanczos3)
-            .to_rgba8();
+        let fitted = fit_avatar(&image, size);
         let mut output = Vec::new();
         image::codecs::webp::WebPEncoder::new_lossless(&mut output).encode(
-            &resized,
+            &fitted,
             size,
             size,
             image::ExtendedColorType::Rgba8,
@@ -648,6 +661,19 @@ mod tests {
         assert_eq!(normalize_role("developer").unwrap(), "developer");
         assert!(normalize_role("astronaut").is_err());
     }
+    fn visible_bounds(image: &image::RgbaImage) -> (u32, u32, u32, u32) {
+        let mut bounds = (image.width(), image.height(), 0, 0);
+        for (x, y, pixel) in image.enumerate_pixels() {
+            if pixel[3] > 0 {
+                bounds.0 = bounds.0.min(x);
+                bounds.1 = bounds.1.min(y);
+                bounds.2 = bounds.2.max(x);
+                bounds.3 = bounds.3.max(y);
+            }
+        }
+        bounds
+    }
+
     #[test]
     fn avatar_processing_strips_input_and_produces_bounded_webp() {
         let temp = tempfile::tempdir().unwrap();
@@ -658,6 +684,47 @@ mod tests {
         assert!(output.len() <= MAX_AVATAR);
         assert_eq!(&output[..4], b"RIFF");
         assert_eq!(&output[8..12], b"WEBP");
+        let decoded = image::load_from_memory_with_format(&output, image::ImageFormat::WebP)
+            .unwrap()
+            .to_rgba8();
+        assert_eq!(decoded.dimensions(), (256, 256));
+        assert_eq!(decoded.get_pixel(0, 0)[3], 0);
+    }
+
+    #[test]
+    fn avatar_fitting_preserves_landscape_portrait_and_square_content() {
+        for (width, height) in [(320, 200), (200, 320), (240, 240)] {
+            let source = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+                width,
+                height,
+                image::Rgba([40, 80, 120, 255]),
+            ));
+            let fitted = fit_avatar(&source, 256);
+            let (left, top, right, bottom) = visible_bounds(&fitted);
+            let visible_width = right - left + 1;
+            let visible_height = bottom - top + 1;
+
+            assert!(left >= 12 && top >= 12);
+            assert!(right < 244 && bottom < 244);
+            assert!(visible_width <= 230 && visible_height <= 230);
+            assert!(
+                (visible_width * height).abs_diff(visible_height * width) <= width.max(height),
+                "visible avatar changed aspect ratio for {width}x{height}"
+            );
+        }
+    }
+
+    #[test]
+    fn avatar_fitting_preserves_source_transparency() {
+        let mut pixels = image::RgbaImage::from_pixel(200, 320, image::Rgba([40, 80, 120, 255]));
+        for y in 120..200 {
+            for x in 60..140 {
+                pixels.put_pixel(x, y, image::Rgba([0, 0, 0, 0]));
+            }
+        }
+        let fitted = fit_avatar(&image::DynamicImage::ImageRgba8(pixels), 256);
+        assert_eq!(fitted.get_pixel(128, 128)[3], 0);
+        assert_eq!(fitted.get_pixel(24, 128)[3], 0);
     }
     #[test]
     fn first_page_url_remains_compatible_with_the_legacy_server() {
